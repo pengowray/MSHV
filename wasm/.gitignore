@@ -1,0 +1,19 @@
+# Ignore build directory
+/build/*
+!/build/.gitkeep
+
+# Ignore compiled output in web directory
+#/web/*.js
+#/web/*.wasm
+
+# Ignore CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Ignore editor and system files
+*.swp
+*~
+.DS_Store
+.vscode/*
