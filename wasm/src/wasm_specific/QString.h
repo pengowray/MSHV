@@ -5,7 +5,6 @@
 #include <vector>
 #include "QChar.h"
 
-// Forward declaration of QStringList
 class QStringList;
 
 class QString : public std::string {
@@ -14,6 +13,7 @@ public:
     QString(const char* str);
     QString(const std::string& str);
     QString(int size, QChar ch);
+    QString(const char* str, size_t length);
 
     template<class InputIt>
     QString(InputIt first, InputIt last);
@@ -56,24 +56,55 @@ public:
     QString toUpper() const;
     bool isEmpty() const;
     bool containsDigits() const;
-
     QStringList split(const QString& separator) const;
+
+    QString& erase(size_type pos = 0, size_type count = npos) {
+        std::string::erase(pos, count);
+        return *this;
+    }
+
+    QString& erase(const_iterator position) {
+        std::string::erase(position);
+        return *this;
+    }
+
+    QString& erase(const_iterator first, const_iterator last) {
+        std::string::erase(first, last);
+        return *this;
+    }
+
+    class iterator {
+        std::string::iterator it;
+    public:
+        iterator(std::string::iterator i);
+        iterator& operator++();
+        iterator operator++(int);
+        bool operator!=(const iterator& other) const;
+        QChar operator*() const;
+        std::string::iterator base() { return it; }
+    };
 
     class const_iterator {
         std::string::const_iterator it;
     public:
-        const_iterator(std::string::const_iterator i) : it(i) {}
-        const_iterator& operator++() { ++it; return *this; }
-        const_iterator operator++(int) { const_iterator tmp = *this; ++(*this); return tmp; }
-        bool operator!=(const const_iterator& other) const { return it != other.it; }
-        QChar operator*() const { return QChar(*it); }
+        const_iterator(std::string::const_iterator i);
+        const_iterator& operator++();
+        const_iterator operator++(int);
+        bool operator!=(const const_iterator& other) const;
+        QChar operator*() const;
+        std::string::const_iterator base() const { return it; } 
     };
 
-    iterator begin() { return iterator(std::string::begin()); }
-    iterator end() { return iterator(std::string::end()); }
-    const_iterator begin() const { return const_iterator(std::string::begin()); }
-    const_iterator end() const { return const_iterator(std::string::end()); }
+    iterator begin();
+    iterator end();
+    const_iterator begin() const;
+    const_iterator end() const;
 };
+
+QString operator+(const QString& qstr1, const QString& qstr2);
+QString operator+(const QString& qstr, const std::string& stdStr);
+QString operator+(const QString& qstr, const char* cstr);
+QString operator+(const char* cstr, const QString& qstr);
 
 // macro for: foreach(QChar Char, callsign) {
 // or instead use range-based for loop syntax: for (QChar Char : callsign) {

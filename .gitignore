@@ -1,0 +1,46 @@
+# Ignore hidden directories and files
+.*
+!.gitignore
+
+# Ignore build-related directories and files
+/build/
+/bin/
+/debug/
+/release/
+
+# Ignore specific build-related files
+*.o
+*.obj
+*.so
+*.dll
+*.lib
+*.a
+*.dylib
+*.exe
+*.out
+*.app
+
+# Ignore Qt Creator files
+*.pro.user
+*.pro.user.*
+*.qmake.stash
+*.qmake.cache
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore the Visual Studio Code folder
+.vscode/
+
+# Ignore compiled Python files
+*.pyc
+__pycache__/
+
+# Ignore temporary files
+*.tmp
+*.log
+
+# Ignore patch files
+*.diff
+*.patch

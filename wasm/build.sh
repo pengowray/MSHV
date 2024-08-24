@@ -18,6 +18,9 @@ mkdir -p "$WEB_DIR"
 # Navigate to build directory
 cd "$BUILD_DIR"
 
+#emcmake cmake -DCMAKE_BUILD_TYPE=Release .
+#emmake make
+
 # Run CMake
 emcmake cmake -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_FLAGS="-I$WASM_SRC_DIR/wasm_specific -I$WASM_SRC_DIR/mshv_adapted" \
