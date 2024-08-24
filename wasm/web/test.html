@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSHV FT8 Module Test</title>
+</head>
+<body>
+    <h1>MSHV FT8 Module Test</h1>
+    <div id="output"></div>
+
+    <script>
+        // Helper function to log output to the page
+        function log(message) {
+            document.getElementById('output').innerHTML += message + '<br>';
+            console.log(message);
+        }
+
+        // Module wrapper
+        let mshvFT8Module = {
+            init: function() {
+                return new Promise((resolve) => {
+                    window.Module = {
+                        print: function(text) { log(text); },
+                        printErr: function(text) { log('Error: ' + text); },
+                        onRuntimeInitialized: () => {
+                            this._init_ft8 = Module.cwrap('init_ft8', null, []);
+                            this._pack_ft8_message = Module.cwrap('pack_ft8_message', 'string', ['string']);
+                            this._unpack_ft8_message = Module.cwrap('unpack_ft8_message', 'string', ['string']);
+                            this._save_hash_call = Module.cwrap('save_hash_call', null, ['string']);
+                            
+                            this._init_ft8();
+                            resolve();
+                        }
+                    };
+
+                    var script = document.createElement('script');
+                    script.src = 'mshv_ft8.js';
+                    document.body.appendChild(script);
+                });
+            },
+
+            packMessage: function(message) {
+                return this._pack_ft8_message(message);
+            },
+
+            unpackMessage: function(packedMessage) {
+                return this._unpack_ft8_message(packedMessage);
+            },
+
+            saveHashCall: function(call) {
+                this._save_hash_call(call);
+            }
+        };
+
+        // Main function to run tests
+        async function runTests() {
+            log('Initializing MSHV FT8 Module...');
+            await mshvFT8Module.init();
+            log('Module initialized.');
+
+            const testMessage = "CQ K1ABC FN42";
+            log('Test message: ' + testMessage);
+
+            const packedMessage = mshvFT8Module.packMessage(testMessage);
+            log('Packed message: ' + packedMessage);
+
+            const unpackedMessage = mshvFT8Module.unpackMessage(packedMessage);
+            log('Unpacked message: ' + unpackedMessage);
+
+            mshvFT8Module.saveHashCall("K1ABC");
+            log('Saved hash call for K1ABC');
+        }
+
+        // Start the tests when the page loads
+        window.onload = runTests;
+    </script>
+</body>
+</html>
