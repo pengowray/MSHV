@@ -7,7 +7,6 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 BUILD_DIR="$SCRIPT_DIR/build"
 WEB_DIR="$SCRIPT_DIR/web"
-SRC_DIR="$SCRIPT_DIR/../src"
 WASM_SRC_DIR="$SCRIPT_DIR/src"
 
 # Create build directory if it doesn't exist
@@ -19,16 +18,15 @@ mkdir -p "$WEB_DIR"
 # Navigate to build directory
 cd "$BUILD_DIR"
 
-# Run CMake with verbose output
+# Run CMake
 emcmake cmake -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_FLAGS="-I$SRC_DIR/HvMsPlayer/libsound/HvPackUnpackMsg" \
-    "$SCRIPT_DIR" \
-    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
+    -DCMAKE_CXX_FLAGS="-I$WASM_SRC_DIR/wasm_specific -I$WASM_SRC_DIR/mshv_adapted" \
+    "$SCRIPT_DIR"
 
-
+# Build the project
 emmake make
 
 # Copy the output to the web directory
-cp ft8_wasm.js ft8_wasm.wasm "$WEB_DIR/"
+cp mshv_ft8.js mshv_ft8.wasm "$WEB_DIR/"
 
 echo "Build complete. Output files are in $WEB_DIR"
