@@ -6,6 +6,8 @@
 #include <iomanip>
 #include "QString.h"
 
+// Minimal QString implementation, wrapping std::string
+
 class QString : public std::string {
 public:
     QString() : std::string() {}
@@ -20,6 +22,15 @@ public:
         std::string::operator+=(str);
         return *this;
     }
+
+    QString operator+(const QString& qstr, const std::string& stdStr) {
+        return QString(qstr.toStdString() + stdStr);
+    }
+
+    QString operator+(const QString& qstr, const char* cstr) {
+        return QString(qstr.toStdString() + cstr);
+    }
+
 
     std::string toStdString() const {
         return *this;
@@ -142,15 +153,12 @@ public:
         return QChar(std::string::at(index));
     }
 
-    // Overload operator[] to return a reference to a character
-    char& operator[](int index) {
-        return std::string::operator[](index);
-    }
+    //char& operator[](int index) { return std::string::operator[](index); }
+    //const char& operator[](int index) const { return std::string::operator[](index); }
 
-    // Const version of operator[]
-    const char& operator[](int index) const {
-        return std::string::operator[](index);
-    }
+    QChar operator[](int index) { return QChar(std::string::at(index)); }
+    const QChar operator[](int index) const { return QChar(std::string::at(index)); }
+
 
     bool isLetter() const {
         return !empty() && std::isalpha(front());
@@ -174,8 +182,27 @@ public:
         return *this;
     }
 
+    QString& replace(int start, int count, const QString& replacement) {
+        // Ensure the start position and count are within valid bounds
+        if (start < 0 || start >= static_cast<int>(size()) || count < 0 || start + count > static_cast<int>(size())) {
+            throw std::out_of_range("Index out of range");
+        }
+
+        // Replace the specified range with the replacement string
+        std::string::replace(start, count, replacement);
+
+        return *this;
+    }
+
     QString midRef(int pos, int len = -1) const {
         return mid(pos, len);
+    }
+
+    QString leftJustified(int width, QChar fill = ' ') const {
+        if (static_cast<int>(size()) >= width) {
+            return *this;
+        }
+        return *this + QString(width - size(), fill);
     }
 
     QString rightJustified(int width, QChar fill = ' ') const {
@@ -208,4 +235,39 @@ public:
         return empty();
     }
 
+    // additional method to replace a regex: QRegExp rx("(\\d+)");
+    bool QString::containsDigits() const {
+        for (char c : *this) {
+            if (std::isdigit(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Iterator classes
+    class iterator {
+        std::string::iterator it;
+    public:
+        iterator(std::string::iterator i) : it(i) {}
+        iterator& operator++() { ++it; return *this; }
+        iterator operator++(int) { iterator tmp = *this; ++(*this); return tmp; }
+        bool operator!=(const iterator& other) const { return it != other.it; }
+        QChar operator*() const { return QChar(*it); }
+    };
+
+    class const_iterator {
+        std::string::const_iterator it;
+    public:
+        const_iterator(std::string::const_iterator i) : it(i) {}
+        const_iterator& operator++() { ++it; return *this; }
+        const_iterator operator++(int) { const_iterator tmp = *this; ++(*this); return tmp; }
+        bool operator!=(const const_iterator& other) const { return it != other.it; }
+        QChar operator*() const { return QChar(*it); }
+    };
+
+    iterator begin() { return iterator(std::string::begin()); }
+    iterator end() { return iterator(std::string::end()); }
+    const_iterator begin() const { return const_iterator(std::string::begin()); }
+    const_iterator end() const { return const_iterator(std::string::end()); }
 };

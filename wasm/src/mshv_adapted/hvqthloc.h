@@ -9,6 +9,7 @@
 
 //#include <QStringList>
 //#include <QMessageBox>
+#include "../wasm_specific/QChar.h"
 #include "../wasm_specific/QString.h"
 #include "../wasm_specific/QStringList.h"
 

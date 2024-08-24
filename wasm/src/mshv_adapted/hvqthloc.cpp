@@ -21,7 +21,7 @@ static double daztab[22]=
 bool HvQthLoc::isValidCallsign(QString callsign)
 {
     bool valid = true;
-    QRegExp rx("(\\d+)");
+    //QRegExp rx("(\\d+)");
 
     if (callsign.count()< 3) // A callsign must be longer than two characters
         valid = false;
@@ -38,7 +38,7 @@ bool HvQthLoc::isValidCallsign(QString callsign)
                     valid = false;
                 else
                     //if (DigitPresent(callsign) == false)
-                    if (!callsign.contains(rx))
+                    if (!callsign.containsDigits()) // if (!callsign.contains(rx))
                         valid = false;
                     else
                     {

@@ -18,9 +18,9 @@ add_executable(mshv_ft8
     ${CMAKE_SOURCE_DIR}/src/mshv_adapted/pack_unpack_msg77.cpp
     ${CMAKE_SOURCE_DIR}/src/mshv_adapted/pack_msg.cpp
     ${CMAKE_SOURCE_DIR}/src/mshv_adapted/hvqthloc.cpp
-    ${CMAKE_SOURCE_DIR}/src/wasm_specific/QString.cpp
-    ${CMAKE_SOURCE_DIR}/src/wasm_specific/QChar.cpp
-    ${CMAKE_SOURCE_DIR}/src/wasm_specific/QStringList.cpp
+    #${CMAKE_SOURCE_DIR}/src/wasm_specific/QString.cpp
+    #${CMAKE_SOURCE_DIR}/src/wasm_specific/QChar.cpp
+    #${CMAKE_SOURCE_DIR}/src/wasm_specific/QStringList.cpp
 )
 
 # Link libraries

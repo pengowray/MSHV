@@ -12,6 +12,9 @@ public:
     void append(const QString& str);
     QString join(const QString& separator) const;
     int count() const;
+
+    QStringList& operator<<(const QString& str);
+
 };
 
 #endif // QSTRINGLIST_H

@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 #include "QChar.h"
-#include "QStringList.h"
 
-class QChar;
+// Forward declaration of QStringList
+class QStringList;
 
 class QString : public std::string {
 public:
@@ -40,20 +40,46 @@ public:
     QString& prepend(const QString& str);
     QString& prepend(char ch);
     QChar at(int index) const;
-    char& operator[](int index);
-    const char& operator[](int index) const;
+    //char& operator[](int index);
+    //const char& operator[](int index) const;
+    QChar operator[](int index);
+    const QChar operator[](int index) const;
+        
     bool isLetter() const;
     bool isDigit() const;
     char toLatin1() const;
     QString& replace(const QString& before, const QString& after);
+    QString& replace(int start, int count, const QString& replacement);
     QString midRef(int pos, int len = -1) const;
+    QString leftJustified(int width, QChar fill = QChar(' ')) const;
     QString rightJustified(int width, QChar fill = QChar(' ')) const;
     QString toUpper() const;
     bool isEmpty() const;
+    bool containsDigits() const;
 
-    // Forward declaration of QStringList
-    class QStringList;
     QStringList split(const QString& separator) const;
+
+    class const_iterator {
+        std::string::const_iterator it;
+    public:
+        const_iterator(std::string::const_iterator i) : it(i) {}
+        const_iterator& operator++() { ++it; return *this; }
+        const_iterator operator++(int) { const_iterator tmp = *this; ++(*this); return tmp; }
+        bool operator!=(const const_iterator& other) const { return it != other.it; }
+        QChar operator*() const { return QChar(*it); }
+    };
+
+    iterator begin() { return iterator(std::string::begin()); }
+    iterator end() { return iterator(std::string::end()); }
+    const_iterator begin() const { return const_iterator(std::string::begin()); }
+    const_iterator end() const { return const_iterator(std::string::end()); }
 };
+
+// macro for: foreach(QChar Char, callsign) {
+// or instead use range-based for loop syntax: for (QChar Char : callsign) {
+#define foreach(variable, container) \
+    for (auto it = (container).begin(); it != (container).end(); ++it) \
+        if (bool _foreach_flag = false) {} \
+        else for (variable = *it; !_foreach_flag; _foreach_flag = true)
 
 #endif // QSTRING_H

@@ -8,6 +8,7 @@ private:
     char c;
 
 public:
+    QChar();
     QChar(char ch);
     QChar(const QChar& other);
     
@@ -32,8 +33,13 @@ public:
     bool operator<=(const QChar& other) const;
     bool operator>=(const QChar& other) const;
 
+    bool operator==(int other) const;
+    bool operator!=(int other) const;
+    bool operator<(int other) const;
+    bool operator>(int other) const;
     bool operator<=(int other) const;
     bool operator>=(int other) const;
+
 };
 
 #endif // QCHAR_H

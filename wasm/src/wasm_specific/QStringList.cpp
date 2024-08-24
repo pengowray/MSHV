@@ -1,5 +1,8 @@
 #include "QStringList.h"
 
+// Forward declaration of QString
+class QString;
+
 class QStringList : public std::vector<QString> {
 public:
     QStringList() : std::vector<QString>() {}
@@ -21,4 +24,12 @@ public:
     int count() const {
         return static_cast<int>(this->size());
     }
+
+    QStringList& operator<<(const QString& str) {
+        this->push_back(str);
+        return *this;
+    }
 };
+
+QString operator+(const QString& qstr, const std::string& stdStr);
+QString operator+(const QString& qstr, const char* cstr);

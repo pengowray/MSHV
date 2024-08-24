@@ -12,7 +12,8 @@
  */
 
 #include "pack_unpack_msg.h"
-#include "../../../pfx_sfx.h"
+//#include "../../../pfx_sfx.h"
+#include "pfx_sfx.h"
 
 //#include <QtGui>
 void PackUnpackMsg::copy_qstr(QString &to,QString from,int b_from,int e_from)
