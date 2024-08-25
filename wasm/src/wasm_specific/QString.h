@@ -2,6 +2,7 @@
 #define QSTRING_H
 
 #include <string>
+#include <cstdarg>
 #include <vector>
 #include "QChar.h"
 
@@ -34,7 +35,12 @@ public:
     int toInt() const;
     int toInt(bool* ok) const;
     int toInt(bool* ok, int base) const;
-    QString arg(int n, int width = 0, int base = 10, QChar fill = QChar(' ')) const;
+    //QString arg(int n, int width = 0, int base = 10, QChar fill = QChar(' ')) const;
+    QString arg(const QString& a, int fieldWidth = 0, QChar fillChar = QChar(' ')) const;
+    QString arg(int a, int fieldWidth = 0, int base = 10, QChar fillChar = QChar(' ')) const;
+    QString arg(long a, int fieldWidth = 0, int base = 10, QChar fillChar = QChar(' ')) const;
+    QString arg(double a, int fieldWidth = 0, char format = 'g', int precision = -1, QChar fillChar = QChar(' ')) const;
+    QString arg(const char* fmt, ...) const;
     QString& remove(QChar ch);
     QString& remove(const QString& str);
     QString& prepend(const QString& str);
@@ -99,6 +105,12 @@ public:
     iterator end();
     const_iterator begin() const;
     const_iterator end() const;
+
+    private:
+        QString argToString(const QString& a, int fieldWidth, QChar fillChar) const;
+        QString argToString(long a, int fieldWidth, int base, QChar fillChar) const;
+        QString argToString(double a, int fieldWidth, char format, int precision, QChar fillChar) const;
+        static QString varg(const QString& format, va_list ap);
 };
 
 QString operator+(const QString& qstr1, const QString& qstr2);

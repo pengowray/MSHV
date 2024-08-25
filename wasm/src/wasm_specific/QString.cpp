@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
+#include <cstdio>
+#include <vector>
 #include "QString.h"
 #include "QStringList.h"
 
@@ -104,11 +106,98 @@ int QString::toInt(bool* ok, int base) const {
         return 0;
     }
 }
-
+/*
 QString QString::arg(int n, int width, int base, QChar fill) const {
     std::ostringstream oss;
     oss << std::setw(width) << std::setfill(fill.toChar()) << std::setbase(base) << n;
     return QString(std::string(*this) + oss.str());
+}
+*/
+QString QString::arg(const QString& a, int fieldWidth, QChar fillChar) const {
+    return argToString(a, fieldWidth, fillChar);
+}
+
+QString QString::arg(int a, int fieldWidth, int base, QChar fillChar) const {
+    return argToString(static_cast<long>(a), fieldWidth, base, fillChar);
+}
+
+QString QString::arg(long a, int fieldWidth, int base, QChar fillChar) const {
+    return argToString(a, fieldWidth, base, fillChar);
+}
+
+QString QString::arg(double a, int fieldWidth, char format, int precision, QChar fillChar) const {
+    return argToString(a, fieldWidth, format, precision, fillChar);
+}
+
+QString QString::argToString(const QString& a, int fieldWidth, QChar fillChar) const {
+    QString result = *this;
+    QString formatted = a.rightJustified(fieldWidth, fillChar);
+    size_t pos = result.find("%1");
+    if (pos != std::string::npos) {
+        result.replace(pos, 2, formatted);
+    }
+    return result;
+}
+
+QString QString::argToString(long a, int fieldWidth, int base, QChar fillChar) const {
+    QString result = *this;
+    std::ostringstream oss;
+    oss << std::setw(fieldWidth) << std::setfill(fillChar.toChar()) 
+        << std::setbase(base) << a;
+    QString formatted = oss.str();
+    size_t pos = result.find("%1");
+    if (pos != std::string::npos) {
+        result.replace(pos, 2, formatted);
+    }
+    return result;
+}
+
+QString QString::argToString(double a, int fieldWidth, char format, int precision, QChar fillChar) const {
+    QString result = *this;
+    std::ostringstream oss;
+    oss << std::setw(fieldWidth) << std::setfill(fillChar.toChar()) 
+        << std::setprecision(precision) << std::fixed;
+    if (format == 'g' || format == 'G')
+        oss << std::defaultfloat;
+    else if (format == 'f' || format == 'F')
+        oss << std::fixed;
+    else if (format == 'e' || format == 'E')
+        oss << std::scientific;
+    oss << a;
+    QString formatted = oss.str();
+    size_t pos = result.find("%1");
+    if (pos != std::string::npos) {
+        result.replace(pos, 2, formatted);
+    }
+    return result;
+}
+
+QString QString::arg(const char* fmt, ...) const {
+    va_list ap;
+    va_start(ap, fmt);
+    QString result = varg(*this, ap);
+    va_end(ap);
+    return result;
+}
+
+QString QString::varg(const QString& format, va_list ap) {
+    std::vector<char> buf(1024);
+    while (true) {
+        va_list ap_copy;
+        va_copy(ap_copy, ap);
+        int result = std::vsnprintf(buf.data(), buf.size(), format.c_str(), ap_copy);
+        va_end(ap_copy);
+        
+        if (result < 0) {
+            return QString();
+        }
+        
+        if (result < static_cast<int>(buf.size())) {
+            return QString(buf.data());
+        }
+        
+        buf.resize(result + 1);
+    }
 }
 
 QString& QString::remove(QChar ch) {
