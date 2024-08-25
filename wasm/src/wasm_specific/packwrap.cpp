@@ -3,23 +3,27 @@
 #include "../wasm_specific/QString.h"
 #include "../wasm_specific/QStringList.h"
 #include <emscripten.h>
-
-//PackUnpackMsg packunpack;
-//PackUnpackMsg77 packunpack77;
+#include <string.h>
 
 extern "C" {
 
+#define MAXLEN 120 // return string (78 probably max needed)
+
+struct PResult {
+    int error_code;
+    char message[MAXLEN];
+};
+
 EMSCRIPTEN_KEEPALIVE
 void init_ft8() {
-
+    // Initialization code if needed
 }
 
 EMSCRIPTEN_KEEPALIVE
-const char* pack_ft8_message(const char* message) {
-    static char packed_message[78]; // 77 + null terminator
+PResult* pack_ft8_message(const char* message) {
+    static PResult result;
     bool c77[77];
-    //int i3 = -1, n3 = -1; // ignored anyway unless i3==0 && n3==5
-    int i3 = 0, n3 = 0; // ignored anyway unless i3==0 && n3==5
+    int i3 = 0, n3 = 0;
     
     PackUnpackMsg77 packunpack77;
     const bool decoding = false; // false: generating/encoding/packing
@@ -27,22 +31,23 @@ const char* pack_ft8_message(const char* message) {
     packunpack77.pack77(QString(message), i3, n3, c77);
 
     if (i3 == -1) {
-        strcpy(packed_message, "Pack failed");
-        return packed_message;
+        strcpy(result.message, "Pack failed");
+        result.error_code = 1;
+        return &result;
     }
 
     for (int i = 0; i < 77; i++) {
-        packed_message[i] = c77[i] ? '1' : '0';
+        result.message[i] = c77[i] ? '1' : '0';
     }
-    packed_message[77] = '\0';
-    
-    return packed_message;
+    result.message[77] = '\0';
+    result.error_code = 0;
+
+    return &result;
 }
 
 EMSCRIPTEN_KEEPALIVE
-const char* unpack_ft8_message(const char* packed_message) {
-    const int MAXLEN = 80; // was 50
-    static char unpacked_message[MAXLEN];
+PResult* unpack_ft8_message(const char* packed_message) {
+    static PResult result;
     bool c77[77];
     bool unpk77_success = false;
     
@@ -53,25 +58,26 @@ const char* unpack_ft8_message(const char* packed_message) {
     PackUnpackMsg77 packunpack77;
     const bool decoding = true; // decoding/unpacking
     packunpack77.initPackUnpack77(decoding);
-    QString result = packunpack77.unpack77(c77, unpk77_success);
+    QString qresult = packunpack77.unpack77(c77, unpk77_success);
     
     if (unpk77_success) {
-        std::string str = result;
-        strncpy(unpacked_message, str.c_str(), MAXLEN-1);
-        unpacked_message[MAXLEN-1] = '\0';
+        std::string str = qresult.toStdString();
+        strncpy(result.message, str.c_str(), MAXLEN-1);
+        result.message[MAXLEN-1] = '\0';
+        result.error_code = 0;
     } else {
-        strcpy(unpacked_message, "Unpack failed");
+        strcpy(result.message, "Unpack failed");
+        result.error_code = 1;
     }
     
-    return unpacked_message;
+    return &result;
 }
 
 EMSCRIPTEN_KEEPALIVE
 void save_hash_call(const char* call) {
     int n10, n12, n22;
-    //TODO
-    //packunpack77.save_hash_call(QString(call), n10, n12, n22);
-    return;
+    // TODO: Implement this function
+    // packunpack77.save_hash_call(QString(call), n10, n12, n22);
 }
 
 }

@@ -10,12 +10,12 @@
     <h1>MSHV FT8 Test</h1>
 
     <h2>Pack Message</h2>
-    <input type="text" id="packInput" placeholder="Enter message to pack">
+    <input type="text" id="packInput" value="CQ K1ABC FN42">
     <button onclick="packMessage()">Pack</button>
     <pre id="packOutput"></pre>
 
     <h2>Unpack Message</h2>
-    <input type="text" id="unpackInput" placeholder="Enter packed message to unpack">
+    <input type="text" id="unpackInput" value="00001001101111011110001101010000011000010100100111011100000111111010010010001">
     <button onclick="unpackMessage()">Unpack</button>
     <pre id="unpackOutput"></pre>
 
@@ -24,33 +24,58 @@
 
         createMshvFT8Module().then(function(Module) {
             mshvModule = Module;
-            console.log("MSHV FT8 module loaded");
             mshvModule._init_ft8();
+            console.log("MSHV FT8 module initialized");
         });
 
         function packMessage() {
-            const input = document.getElementById('packInput').value;
+            if (!mshvModule) {
+                console.error("Module not initialized");
+                document.getElementById('packOutput').textContent = 'Module not initialized';
+                return;
+            }
+
             try {
-                const result = mshvModule.ccall('pack_ft8_message', 'string', ['string'], [input]);
-                if (result === "Pack failed") {
-                    document.getElementById('packOutput').textContent = "Error: Packing failed";
+
+                const input = document.getElementById('packInput').value;
+                const resultPtr = mshvModule._pack_ft8_message(mshvModule.allocateUTF8(input));
+                const result = mshvModule.getValue(resultPtr, 'i32');
+                const messagePtr = resultPtr + 4; // Offset to the message field in the struct
+                const message = mshvModule.UTF8ToString(messagePtr);
+
+                if (result == 0) {
+                    document.getElementById('packOutput').textContent = `${message}`;
                 } else {
-                    document.getElementById('packOutput').textContent = result;
+                    document.getElementById('packOutput').textContent = `Error (${result}): ${message}`;
                 }
+
             } catch (error) {
-                console.error("Error in pack_ft8_message:", error);
-                document.getElementById('packOutput').textContent = "Error: " + error.message;
+                document.getElementById('packOutput').textContent = `Exception: ${error}`;
             }
         }
 
         function unpackMessage() {
-            const input = document.getElementById('unpackInput').value;
+            if (!mshvModule) {
+                console.error("Module not initialized");
+                document.getElementById('unpackOutput').textContent = 'Module not initialized';
+                return;
+            }
+
             try {
-                const result = mshvModule.ccall('unpack_ft8_message', 'string', ['string'], [input]);
-                document.getElementById('unpackOutput').textContent = result;
+                const input = document.getElementById('unpackInput').value;
+                const resultPtr = mshvModule._unpack_ft8_message(mshvModule.allocateUTF8(input));
+                const result = mshvModule.getValue(resultPtr, 'i32');
+                const messagePtr = resultPtr + 4; // Offset to the message field in the struct
+                const message = mshvModule.UTF8ToString(messagePtr);
+
+                if (result == 0) {
+                    document.getElementById('unpackOutput').textContent = `${message}`;
+                } else {
+                    document.getElementById('unpackOutput').textContent = `Error (${result}): ${message}`;
+                }
+            
             } catch (error) {
-                console.error("Error in unpack_ft8_message:", error);
-                document.getElementById('unpackOutput').textContent = "Error: " + error.message;
+                document.getElementById('unpackOutput').textContent = `Exception: ${error}`;
             }
         }
     </script>
