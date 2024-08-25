@@ -3,77 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MSHV FT8 Module Test</title>
+    <title>MSHV FT8 Test</title>
+    <script src="mshv_ft8.js"></script>
 </head>
 <body>
-    <h1>MSHV FT8 Module Test</h1>
-    <div id="output"></div>
+    <h1>MSHV FT8 Test</h1>
+
+    <h2>Pack Message</h2>
+    <input type="text" id="packInput" placeholder="Enter message to pack">
+    <button onclick="packMessage()">Pack</button>
+    <pre id="packOutput"></pre>
+
+    <h2>Unpack Message</h2>
+    <input type="text" id="unpackInput" placeholder="Enter packed message to unpack">
+    <button onclick="unpackMessage()">Unpack</button>
+    <pre id="unpackOutput"></pre>
 
     <script>
-        // Helper function to log output to the page
-        function log(message) {
-            document.getElementById('output').innerHTML += message + '<br>';
-            console.log(message);
-        }
+        let mshvModule;
 
-        // Module wrapper
-        let mshvFT8Module = {
-            init: function() {
-                return new Promise((resolve) => {
-                    window.Module = {
-                        print: function(text) { log(text); },
-                        printErr: function(text) { log('Error: ' + text); },
-                        onRuntimeInitialized: () => {
-                            this._init_ft8 = Module.cwrap('init_ft8', null, []);
-                            this._pack_ft8_message = Module.cwrap('pack_ft8_message', 'string', ['string']);
-                            this._unpack_ft8_message = Module.cwrap('unpack_ft8_message', 'string', ['string']);
-                            this._save_hash_call = Module.cwrap('save_hash_call', null, ['string']);
-                            
-                            this._init_ft8();
-                            resolve();
-                        }
-                    };
+        createMshvFT8Module().then(function(Module) {
+            mshvModule = Module;
+            console.log("MSHV FT8 module loaded");
+            mshvModule._init_ft8();
+        });
 
-                    var script = document.createElement('script');
-                    script.src = 'mshv_ft8.js';
-                    document.body.appendChild(script);
-                });
-            },
-
-            packMessage: function(message) {
-                return this._pack_ft8_message(message);
-            },
-
-            unpackMessage: function(packedMessage) {
-                return this._unpack_ft8_message(packedMessage);
-            },
-
-            saveHashCall: function(call) {
-                this._save_hash_call(call);
+        function packMessage() {
+            const input = document.getElementById('packInput').value;
+            try {
+                const result = mshvModule.ccall('pack_ft8_message', 'string', ['string'], [input]);
+                if (result === "Pack failed") {
+                    document.getElementById('packOutput').textContent = "Error: Packing failed";
+                } else {
+                    document.getElementById('packOutput').textContent = result;
+                }
+            } catch (error) {
+                console.error("Error in pack_ft8_message:", error);
+                document.getElementById('packOutput').textContent = "Error: " + error.message;
             }
-        };
-
-        // Main function to run tests
-        async function runTests() {
-            log('Initializing MSHV FT8 Module...');
-            await mshvFT8Module.init();
-            log('Module initialized.');
-
-            const testMessage = "CQ K1ABC FN42";
-            log('Test message: ' + testMessage);
-
-            const packedMessage = mshvFT8Module.packMessage(testMessage);
-            log('Packed message: ' + packedMessage);
-
-            const unpackedMessage = mshvFT8Module.unpackMessage(packedMessage);
-            log('Unpacked message: ' + unpackedMessage);
-
-            mshvFT8Module.saveHashCall("K1ABC");
-            log('Saved hash call for K1ABC');
         }
 
-        // Start the tests when the page loads
-        window.onload = runTests;
+        function unpackMessage() {
+            const input = document.getElementById('unpackInput').value;
+            try {
+                const result = mshvModule.ccall('unpack_ft8_message', 'string', ['string'], [input]);
+                document.getElementById('unpackOutput').textContent = result;
+            } catch (error) {
+                console.error("Error in unpack_ft8_message:", error);
+                document.getElementById('unpackOutput').textContent = "Error: " + error.message;
+            }
+        }
     </script>
 </body>
 </html>

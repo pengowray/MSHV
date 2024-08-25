@@ -30,6 +30,8 @@ target_link_libraries(mshv_ft8)
 # Add exported functions
 set_target_properties(mshv_ft8 PROPERTIES 
     OUTPUT_NAME "mshv_ft8" LINK_FLAGS "\
-    -s EXPORTED_FUNCTIONS=['_init_ft8','_pack_ft8_message','_unpack_ft8_message','_save_hash_call']\
-    -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','print','printErr']"
+    -s EXPORTED_FUNCTIONS=['_init_ft8','_free','_pack_ft8_message','_unpack_ft8_message','_save_hash_call']\
+    -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','print','printErr','UTF8ToString']"
 )
+
+# 'stringToNewUTF8','UTF8ToString'
