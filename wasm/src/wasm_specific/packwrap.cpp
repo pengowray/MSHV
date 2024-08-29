@@ -33,7 +33,7 @@ extern "C"
     PResult *pack_ft8_message(const char *message) {
         static PResult result;
         bool c77[77];
-        int i3 = 0, n3 = 0;
+        int i3 = -1, n3 = -1;
 
             if (!message)
             {

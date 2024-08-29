@@ -1,5 +1,11 @@
-#include "../wasm_specific/QString.h"
-#include "../wasm_specific/QStringList.h"
+#ifdef QT_IMPL
+#include <QString>
+#include <QStringList>
+#else
+#include "../qtext_simple/QString.h"
+#include "../qtext_simple/QStringList.h"
+#endif
+
 #include <cassert>
 #include <iostream>
 
@@ -11,7 +17,11 @@ void test_split() {
     assert(result1[1] == "world");
 
     QString str2 = "a  b c   d";
+#ifdef QT_IMPL
+    auto result2 = str2.split(" ", Qt::SkipEmptyParts);
+#else
     auto result2 = str2.split_skip_empty(" ");
+#endif
     assert(result2.count() == 4);
     assert(result2[0] == "a");
     assert(result2[1] == "b");
@@ -21,11 +31,11 @@ void test_split() {
     QString str2b = "a  b c   d";
     auto result2b = str2.split(" ");
     std::cout << "str2b: " << result2b.count() << std::endl;
-    //assert(result2.count() == 4);
-    //assert(result2[0] == "a");
-    //assert(result2[1] == "b");
-    //assert(result2[2] == "c");
-    //assert(result2[3] == "d");
+    assert(result2.count() == 4);
+    assert(result2[0] == "a");
+    assert(result2[1] == "b");
+    assert(result2[2] == "c");
+    assert(result2[3] == "d");
 
     QString str3 = " trim me ";
     auto result3 = str3.split(" ");
@@ -35,12 +45,16 @@ void test_split() {
     assert(result3[2] == "me");
     assert(result3[3] == "");
 
-    //QString str3b = " trim ";
-    //auto result3b = str3b.split_skip_empty(" ");  // No Qt::KeepEmptyParts flag
-    //assert(result3b.count() == 2);  // Should only contain "trim" and "me"
-    //assert(result3b[0] == "trim");
-    //assert(result3b[1] == "me");
-
+    QString str3b = " trim ";
+#ifdef QT_IMPL
+    auto result3b = str3b.split(" ", Qt::SkipEmptyParts); // Qt::SkipEmptyParts == 11
+    //std::cout << Qt::SkipEmptyParts << ", " << Qt::KeepEmptyParts; // 1, 0
+#else
+    auto result3b = str3b.split_skip_empty(" ");
+#endif
+    assert(result3b.count() == 1);
+    assert(result3b[0] == "trim");
+    
     // parts: {"", "a", "b", "c", ""}
     QString str4 = "abc";
     auto result4 = str4.split(QString());

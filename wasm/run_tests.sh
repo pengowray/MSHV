@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# to run with qt:
+# $ run_tests.sh qt
+
 # Exit on any error
 set -e
 
@@ -18,14 +21,25 @@ mkdir -p "$BUILD_DIR"
 # Navigate to build directory
 cd "$BUILD_DIR"
 
-# Compile the test file
-echo "Compiling tests..."
-g++ -std=c++14 -I"$SRC_DIR" \
-    "$SRC_DIR/tests/qstring_tests.cpp" \
-    "$SRC_DIR/wasm_specific/QString.cpp" \
-    "$SRC_DIR/wasm_specific/QChar.cpp" \
-    "$SRC_DIR/wasm_specific/QStringList.cpp" \
-    -o qstring_tests
+# Check if we're using Qt or custom implementation
+if [ "$1" = "qt" ]; then
+    echo "Compiling tests with Qt..."
+    g++ -std=c++14 -fPIC \
+        $(pkg-config --cflags Qt5Core) \
+        -I"$SRC_DIR" \
+        "$SRC_DIR/tests/qstring_tests.cpp" \
+        $(pkg-config --libs Qt5Core) \
+        -DQT_IMPL \
+        -o qstring_tests
+else
+    echo "Compiling tests with custom implementation..."
+    g++ -std=c++14 -I"$SRC_DIR" \
+        "$SRC_DIR/tests/qstring_tests.cpp" \
+        "$SRC_DIR/qtext_simple/QString.cpp" \
+        "$SRC_DIR/qtext_simple/QChar.cpp" \
+        "$SRC_DIR/qtext_simple/QStringList.cpp" \
+        -o qstring_tests
+fi
 
 # Run the tests
 echo "Running tests..."
