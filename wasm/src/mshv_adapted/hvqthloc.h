@@ -9,9 +9,9 @@
 
 //#include <QStringList>
 //#include <QMessageBox>
-#include "../wasm_specific/QChar.h"
-#include "../wasm_specific/QString.h"
-#include "../wasm_specific/QStringList.h"
+#include "../qtext_simple/QChar.h"
+#include "../qtext_simple/QString.h"
+#include "../qtext_simple/QStringList.h"
 
 #include <math.h>	//los fabs
 //#include <QVBoxLayout>

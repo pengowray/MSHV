@@ -8,6 +8,11 @@
 
 class QStringList;
 
+enum class SplitBehavior {
+    KeepEmptyParts,
+    SkipEmptyParts
+};
+
 class QString : public std::string {
 public:
     QString();
@@ -50,7 +55,7 @@ public:
     //const char& operator[](int index) const;
     QChar operator[](int index);
     const QChar operator[](int index) const;
-        
+            
     bool isLetter() const;
     bool isDigit() const;
     char toLatin1() const;
@@ -62,7 +67,11 @@ public:
     QString toUpper() const;
     bool isEmpty() const;
     bool containsDigits() const;
-    QStringList split(const QString& separator) const;
+    QStringList split(const QString& separator, SplitBehavior behavior) const; //  = SplitBehavior::KeepEmptyParts
+    QStringList split(QChar sep, SplitBehavior behavior) const; // = SplitBehavior::KeepEmptyParts
+    QStringList split(QChar sep) const; // = SplitBehavior::KeepEmptyParts
+    QStringList split(const QString& separator) const;  // Qt::SplitBehavior behavior = Qt::KeepEmptyParts (default)
+    QStringList split_skip_empty(const QString& separator) const; // Qt::SkipEmptyParts 
 
     QString& erase(size_type pos = 0, size_type count = npos) {
         std::string::erase(pos, count);

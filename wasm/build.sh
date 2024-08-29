@@ -1,9 +1,22 @@
 #!/bin/bash
 
+# run with -d for debug symbols
+
 # Exit on any error
 set -e
 
-# Directory setup
+# Parse command line arguments
+DEBUG_MODE=OFF
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -d|--debug) DEBUG_MODE=ON ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+EMCC_DEBUG=1
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 BUILD_DIR="$SCRIPT_DIR/build"
 WEB_DIR="$SCRIPT_DIR/web"
@@ -11,18 +24,15 @@ WEB_DIR="$SCRIPT_DIR/web"
 echo "Script dir: $SCRIPT_DIR"
 echo "Build dir: $BUILD_DIR"
 echo "Web dir: $WEB_DIR"
+echo "Debug mode: $DEBUG_MODE"
 
-# Create build directory if it doesn't exist
 mkdir -p "$BUILD_DIR"
-
-# Create web directory if it doesn't exist
 mkdir -p "$WEB_DIR"
 
-# Navigate to build directory
 cd "$BUILD_DIR"
 
 echo "Running CMake..."
-emcmake cmake -DCMAKE_BUILD_TYPE=Release -S "$SCRIPT_DIR" -B "$BUILD_DIR"
+emcmake cmake -DCMAKE_BUILD_TYPE=$([ "$DEBUG_MODE" == "ON" ] && echo "Debug" || echo "Release") -DDEBUG_MODE=$DEBUG_MODE -S "$SCRIPT_DIR" -B "$BUILD_DIR"
 
 # Check if Makefile was generated
 if [ ! -f "Makefile" ]; then
@@ -30,13 +40,9 @@ if [ ! -f "Makefile" ]; then
     exit 1
 fi
 
-echo "Contents of $BUILD_DIR after running CMake:"
-ls -la "$BUILD_DIR"
-
 echo "Running emmake make..."
 emmake make
 
-# Check if output files were generated
 if [ ! -f "mshv_ft8.js" ] || [ ! -f "mshv_ft8.wasm" ]; then
     echo "Error: Output files were not generated in $BUILD_DIR"
     exit 1

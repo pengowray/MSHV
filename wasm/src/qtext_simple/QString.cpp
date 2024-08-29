@@ -1,4 +1,4 @@
-#include <emscripten.h>
+//#include <emscripten.h>
 #include <string>
 #include <cstring>
 #include <algorithm>
@@ -41,6 +41,7 @@ int QString::size() const {
 
 // Alias for size()
 int QString::count() const {
+    //qt recommends using Use size() or length() instead.
     return size();
 }
 
@@ -50,11 +51,12 @@ QString& QString::append(const QString& str) {
 }
 
 QString QString::mid(int pos, int len) const {
+    if (pos < 0) pos = 0;
     if (pos >= (int)size()) return QString();
-    if (len < 0) len = size() - pos;
+    if (len < 0 || pos + len > (int)size()) len = size() - pos;
     return QString(std::string::substr(pos, len));
 }
-    
+
 int QString::indexOf(const QString& str, int from) const {
     size_t pos = std::string::find(str, from);
     return pos == std::string::npos ? -1 : static_cast<int>(pos);
@@ -234,7 +236,10 @@ QString& QString::append(char ch) {
 }
 
 QChar QString::at(int index) const {
-    return QChar(std::string::at(index));
+    if (index >= 0 && index < static_cast<int>(size())) {
+        return QChar(std::string::at(index));
+    }
+    return QChar(); // Return null QChar for out of range
 }
 
 //char& operator[](int index) { return std::string::operator[](index); }
@@ -242,7 +247,6 @@ QChar QString::at(int index) const {
 
 QChar QString::operator[](int index) { return QChar(std::string::at(index)); }
 const QChar QString::operator[](int index) const { return QChar(std::string::at(index)); }
-
 
 bool QString::isLetter() const {
     return !empty() && std::isalpha(front());
@@ -317,18 +321,77 @@ bool QString::containsDigits() const {
     return false;
 }
 
-QStringList QString::split(const QString& separator) const {
+QStringList QString::split(const QString& separator, SplitBehavior behavior) const {
     QStringList result;
     size_t start = 0;
     size_t end = find(separator);
+
+    // Handle empty separator case
+    if (separator.empty()) {
+        result.push_back(QString());
+        for (char c : *this) {
+            result.push_back(QString(1, c));
+        }
+        result.push_back(QString());
+        return result;
+    }
+
     while (end != std::string::npos) {
-        result.push_back(substr(start, end - start));
+        if (start != end || behavior == SplitBehavior::KeepEmptyParts) {
+            result.push_back(substr(start, end - start));
+        }
         start = end + separator.length();
         end = find(separator, start);
     }
-    result.push_back(substr(start));
+
+    if (start < length() || behavior == SplitBehavior::KeepEmptyParts) {
+        result.push_back(substr(start));
+    }
+
     return result;
 }
+
+QStringList QString::split(QChar sep, SplitBehavior behavior) const {
+    return split(QString(1, sep), behavior);
+}
+
+QStringList QString::split(QChar sep) const {
+    return split(QString(1, sep), SplitBehavior::KeepEmptyParts);
+}
+
+QStringList QString::split(const QString& separator) const {
+    return split(separator, SplitBehavior::KeepEmptyParts);
+}
+
+QStringList QString::split_skip_empty(const QString& separator) const {
+    return split(separator, SplitBehavior::SkipEmptyParts);
+}
+
+/*
+QStringList QString::split_skip_empty(const QString& separator) const {
+    QStringList result;
+    if (empty() || separator.empty()) {
+        return result;
+    }
+
+    size_t start = 0;
+    size_t end = 0;
+    while (start < length()) {
+        end = find(separator, start);
+        if (end == std::string::npos) {
+            end = length();
+        }
+        if (end > start) {  // Only add non-empty strings
+            result.push_back(substr(start, end - start));
+        }
+        if (end + separator.length() > length()) {
+            break;  // Prevent potential overflow
+        }
+        start = end + separator.length();
+    }
+    return result;
+}
+*/
 
 // QString::iterator implementations
 QString::iterator::iterator(std::string::iterator i) : it(i) {}

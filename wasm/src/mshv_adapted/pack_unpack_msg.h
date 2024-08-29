@@ -2,8 +2,8 @@
 #define PACK_UNPACK_MSG_H
 
 //#include <QString>
-#include "../wasm_specific/QString.h"
-#include "../wasm_specific/QStringList.h"
+#include "../qtext_simple/QString.h"
+#include "../qtext_simple/QStringList.h"
 
 #include <math.h>       /* fmod */
 //#include "../../../HvTxW/hvqthloc.h"

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MSHV FT8 Test (no catch)</title>
+    <title>MSHV FT8 Test</title>
     <script src="mshv_ft8.js"></script>
 </head>
 <body>
@@ -35,10 +35,10 @@
                 return;
             }
 
-            //try {
+            try {
 
                 const input = document.getElementById('packInput').value;
-                const resultPtr = mshvModule._pack_ft8_message(mshvModule.allocateUTF8(input));
+                const resultPtr = mshvModule._pack_ft8_message_safe(mshvModule.allocateUTF8(input));
                 const result = mshvModule.getValue(resultPtr, 'i32');
                 const messagePtr = resultPtr + 4; // Offset to the message field in the struct
                 const message = mshvModule.UTF8ToString(messagePtr);
@@ -49,11 +49,11 @@
                     document.getElementById('packOutput').textContent = `Error (${result}): ${message}`;
                 }
 
-            //} catch (error) {
-            //    document.getElementById('packOutput').textContent = `Exception: ${error}`;
-            //    //console.trace();
-            //    throw (error);
-            //}
+            } catch (error) {
+                document.getElementById('packOutput').textContent = `Exception: ${error}`;
+                //console.trace();
+                throw (error);
+            }
         }
 
         function unpackMessage() {
@@ -63,7 +63,7 @@
                 return;
             }
 
-            //try {
+            try {
                 const input = document.getElementById('unpackInput').value;
                 const resultPtr = mshvModule._unpack_ft8_message(mshvModule.allocateUTF8(input));
                 const result = mshvModule.getValue(resultPtr, 'i32');
@@ -76,11 +76,11 @@
                     document.getElementById('unpackOutput').textContent = `Error (${result}): ${message}`;
                 }
             
-            //} catch (error) {
-            //    document.getElementById('unpackOutput').textContent = `Exception: ${error}`;
-            //    //console.trace();
-            //    throw (error);
-            //}
+            } catch (error) {
+                document.getElementById('unpackOutput').textContent = `Exception: ${error}`;
+                //console.trace();
+                throw (error);
+            }
         }
     </script>
 </body>

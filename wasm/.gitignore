@@ -1,6 +1,7 @@
 # Ignore build directory
 /build/*
 !/build/.gitkeep
+build_tests/
 
 # Ignore compiled output in web directory
 #/web/*.js

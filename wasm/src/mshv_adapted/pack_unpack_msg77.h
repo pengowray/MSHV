@@ -18,8 +18,8 @@
 //#include <stdlib.h>	//      abs
 //#include <QString>
 //#include <QStringList> 
-#include "../wasm_specific/QString.h"
-#include "../wasm_specific/QStringList.h"
+#include "../qtext_simple/QString.h"
+#include "../qtext_simple/QStringList.h"
  
 class PackUnpackMsg77 //: public QObject 
 {

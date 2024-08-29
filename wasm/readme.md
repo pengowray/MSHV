@@ -7,9 +7,9 @@ cd wasm
 
 ## changes to source code in mshv_adapted:
 
- - #include paths changed
+1. #include paths changed
 
-
+2.
 ```c
 QRegExp rx("(\\d+)");
 if (!callsign.contains(rx))
@@ -20,4 +20,7 @@ changed to
 ```c
 if (!callsign.containsDigits())
 ```
+
+
+
 

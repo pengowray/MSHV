@@ -940,12 +940,14 @@ QString PackUnpackMsg77::RemBegEndWSpaces(QString str)
     s = str.trimmed();
     return s;
 }
+
 QString PackUnpackMsg77::RemWSpacesInside(QString s)
 {
     for (int i = 0; i<s.count(); i++)
         s.replace("  "," ");
     return s;
 }
+
 void PackUnpackMsg77::chkcall(QString w,QString &bc,bool &cok)
 {
     int i0 = -1;
