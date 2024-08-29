@@ -39,9 +39,9 @@ public:
     int indexOf(QChar ch, int from = 0) const;
     bool contains(const QString& str) const;
     QString trimmed() const;
-    int toInt() const;
-    int toInt(bool* ok) const;
-    int toInt(bool* ok, int base) const;
+    //int toInt() const;
+    //int toInt(bool* ok) const;
+    int toInt(bool *ok = nullptr, int base = 10) const;
     //QString arg(int n, int width = 0, int base = 10, QChar fill = QChar(' ')) const;
     QString arg(const QString& a, int fieldWidth = 0, QChar fillChar = QChar(' ')) const;
     QString arg(int a, int fieldWidth = 0, int base = 10, QChar fillChar = QChar(' ')) const;
@@ -53,10 +53,8 @@ public:
     QString& prepend(const QString& str);
     QString& prepend(char ch);
     QChar at(int index) const;
-    //char& operator[](int index);
-    //const char& operator[](int index) const;
-    QChar operator[](int index);
-    const QChar operator[](int index) const;
+    QChar& operator[](int index);
+    const QChar& operator[](int index) const;
             
     bool isLetter() const;
     bool isDigit() const;
@@ -74,6 +72,7 @@ public:
     QStringList split(QChar sep) const;
     QStringList split(const QString& separator) const;  // Qt::SplitBehavior behavior = Qt::KeepEmptyParts (default)
     QStringList split_skip_empty(const QString& separator) const; // Qt::SkipEmptyParts 
+    QString left(int n) const;
 
     QString& erase(size_type pos = 0, size_type count = npos) {
         std::string::erase(pos, count);

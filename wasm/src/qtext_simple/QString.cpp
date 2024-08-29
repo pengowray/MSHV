@@ -94,32 +94,25 @@ QString QString::trimmed() const {
     return QString(start, end - start);
 }
 
-int QString::toInt() const {
-    return std::stoi(*this);
-}
-
-int QString::toInt(bool* ok) const {
-    try {
-        int result = std::stoi(*this);
-        if (ok) *ok = true;
-        return result;
-    } catch (const std::exception&) {
-        if (ok) *ok = false;
-        return 0;
-    }
-}
-
 int QString::toInt(bool* ok, int base) const {
-    try {
-        size_t pos;
-        int result = std::stoi(*this, &pos, base);
-        if (ok) *ok = (pos == this->length());
-        return result;
-    } catch (const std::exception&) {
-        if (ok) *ok = false;
-        return 0;
+    if (ok) *ok = false;
+    if (isEmpty()) return 0;
+
+    const char* start = c_str();
+    char* end;
+    long result = strtol(start, &end, base);
+
+    if (end != start) {
+        // Check if we've read the entire string and the result is within int range
+        if (*end == '\0' && result >= INT_MIN && result <= INT_MAX) {
+            if (ok) *ok = true;
+            return static_cast<int>(result);
+        }
     }
+
+    return 0;
 }
+
 /*
 QString QString::arg(int n, int width, int base, QChar fill) const {
     std::ostringstream oss;
@@ -257,18 +250,22 @@ QChar QString::at(int index) const {
 //char& operator[](int index) { return std::string::operator[](index); }
 //const char& operator[](int index) const { return std::string::operator[](index); }
 
-QChar QString::operator[](int index) {
-    if (index >= 0 && index < size()) {
-        return QChar(std::string::at(index));
+QChar& QString::operator[](int index) {
+    static QChar nullChar;
+    if (index < 0 || index >= size()) {
+        nullChar = QChar();
+        return nullChar;
     }
-    return QChar(); // Return null QChar for out of range
+    return *reinterpret_cast<QChar*>(&std::string::operator[](index));
 }
 
-const QChar QString::operator[](int index) const {
-    if (index >= 0 && index < size()) {
-        return QChar(std::string::at(index));
+const QChar& QString::operator[](int index) const {
+    static QChar nullChar;
+    if (index < 0 || index >= size()) {
+        nullChar = QChar();
+        return nullChar;
     }
-    return QChar(); // Return null QChar for out of range
+    return *reinterpret_cast<const QChar*>(&std::string::operator[](index));
 }
 
 bool QString::isLetter() const {
@@ -346,29 +343,27 @@ bool QString::containsDigits() const {
 
 QStringList QString::split(const QString& separator, Qt::SplitBehavior behavior) const {
     QStringList result;
-    size_t start = 0;
-    size_t end = find(separator);
-
-    // Handle empty separator case
-    if (separator.empty()) {
-        result.push_back(QString());
-        for (char c : *this) {
-            result.push_back(QString(1, c));
-        }
-        result.push_back(QString());
+    if (empty()) {
+        if (behavior == Qt::KeepEmptyParts)
+            result.append(QString());
         return result;
     }
 
-    while (end != std::string::npos) {
-        if (start != end || behavior == Qt::KeepEmptyParts) {
-            result.push_back(substr(start, end - start));
-        }
-        start = end + separator.length();
-        end = find(separator, start);
-    }
+    size_t start = 0;
+    size_t end = 0;
+    size_t sep_len = separator.length();
 
-    if (start < length() || behavior == Qt::KeepEmptyParts) {
-        result.push_back(substr(start));
+    while (start < length()) {
+        end = find(separator, start);
+        if (end == std::string::npos) {
+            end = length();
+        }
+        if (start != end || behavior == Qt::KeepEmptyParts) {
+            result.append(mid(start, end - start));
+        }
+        if (end == length())
+            break;
+        start = end + sep_len;
     }
 
     return result;
@@ -415,6 +410,14 @@ QStringList QString::split_skip_empty(const QString& separator) const {
     return result;
 }
 */
+
+QString QString::left(int n) const {
+    if (n < 0)
+        n = 0;
+    if (n > size())
+        n = size();
+    return QString(std::string::substr(0, n));
+}
 
 // QString::iterator implementations
 QString::iterator::iterator(std::string::iterator i) : it(i) {}

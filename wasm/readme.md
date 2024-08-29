@@ -21,3 +21,9 @@ if (!containsDigits(callsign))
 
 (change not technically required)
 
+4. in `PackUnpackMsg77::pack77_3`
+
+`nserial = w[nwords-1].toInt();` 
+
+(added checks)
+
