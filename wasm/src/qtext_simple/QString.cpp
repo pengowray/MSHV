@@ -257,8 +257,19 @@ QChar QString::at(int index) const {
 //char& operator[](int index) { return std::string::operator[](index); }
 //const char& operator[](int index) const { return std::string::operator[](index); }
 
-QChar QString::operator[](int index) { return QChar(std::string::at(index)); }
-const QChar QString::operator[](int index) const { return QChar(std::string::at(index)); }
+QChar QString::operator[](int index) {
+    if (index >= 0 && index < size()) {
+        return QChar(std::string::at(index));
+    }
+    return QChar(); // Return null QChar for out of range
+}
+
+const QChar QString::operator[](int index) const {
+    if (index >= 0 && index < size()) {
+        return QChar(std::string::at(index));
+    }
+    return QChar(); // Return null QChar for out of range
+}
 
 bool QString::isLetter() const {
     return !empty() && std::isalpha(front());
