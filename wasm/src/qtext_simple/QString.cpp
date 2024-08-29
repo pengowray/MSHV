@@ -58,12 +58,24 @@ QString QString::mid(int pos, int len) const {
 }
 
 int QString::indexOf(const QString& str, int from) const {
+    if (str.isEmpty()) {
+        return from <= size() ? from : -1;
+    }
+    if (from < 0) {
+        from += size();
+        if (from < 0) {
+            from = 0;
+        }
+    }
+    if (from > size() || size() - from < str.size()) {
+        return -1;
+    }
     size_t pos = std::string::find(str, from);
     return pos == std::string::npos ? -1 : static_cast<int>(pos);
 }
+
 int QString::indexOf(char ch, int from) const {
-    size_t pos = std::string::find(ch, from);
-    return pos == std::string::npos ? -1 : static_cast<int>(pos);
+    return indexOf(QString(1, ch), from);
 }
 
 int QString::indexOf(QChar ch, int from) const {
