@@ -344,7 +344,7 @@ bool QString::containsDigits() const {
     return false;
 }
 
-QStringList QString::split(const QString& separator, SplitBehavior behavior) const {
+QStringList QString::split(const QString& separator, Qt::SplitBehavior behavior) const {
     QStringList result;
     size_t start = 0;
     size_t end = find(separator);
@@ -360,34 +360,34 @@ QStringList QString::split(const QString& separator, SplitBehavior behavior) con
     }
 
     while (end != std::string::npos) {
-        if (start != end || behavior == SplitBehavior::KeepEmptyParts) {
+        if (start != end || behavior == Qt::KeepEmptyParts) {
             result.push_back(substr(start, end - start));
         }
         start = end + separator.length();
         end = find(separator, start);
     }
 
-    if (start < length() || behavior == SplitBehavior::KeepEmptyParts) {
+    if (start < length() || behavior == Qt::KeepEmptyParts) {
         result.push_back(substr(start));
     }
 
     return result;
 }
 
-QStringList QString::split(QChar sep, SplitBehavior behavior) const {
+QStringList QString::split(QChar sep, Qt::SplitBehavior behavior) const {
     return split(QString(1, sep), behavior);
 }
 
 QStringList QString::split(QChar sep) const {
-    return split(QString(1, sep), SplitBehavior::KeepEmptyParts);
+    return split(QString(1, sep), Qt::KeepEmptyParts);
 }
 
 QStringList QString::split(const QString& separator) const {
-    return split(separator, SplitBehavior::KeepEmptyParts);
+    return split(separator, Qt::KeepEmptyParts);
 }
 
 QStringList QString::split_skip_empty(const QString& separator) const {
-    return split(separator, SplitBehavior::SkipEmptyParts);
+    return split(separator, Qt::SkipEmptyParts);
 }
 
 /*

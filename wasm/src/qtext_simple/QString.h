@@ -8,10 +8,12 @@
 
 class QStringList;
 
-enum class SplitBehavior {
-    KeepEmptyParts,
-    SkipEmptyParts
-};
+namespace Qt {
+    enum SplitBehavior {
+        KeepEmptyParts = 0,
+        SkipEmptyParts = 1
+    };
+}
 
 class QString : public std::string {
 public:
@@ -67,9 +69,9 @@ public:
     QString toUpper() const;
     bool isEmpty() const;
     bool containsDigits() const;
-    QStringList split(const QString& separator, SplitBehavior behavior) const; //  = SplitBehavior::KeepEmptyParts
-    QStringList split(QChar sep, SplitBehavior behavior) const; // = SplitBehavior::KeepEmptyParts
-    QStringList split(QChar sep) const; // = SplitBehavior::KeepEmptyParts
+    QStringList split(const QString& separator, Qt::SplitBehavior behavior) const;
+    QStringList split(QChar sep, Qt::SplitBehavior behavior) const;
+    QStringList split(QChar sep) const;
     QStringList split(const QString& separator) const;  // Qt::SplitBehavior behavior = Qt::KeepEmptyParts (default)
     QStringList split_skip_empty(const QString& separator) const; // Qt::SkipEmptyParts 
 

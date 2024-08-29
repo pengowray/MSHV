@@ -17,11 +17,7 @@ void test_split() {
     assert(result1[1] == "world");
 
     QString str2 = "a  b c   d";
-#ifdef QT_IMPL
     auto result2 = str2.split(" ", Qt::SkipEmptyParts);
-#else
-    auto result2 = str2.split_skip_empty(" ");
-#endif
     assert(result2.count() == 4);
     assert(result2[0] == "a");
     assert(result2[1] == "b");
@@ -30,7 +26,7 @@ void test_split() {
 
     QString str2b = "a  b c   d";
     auto result2b = str2.split(" ");
-    std::cout << "str2b: " << result2b.count() << std::endl;
+    //std::cout << "str2b: " << result2b.count() << std::endl;
     assert(result2.count() == 4);
     assert(result2[0] == "a");
     assert(result2[1] == "b");
@@ -46,12 +42,8 @@ void test_split() {
     assert(result3[3] == "");
 
     QString str3b = " trim ";
-#ifdef QT_IMPL
-    auto result3b = str3b.split(" ", Qt::SkipEmptyParts); // Qt::SkipEmptyParts == 11
+    auto result3b = str3b.split(" ", Qt::SkipEmptyParts);
     //std::cout << Qt::SkipEmptyParts << ", " << Qt::KeepEmptyParts; // 1, 0
-#else
-    auto result3b = str3b.split_skip_empty(" ");
-#endif
     assert(result3b.count() == 1);
     assert(result3b[0] == "trim");
     
@@ -65,7 +57,11 @@ void test_split() {
     assert(result4[3] == "c");
     assert(result4[4] == "");
 
-    
+    QString str5 = "a,,b,c";
+    QStringList result5a = str5.split(',', Qt::KeepEmptyParts);   // Returns ["a", "", "b", "c"]
+    QStringList result5b = str5.split(',', Qt::SkipEmptyParts);   // Returns ["a", "b", "c"]
+    assert(result5a.count() == 4);
+    assert(result5b.count() == 3);
 
     std::cout << "Split tests passed" << std::endl;
 }
