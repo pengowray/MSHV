@@ -1,9 +1,12 @@
 #ifndef PACK_UNPACK_MSG_H
 #define PACK_UNPACK_MSG_H
 
-//#include <QString>
 #include "../qtext_simple/QString.h"
 #include "../qtext_simple/QStringList.h"
+
+//#include <QStringList>
+//#include <QString>
+//#include <QChar>
 
 #include <math.h>       /* fmod */
 //#include "../../../HvTxW/hvqthloc.h"

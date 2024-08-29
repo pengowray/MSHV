@@ -9,6 +9,7 @@
 
 //#include <QStringList>
 //#include <QMessageBox>
+
 #include "../qtext_simple/QChar.h"
 #include "../qtext_simple/QString.h"
 #include "../qtext_simple/QStringList.h"

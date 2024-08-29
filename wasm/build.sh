@@ -21,6 +21,12 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 BUILD_DIR="$SCRIPT_DIR/build"
 WEB_DIR="$SCRIPT_DIR/web"
 
+#QT5_LIB_DIR="/usr/include/x86_64-linux-gnu/qt5/QtCore/"
+#QT_SRC_DIR="/home/pengo/qtbase/src/"
+#QT_TEXT_SRC_DIR="/home/pengo/qtbase/src/corelib/text/"
+#used by CMake: (maybe)
+#Qt5Core_DIR="/usr/lib/x86_64-linux-gnu/cmake/Qt5Core"
+
 echo "Script dir: $SCRIPT_DIR"
 echo "Build dir: $BUILD_DIR"
 echo "Web dir: $WEB_DIR"

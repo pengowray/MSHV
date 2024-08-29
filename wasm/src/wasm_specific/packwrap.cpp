@@ -2,6 +2,10 @@
 #include "../qtext_simple/QStringList.h"
 #include "../qtext_simple/QChar.h"
 
+//#include <QString>
+//#include <QChar>
+//#include <QStringList>
+
 #include "../mshv_adapted/pack_unpack_msg.h"
 #include "../mshv_adapted/pack_unpack_msg77.h"
 

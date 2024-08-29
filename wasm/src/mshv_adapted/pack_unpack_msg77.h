@@ -16,8 +16,10 @@
 
 #include <math.h>       // fmod fabs 
 //#include <stdlib.h>	//      abs
+//#include <QStringList>
 //#include <QString>
-//#include <QStringList> 
+//#include <QChar>
+
 #include "../qtext_simple/QString.h"
 #include "../qtext_simple/QStringList.h"
  

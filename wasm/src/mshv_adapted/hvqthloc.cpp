@@ -3,6 +3,7 @@
  * May be used under the terms of the GNU General Public License (GPL)
  */
 #include "hvqthloc.h"
+#include "putil.h"
 
 static double eltab[22]=
     {
@@ -38,7 +39,7 @@ bool HvQthLoc::isValidCallsign(QString callsign)
                     valid = false;
                 else
                     //if (DigitPresent(callsign) == false)
-                    if (!callsign.containsDigits()) // if (!callsign.contains(rx))
+                    if (!containsDigits(callsign)) // if (!callsign.contains(rx))
                         valid = false;
                     else
                     {

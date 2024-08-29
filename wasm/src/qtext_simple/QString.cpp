@@ -311,7 +311,7 @@ bool QString::isEmpty() const {
 }
 
 // additional method (not from QString); replaces regex: QRegExp rx("(\\d+)");
-// TODO: move to utility functions file
+// moved to: putil.h
 bool QString::containsDigits() const {
     for (char c : *this) {
         if (std::isdigit(c)) {

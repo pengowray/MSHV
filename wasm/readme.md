@@ -13,14 +13,6 @@ cd wasm
 ```c
 QRegExp rx("(\\d+)");
 if (!callsign.contains(rx))
+// ...changed to...
+if (!containsDigits(callsign))
 ```
-
-changed to 
-
-```c
-if (!callsign.containsDigits())
-```
-
-
-
-
