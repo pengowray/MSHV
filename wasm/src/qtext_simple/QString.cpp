@@ -340,12 +340,20 @@ bool QString::containsDigits() const {
     }
     return false;
 }
-
 QStringList QString::split(const QString& separator, Qt::SplitBehavior behavior) const {
     QStringList result;
-    if (empty()) {
-        if (behavior == Qt::KeepEmptyParts)
+    if (separator.isEmpty()) {
+        if (behavior == Qt::KeepEmptyParts) {
             result.append(QString());
+            for (const QChar& ch : *this) {
+                result.append(QString(ch));
+            }
+            result.append(QString());
+        } else {
+            for (const QChar& ch : *this) {
+                result.append(QString(ch));
+            }
+        }
         return result;
     }
 
@@ -353,17 +361,24 @@ QStringList QString::split(const QString& separator, Qt::SplitBehavior behavior)
     size_t end = 0;
     size_t sep_len = separator.length();
 
-    while (start < length()) {
+    while (end != std::string::npos) {
         end = find(separator, start);
-        if (end == std::string::npos) {
-            end = length();
-        }
+        
         if (start != end || behavior == Qt::KeepEmptyParts) {
-            result.append(mid(start, end - start));
+            if (end == std::string::npos) {
+                result.append(mid(start));
+            } else {
+                result.append(mid(start, end - start));
+            }
         }
-        if (end == length())
-            break;
+        
+        if (end == std::string::npos) break;
         start = end + sep_len;
+    }
+
+    // Add an empty part at the end if the string ends with the separator
+    if (behavior == Qt::KeepEmptyParts && endsWith(separator)) {
+        result.append(QString());
     }
 
     return result;
@@ -417,6 +432,14 @@ QString QString::left(int n) const {
     if (n > size())
         n = size();
     return QString(std::string::substr(0, n));
+}
+
+// In QString.cpp, add the implementation:
+bool QString::endsWith(const QString& str) const {
+    if (str.length() > length()) {
+        return false;
+    }
+    return std::string::compare(length() - str.length(), str.length(), str) == 0;
 }
 
 // QString::iterator implementations

@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdarg>
 #include <vector>
+#include <climits>
 #include "QChar.h"
 
 class QStringList;
@@ -73,6 +74,7 @@ public:
     QStringList split(const QString& separator) const;  // Qt::SplitBehavior behavior = Qt::KeepEmptyParts (default)
     QStringList split_skip_empty(const QString& separator) const; // Qt::SkipEmptyParts 
     QString left(int n) const;
+    bool endsWith(const QString& str) const;
 
     QString& erase(size_type pos = 0, size_type count = npos) {
         std::string::erase(pos, count);
