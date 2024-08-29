@@ -16,13 +16,14 @@
 
 #include <math.h>       // fmod fabs 
 //#include <stdlib.h>	//      abs
-//#include <QStringList>
-//#include <QString>
-//#include <QChar>
 
+#ifdef QT_IMPL
+#include <QString>
+#include <QStringList>
+#else
 #include "../qtext_simple/QString.h"
 #include "../qtext_simple/QStringList.h"
- 
+#endif 
 class PackUnpackMsg77 //: public QObject 
 {
 	//Q_OBJECT // hv

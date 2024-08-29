@@ -1003,6 +1003,7 @@ c100:
     //c200:
     //return;
 }
+
 void PackUnpackMsg77::split77(QString &msg,int &nwords,/*int *nw,*/QString *w)
 {
     //! Convert msg to upper case; collapse multiple blanks; parse into words.

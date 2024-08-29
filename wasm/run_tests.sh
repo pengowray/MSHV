@@ -31,6 +31,17 @@ if [ "$1" = "qt" ]; then
         $(pkg-config --libs Qt5Core) \
         -DQT_IMPL \
         -o qstring_tests
+
+    g++ -std=c++14 -fPIC \
+        $(pkg-config --cflags Qt5Core) \
+        -I"$SRC_DIR" \
+        "$SRC_DIR/tests/pack_unpack_msg77_tests.cpp" \
+        "$SRC_DIR/mshv_adapted/pack_unpack_msg77.cpp" \
+        "$SRC_DIR/mshv_adapted/pack_msg.cpp" \
+        "$SRC_DIR/mshv_adapted/hvqthloc.cpp" \
+        $(pkg-config --libs Qt5Core) \
+        -DQT_IMPL \
+        -o pack_unpack_msg77_tests
 else
     echo "Compiling tests with custom implementation..."
     g++ -std=c++14 -I"$SRC_DIR" \
@@ -39,10 +50,23 @@ else
         "$SRC_DIR/qtext_simple/QChar.cpp" \
         "$SRC_DIR/qtext_simple/QStringList.cpp" \
         -o qstring_tests
+
+    g++ -std=c++14 -I"$SRC_DIR" \
+        "$SRC_DIR/tests/pack_unpack_msg77_tests.cpp" \
+        "$SRC_DIR/mshv_adapted/pack_unpack_msg77.cpp" \
+        "$SRC_DIR/mshv_adapted/pack_msg.cpp" \
+        "$SRC_DIR/mshv_adapted/hvqthloc.cpp" \
+        "$SRC_DIR/qtext_simple/QString.cpp" \
+        "$SRC_DIR/qtext_simple/QChar.cpp" \
+        "$SRC_DIR/qtext_simple/QStringList.cpp" \
+        -o pack_unpack_msg77_tests
 fi
 
 # Run the tests
-echo "Running tests..."
+echo "Running QString tests..."
 ./qstring_tests
 
-echo "Tests completed."
+echo "Running PackUnpackMsg77 tests..."
+./pack_unpack_msg77_tests
+
+echo "All tests completed."

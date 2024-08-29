@@ -3,7 +3,7 @@
  * May be used under the terms of the GNU General Public License (GPL)
  */
 #include "hvqthloc.h"
-#include "putil.h"
+#include "../wasm_specific/putil.h"
 
 static double eltab[22]=
     {

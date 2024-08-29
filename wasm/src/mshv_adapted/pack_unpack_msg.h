@@ -1,8 +1,14 @@
 #ifndef PACK_UNPACK_MSG_H
 #define PACK_UNPACK_MSG_H
 
+
+#ifdef QT_IMPL
+#include <QString>
+#include <QStringList>
+#else
 #include "../qtext_simple/QString.h"
 #include "../qtext_simple/QStringList.h"
+#endif
 
 //#include <QStringList>
 //#include <QString>

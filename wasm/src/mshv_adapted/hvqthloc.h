@@ -10,9 +10,15 @@
 //#include <QStringList>
 //#include <QMessageBox>
 
+#ifdef QT_IMPL
+#include <QChar>
+#include <QString>
+#include <QStringList>
+#else
 #include "../qtext_simple/QChar.h"
 #include "../qtext_simple/QString.h"
 #include "../qtext_simple/QStringList.h"
+#endif
 
 #include <math.h>	//los fabs
 //#include <QVBoxLayout>

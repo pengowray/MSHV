@@ -14,7 +14,14 @@
 #include "pack_unpack_msg.h"
 //#include "../../../pfx_sfx.h"
 #include "pfx_sfx.h"
+#include <cstring>
+
+
+#ifdef QT_IMPL
+#include <QString>
+#else
 #include "../qtext_simple/QString.h"
+#endif
 
 //#include <QtGui>
 void PackUnpackMsg::copy_qstr(QString &to,QString from,int b_from,int e_from)
