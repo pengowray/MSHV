@@ -417,10 +417,8 @@ QStringList QString::split_skip_empty(const QString& separator) const {
 */
 
 QString QString::left(int n) const {
-    if (n < 0)
-        n = 0;
-    if (n > size())
-        n = size();
+    if (n < 0 || n >= size())
+        return *this;
     return QString(std::string::substr(0, n));
 }
 
