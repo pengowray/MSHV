@@ -37,8 +37,8 @@ void test_split() {
     QString str3 = " trim me ";
     auto result3 = str3.split(" ");
     //std::cout << "str3: " << result3.count() << std::endl;
-    //std::cout << "str3: " << "'" << result3[0] << "," << result3[1] << "," << result3[2] << "'\n\n";
-    assert(result3.count() == 4);
+    //std::cout << "str3: " << "'" << result3[0].toStdString() << "," << result3[1].toStdString() << "," << result3[2].toStdString() << "'\n\n";
+    assert(result3.count() == 4); 
     assert(result3[0] == "");
     assert(result3[1] == "trim");
     assert(result3[2] == "me");
@@ -131,6 +131,11 @@ void test_toInt() {
 
     QString str6 = "  42  ";
     result = str6.toInt(&ok);
+    assert(ok);
+    assert(result == 42);
+
+    QString str7 = " +42";
+    result = str7.toInt(&ok);
     assert(ok);
     assert(result == 42);
 

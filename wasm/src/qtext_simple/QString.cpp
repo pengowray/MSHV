@@ -98,16 +98,23 @@ int QString::toInt(bool* ok, int base) const {
     if (ok) *ok = false;
     if (isEmpty()) return 0;
 
+    // Trim leading and trailing whitespace
     const char* start = c_str();
-    char* end;
-    long result = strtol(start, &end, base);
+    const char* end = start + length();
+    while (start < end && std::isspace(*start)) ++start;
+    while (end > start && std::isspace(*(end - 1))) --end;
 
-    if (end != start) {
-        // Check if we've read the entire string and the result is within int range
-        if (*end == '\0' && result >= INT_MIN && result <= INT_MAX) {
-            if (ok) *ok = true;
-            return static_cast<int>(result);
-        }
+    if (start == end) return 0; // String is all whitespace
+
+    char* parse_end;
+    long result = strtol(start, &parse_end, base);
+
+    if (parse_end == start) return 0; // No valid conversion could be performed
+
+    // Check if we've read the entire trimmed string and the result is within int range
+    if (parse_end == end && result >= INT_MIN && result <= INT_MAX) {
+        if (ok) *ok = true;
+        return static_cast<int>(result);
     }
 
     return 0;
@@ -340,48 +347,31 @@ bool QString::containsDigits() const {
     }
     return false;
 }
-QStringList QString::split(const QString& separator, Qt::SplitBehavior behavior) const {
-    QStringList result;
-    if (separator.isEmpty()) {
-        if (behavior == Qt::KeepEmptyParts) {
-            result.append(QString());
-            for (const QChar& ch : *this) {
-                result.append(QString(ch));
-            }
-            result.append(QString());
-        } else {
-            for (const QChar& ch : *this) {
-                result.append(QString(ch));
-            }
+
+QStringList QString::split(const QString& sep, Qt::SplitBehavior behavior) const {
+    QStringList list;
+    int len = length();
+
+    if (sep.isEmpty()) {
+        list.reserve(len + 2);  // Reserve space for all characters plus leading and trailing empty parts
+        list.append(QString());  // Add leading empty part
+        for (int i = 0; i < len; ++i) {
+            list.append(QString(1, at(i)));
         }
-        return result;
-    }
-
-    size_t start = 0;
-    size_t end = 0;
-    size_t sep_len = separator.length();
-
-    while (end != std::string::npos) {
-        end = find(separator, start);
-        
-        if (start != end || behavior == Qt::KeepEmptyParts) {
-            if (end == std::string::npos) {
-                result.append(mid(start));
-            } else {
-                result.append(mid(start, end - start));
-            }
+        list.append(QString());  // Add trailing empty part
+    } else {
+        int start = 0;
+        int end = 0;
+        while ((end = indexOf(sep, start)) != -1) {
+            if (start != end || behavior == Qt::KeepEmptyParts)
+                list.append(mid(start, end - start));
+            start = end + sep.size();
         }
-        
-        if (end == std::string::npos) break;
-        start = end + sep_len;
+        if (start != len || behavior == Qt::KeepEmptyParts)
+            list.append(mid(start));
     }
 
-    // Add an empty part at the end if the string ends with the separator
-    if (behavior == Qt::KeepEmptyParts && endsWith(separator)) {
-        result.append(QString());
-    }
-
-    return result;
+    return list;
 }
 
 QStringList QString::split(QChar sep, Qt::SplitBehavior behavior) const {
@@ -432,14 +422,6 @@ QString QString::left(int n) const {
     if (n > size())
         n = size();
     return QString(std::string::substr(0, n));
-}
-
-// In QString.cpp, add the implementation:
-bool QString::endsWith(const QString& str) const {
-    if (str.length() > length()) {
-        return false;
-    }
-    return std::string::compare(length() - str.length(), str.length(), str) == 0;
 }
 
 // QString::iterator implementations
