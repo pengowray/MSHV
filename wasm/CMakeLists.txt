@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 14)
 
 # Add Emscripten-specific options
 set(CMAKE_EXECUTABLE_SUFFIX ".js")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s MODULARIZE=1 -s EXPORT_NAME='createMshvFT8Module'")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s MODULARIZE=1 -s EXPORT_ES6=1 -s USE_ES6_IMPORT_META=0")
 
 # Define a variable for debug mode: build.sh -d
 option(DEBUG_MODE "Enable debug mode" OFF)
