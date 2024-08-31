@@ -65,9 +65,9 @@ add_executable(mshv_ft8
 #include_directories(${Qt6Core_INCLUDE_DIRS})
 
 # Add exported functions
-set_target_properties(mshv_ft8 PROPERTIES 
+set_target_properties(mshv_ft8 PROPERTIES
     OUTPUT_NAME "mshv_ft8" LINK_FLAGS "\
-    -s EXPORTED_FUNCTIONS=['_init_ft8','_free','_pack_ft8_message','_pack_ft8_message_safe','_unpack_ft8_message','_save_hash_call']\
+    -s EXPORTED_FUNCTIONS=['_init_ft8','_free','_pack_ft8_message','_pack_ft8_message_safe','_unpack_ft8_message','_save_hash_call','_create_packunpack77_instance','_destroy_packunpack77_instance']\
     -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','print','printErr','UTF8ToString','getValue','allocateUTF8']"
 )
 
