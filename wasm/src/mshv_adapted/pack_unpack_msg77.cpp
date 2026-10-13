@@ -1829,7 +1829,7 @@ void PackUnpackMsg77::pack77_3(int nwords,QString *w,int &i3,int &n3,bool *c77)
         if (crpt.mid(0,1)=="5" && crpt.mid(1,1)>="2" && crpt.mid(1,1)<="9" && crpt.mid(2,1)=="9")
         {
             bool ok;
-            int nserial = w[nwords-1].toInt(&ok);//read(w(nwords),*,err=1) nserial
+            nserial = w[nwords-1].toInt(&ok);//read(w(nwords),*,err=1) nserial
             if (!ok) {
                 nserial = 0;  // or whatever default value you want
             }
