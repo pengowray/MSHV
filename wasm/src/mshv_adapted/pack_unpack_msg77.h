@@ -31,12 +31,17 @@ public:
 	void initPackUnpack77(bool f_dec_gen);
 	void pack77(QString mes,int &i3,int n3,bool*c77);  
 	QString unpack77(bool *c77,bool &unpk77_success); 
+	void reset_save_hash_calls_gen();
 	void save_hash_call(QString c13,int &n10,int &n12,int &n22);
 	void save_hash_call_my_his_r1_r2(QString call,int pos);
 	void save_hash_call_mam(QStringList ls);
 	QString c1_rx_calls;
 	QString c2_rx_calls;
 	void split77(QString &msg,int &nwords,/*int *nw,*/QString *w);
+	void pack28(QString c13,int &n28);//2.76
+	void packtext77(QString,int &i3,int &n3,bool *c77);//2.76
+	void unpack28(int n28_0,QString &c13,bool &success);//2.76
+	void unpacktext77(bool *c77,QString &c13);//2.76
 
 private: 
     bool sf_dec_gen;
@@ -52,7 +57,7 @@ private:
 
     int ihashcall(QString c0,int m);
 
-    void pack28(QString c13,int &n28);
+    //void pack28(QString c13,int &n28);
     void SetArrayBits(int in,int in_bits,bool *ar,int &co);
     //void split77(QString &msg,int &nwords,/*int *nw,*/QString *w);
     void pack77_01(int nwords,QString *w,int &i3,int &n3,bool *c77);
@@ -64,15 +69,15 @@ private:
     void pack77_3(int nwords,QString *w,int &i3,int &n3,bool *c77);
     void pack77_4(int nwords,QString *w,int &i3,int &n3,bool *c77);
     void pack77_5(int nwords,QString *w,int &i3,int &n3,bool *c77);
-    void packtext77(QString,int &i3,int &n3,bool *c77);
+    //void packtext77(QString,int &i3,int &n3,bool *c77);
     
     //// unpack //////////////////////////////////////
     bool to_grid4(int n,QString &grid4);
     bool to_grid6(int n,QString &grid6);
-    void unpacktext77(bool *c77,QString &c13);
+    //void unpacktext77(bool *c77,QString &c13);
     void hash10(int n10,QString &c13,QString,QString);
     void hash12(int n12,QString &c13,QString);
     void hash22(int n22,QString &c13);
-    void unpack28(int n28_0,QString &c13,bool &success);	
+    //void unpack28(int n28_0,QString &c13,bool &success);	
 };
 #endif
