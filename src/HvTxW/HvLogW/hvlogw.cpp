@@ -79,7 +79,7 @@ HvLogList::HvLogList(bool indsty,QWidget *parent)
     model.SetValidSortColumns(21,-12);
     //THvHeader = new HvHeaderLog(Qt::Horizontal);
     THvHeader = new QHeaderView(Qt::Horizontal);
-    
+
 
     connect(THvHeader, SIGNAL(sectionPressed(int)),this,SIGNAL(SortClicked(int)));
 
@@ -114,7 +114,7 @@ HvLogList::HvLogList(bool indsty,QWidget *parent)
 
     THvHeader->setSectionResizeMode(QHeaderView::Fixed);//qt5
 
-	HideSections();
+    HideSections();
     /*THvHeader->hideSection(2);  //date end  hiden
     THvHeader->hideSection(13); //enum seconds 00-59 hiden
     THvHeader->hideSection(18); //contest id hiden
@@ -203,7 +203,7 @@ HvLogList::~HvLogList()
 {}
 void HvLogList::HideSections()
 {
-	THvHeader->hideSection(2);  //date end  hiden
+    THvHeader->hideSection(2);  //date end  hiden
     THvHeader->hideSection(13); //enum seconds 00-59 hiden
     THvHeader->hideSection(18); //contest id hiden
     THvHeader->hideSection(19); //contest MULTI-TWO hiden
@@ -256,7 +256,7 @@ void HvLogList::InsertItem_hv(QStringList list)
         int collumn = 0;
         for (QStringList::iterator it =  list.begin(); it != list.end(); ++it)
         {
-            QString itxt = QString(*it);            
+            QString itxt = QString(*it);
             if (!itxt.isEmpty()) itxt = itxt.trimmed();//2.63 protection
 
             if (collumn==13 && itxt.isEmpty())//1.82 enum seconds 00-59;
@@ -303,7 +303,7 @@ void HvLogList::SetItem_hv(QStringList list,int index_edit)
     {
         // end bug qt5.7 if setItem 0 row show hiden columns
         bool isHidenCol = THvHeader->isSectionHidden(j);
-        QString itxt = list.at(j);//QString(*it);        
+        QString itxt = list.at(j);//QString(*it);
         if (!itxt.isEmpty()) itxt = itxt.trimmed();//2.63 protection
 
         if (j==10)//freq 1.50
@@ -316,7 +316,7 @@ void HvLogList::SetItem_hv(QStringList list,int index_edit)
 
         //QStandardItem *item = new QStandardItem(itxt);
         QStandardItem *item = model.itemFromIndex(model.index(index_edit, j));
-        item->setText(itxt);       
+        item->setText(itxt);
         //item->setEditable(false);
         //item->setTextAlignment(Qt::AlignLeft);
         model.setItem(index_edit,j,item);
@@ -328,7 +328,7 @@ void HvLogList::SetItem_hv(QStringList list,int index_edit)
 }
 void HvLogList::Clear_List()
 {
-    for (int i = model.rowCount()-1; i >= 0; --i) model.removeRow(i);// ok pravilno hv       
+    for (int i = model.rowCount()-1; i >= 0; --i) model.removeRow(i);// ok pravilno hv
 }
 void HvLogList::DeleteSel()
 {
@@ -392,6 +392,7 @@ void HvLogList::keyPressEvent(QKeyEvent * event)
 
 #include <QDateEdit>
 #include <QPushButton>
+#define _POS_CONT_
 #define _CONT_NAME_
 #define _CONT_NAMEID_
 #include "../../config_str_con.h"
@@ -399,7 +400,7 @@ void HvLogList::keyPressEvent(QKeyEvent * event)
 HvEditW::HvEditW(QString name,QString bt_cancel_txt,QString bt_corr_txt,bool indsty,QWidget * parent )
         : QWidget(parent)
 {
-	s_dist = "";
+    s_dist = "";
     s_enum_sec_sta = "";
     s_enum_sec_end = "";
     index_edit = -1;
@@ -524,7 +525,7 @@ HvEditW::HvEditW(QString name,QString bt_cancel_txt,QString bt_corr_txt,bool ind
     cb_prop->setCurrentIndex(0);
     connect(cb_prop, SIGNAL(currentIndexChanged(QString)), this, SLOT(PropChanged(QString)));
 
-	QLabel *l_satmod = new QLabel();
+    QLabel *l_satmod = new QLabel();
     l_satmod->setText(tr("Sat Mode")+":");
     //l_satmod->setFixedWidth(80);
     cb_sat_mod = new QComboBox();
@@ -550,10 +551,10 @@ HvEditW::HvEditW(QString name,QString bt_cancel_txt,QString bt_corr_txt,bool ind
     QLabel *l_rxfreq = new QLabel();
     l_rxfreq->setText("RX "+tr("Frequency In")+" MHz:");
     le_rx_freq = new QLineEdit();
-    QRegExp rx("^[1-9][0-9]*$");//^[2-9][0-9]{6}$ Out of 7 digits 1 is consumed by first position 2-9 and then next 6 digits can be from 0-9
-    QValidator *validator = new QRegExpValidator(rx, this);
-    le_rx_freq->setValidator(validator);
-    
+    QRegExp rxd("^[0-9][0-9.]*$");//+dot+0
+    QValidator *validatorD = new QRegExpValidator(rxd, this); 
+    le_rx_freq->setValidator(validatorD);
+
     QHBoxLayout *H_sat= new QHBoxLayout();
     H_sat->setContentsMargins(0,0,0,0);
     H_sat->setSpacing(4);
@@ -564,17 +565,18 @@ HvEditW::HvEditW(QString name,QString bt_cancel_txt,QString bt_corr_txt,bool ind
     H_sat->addWidget(l_rxfreq);
     H_sat->addWidget(le_rx_freq);
     //H_sat->setAlignment(Qt::AlignLeft);
-	cb_sat_nam->setEnabled(false);
-	cb_sat_mod->setEnabled(false);	
+    cb_sat_nam->setEnabled(false);
+    cb_sat_mod->setEnabled(false);
+    le_rx_freq->setEnabled(false);//2.75
 
     QLabel *l_comment = new QLabel(tr("COMMENT")+":");
     //l_comment->setFixedWidth(50);
     le_comment = new QLineEdit();
     //le_comment->setFixedWidth(140);
     QRegExp rx2("^[^;]*$");//2.72 exclude -> ;
-    QValidator *validator2 = new QRegExpValidator(rx2,this); 
+    QValidator *validator2 = new QRegExpValidator(rx2,this);
     le_comment->setValidator(validator2);
-    
+
     /*QLabel *l_eqslmsg = new QLabel(tr("eQSL MSG")+":");
     //l_comment->setFixedWidth(50);
     QLineEdit *le_eqslmsg = new QLineEdit();
@@ -584,8 +586,8 @@ HvEditW::HvEditW(QString name,QString bt_cancel_txt,QString bt_corr_txt,bool ind
     le_eqslmsg->setValidator(validator2);*/
 
     le_freq = new HvInLe("freq", tr("Frequency In")+" kHz:",indsty);
-    //QRegExp rx("^[1-9][0-9]*$");//^[2-9][0-9]{6}$ Out of 7 digits 1 is consumed by first position 2-9 and then next 6 digits can be from 0-9
-    //QValidator *validator = new QRegExpValidator(rx, this);
+    QRegExp rx("^[1-9][0-9]*$");//^[2-9][0-9]{6}$ Out of 7 digits 1 is consumed by first position 2-9 and then next 6 digits can be from 0-9
+    QValidator *validator = new QRegExpValidator(rx, this);
     le_freq->SetValidatorHv(validator);// only digits
     //le_freq->setMinimumWidth(126);
     le_freq->setFixedWidth(220);
@@ -622,23 +624,23 @@ HvEditW::HvEditW(QString name,QString bt_cancel_txt,QString bt_corr_txt,bool ind
     l_bac->setText(tr("Contest Name")+":");
     cb_cont_id = new QComboBox();
     QStringList lst_bc;
-    for (int i = 0; i<COUNT_CONTEST; ++i) lst_bc << s_cont_name[i];
+    for (int i = 0; i<COUNT_CONTEST; ++i) lst_bc << s_cont_name[pos_cont[i]];
     cb_cont_id->addItems(lst_bc);
     cb_cont_id->setMaxVisibleItems(COUNT_CONTEST);//2.50
     cb_cont_id->setCurrentIndex(0);
     connect(cb_cont_id, SIGNAL(currentIndexChanged(QString)), this, SLOT(ExchangeChanged(QString)));
-    
+
     QLabel *l_trmn = new QLabel();
     //l_trmn->setText("Multi-Two Station:");//Transmitter
     l_trmn->setText(tr("Transmitter")+":");
     l_trmn->setContentsMargins(0,0,0,0);
     cb_cabrillo_trmN = new QComboBox();
     QStringList lst_trmn;
-    lst_trmn <<"None"<<"Run 1"<<"Run 2"; 
+    lst_trmn <<"None"<<"Run 1"<<"Run 2";
     cb_cabrillo_trmN->addItems(lst_trmn);
     cb_cabrillo_trmN->setCurrentIndex(0);
     cb_cabrillo_trmN->setMinimumWidth(80);
-    
+
     QHBoxLayout *H_cont = new QHBoxLayout();
     H_cont->setContentsMargins(1,1,1,1);
     H_cont->setSpacing(3);
@@ -703,22 +705,25 @@ void HvEditW::SetSatIdNames(QStringList l0,QStringList l1)
 {
     cb_sat_nam->addItems(l0);
     cb_sat_nam->setCurrentIndex(0);
-	s_id_sat_nam = l1;
+    s_id_sat_nam = l1;
 }
 void HvEditW::PropChanged(QString s)
 {
-	if (s=="Satellite")
-	{
-		cb_sat_nam->setEnabled(true);
-		cb_sat_mod->setEnabled(true);		
-	}
-	else
-	{
-		//cb_sat_nam->setCurrentIndex(0);
-		//cb_sat_mod->setCurrentIndex(0);
-		cb_sat_nam->setEnabled(false);
-		cb_sat_mod->setEnabled(false);		
-	}
+    if (s=="Satellite")
+    {
+        cb_sat_nam->setEnabled(true);
+        cb_sat_mod->setEnabled(true);
+        le_rx_freq->setEnabled(true);//2.75
+    }
+    else
+    {
+        /*cb_sat_nam->setCurrentIndex(0);
+        cb_sat_mod->setCurrentIndex(0);
+        le_rx_freq->setText("");*/
+        cb_sat_nam->setEnabled(false);
+        cb_sat_mod->setEnabled(false);
+        le_rx_freq->setEnabled(false);//2.75
+    }
 }
 void HvEditW::SetFont(QFont f)
 {
@@ -779,7 +784,7 @@ bool HvEditW::RUCheck(QString s)
                 break;
             }
         }
-        if (all_dig && s.toInt()>0 && s.toInt()<8000) f_ruerr = false;        
+        if (all_dig && s.toInt()>0 && s.toInt()<8000) f_ruerr = false;
     }
     return f_ruerr;
 }
@@ -789,7 +794,7 @@ void HvEditW::ExchangeChanged(QString)
     //RU MA
     QString txstr = le_txex->text();
     QString rxstr = le_rxex->text();
-    int cont_id = cb_cont_id->currentIndex(); //qDebug()<<cont_id<<str;
+    int cont_id = pos_cont[cb_cont_id->currentIndex()]; //qDebug()<<cont_id;
     //QString fdt = le_exchfd->text();
     if (cont_id==4)// FD
     {
@@ -797,19 +802,19 @@ void HvEditW::ExchangeChanged(QString)
             le_txex->setStyleSheet("QLineEdit{background-color:rgb(255,255,200);color:rgb(200,0,0)}");
         else
             le_txex->setStyleSheet("QLineEdit{background-color:palette(Base);}");
-            
+
         if (FDCheck(rxstr))
             le_rxex->setStyleSheet("QLineEdit{background-color:rgb(255,255,200);color:rgb(200,0,0)}");
         else
             le_rxex->setStyleSheet("QLineEdit{background-color:palette(Base);}");
-    } 
+    }
     else if (cont_id==9 || cont_id==10 || cont_id==11 || cont_id==12)//2.64 ALL RU
     {
         if (RUCheck(txstr))
             le_txex->setStyleSheet("QLineEdit{background-color:rgb(255,255,200);color:rgb(200,0,0)}");
         else
             le_txex->setStyleSheet("QLineEdit{background-color:palette(Base);}");
-            
+
         if (RUCheck(rxstr))
             le_rxex->setStyleSheet("QLineEdit{background-color:rgb(255,255,200);color:rgb(200,0,0)}");
         else
@@ -817,15 +822,15 @@ void HvEditW::ExchangeChanged(QString)
     }
     else
     {
-    	le_txex->setStyleSheet("QLineEdit{background-color:palette(Base);}");
-    	le_rxex->setStyleSheet("QLineEdit{background-color:palette(Base);}");	
+        le_txex->setStyleSheet("QLineEdit{background-color:palette(Base);}");
+        le_rxex->setStyleSheet("QLineEdit{background-color:palette(Base);}");
     }
 }
 void HvEditW::Check(QString s_type)
 {
     if (s_type == "call")
     {
-        //if (le_his_call->getText().count()>1)
+        //if (le_call->getText().count()>1)
         if (THvQthLoc.isValidCallsign(le_call->getText()))
         {
             le_call->setError(false);
@@ -886,26 +891,28 @@ void HvEditW::CorrContact()
 
     int id = cb_prop->currentIndex();
     QString propt = s_id_prop_mod[id];//None
-    
+
     QString satn = "";
     QString satm = "";
+    QString satr = "";
     if (cb_sat_nam->isEnabled())
     {
-    	id = cb_sat_nam->currentIndex();
-    	satn = s_id_sat_nam[id];    	
-   	}
-	if (cb_sat_mod->isEnabled())
-	{
-    	id = cb_sat_mod->currentIndex();       
-    	satm = s_id_sat_mod[id];		
-	}
-    
+        id = cb_sat_nam->currentIndex();
+        satn = s_id_sat_nam[id];
+    }
+    if (cb_sat_mod->isEnabled())
+    {
+        id = cb_sat_mod->currentIndex();
+        satm = s_id_sat_mod[id];
+    }
+    if (le_rx_freq->isEnabled()) satr = le_rx_freq->text();//2.75
+
     list<<dte_s->date().toString("yyyyMMdd")<<dte_s->time().toString("hh:mm")
     <<dte_e->date().toString("yyyyMMdd")<<dte_e->time().toString("hh:mm")<<le_call->getText()<<le_loc->getText()
     <<le_txrst->getText()<<le_rxrst->getText()<<Cb_mode->currentText()<<Cb_band->currentText()<<le_freq->getText()
     <<propt<<le_comment->text()<<s_enum_sec_sta<<le_txsn->text()<<le_rxsn->text()<<le_txex->text()<<le_rxex->text()
-    <<QString("%1").arg(cb_cont_id->currentIndex())<<QString("%1").arg(cb_cabrillo_trmN->currentIndex())
-    <<s_enum_sec_end<<s_dist<<satn<<satm<<le_rx_freq->text();
+    <<QString("%1").arg(pos_cont[cb_cont_id->currentIndex()])<<QString("%1").arg(cb_cabrillo_trmN->currentIndex())
+    <<s_enum_sec_end<<s_dist<<satn<<satm<<satr;
 
     emit SendCorrContact(list, index_edit);
 
@@ -937,17 +944,17 @@ void HvEditW::SetEdit(QStringList list, int index)
     //{"MSK144","JTMS","FSK441","FSK315","JT6M","ISCAT-A","ISCAT-B"};
     for (int i = 0; i<COUNT_MODE; ++i)//2.67
     {
-    	if (list.at(8) == ModeStr(pos_mods[i]))
-    	{
-    		Cb_mode->setCurrentIndex(i);
-    		break;    		
-   		}   	
-   	}
-   	if 		(list.at(8) == "SSB") Cb_mode->setCurrentIndex(COUNT_MODE);
+        if (list.at(8) == ModeStr(pos_mods[i]))
+        {
+            Cb_mode->setCurrentIndex(i);
+            break;
+        }
+    }
+    if 		(list.at(8) == "SSB") Cb_mode->setCurrentIndex(COUNT_MODE);
     else if (list.at(8) == "CW" ) Cb_mode->setCurrentIndex(COUNT_MODE+1);
     else if (list.at(8) == "FM" ) Cb_mode->setCurrentIndex(COUNT_MODE+2);
 
-       
+
     int index1 = Cb_band->findText(list.at(9), Qt::MatchCaseSensitive);
     if (index1 >= 0) Cb_band->setCurrentIndex(index1);
 
@@ -962,7 +969,7 @@ void HvEditW::SetEdit(QStringList list, int index)
     QString tmpf = list.at(10);// freq 1.50
     tmpf.remove(".");
     tmpf.remove(",");
-	if (tmpf.at(0) == '0') tmpf = tmpf.mid(1,tmpf.count()-1);//2.31 remove first zero 0.455.000
+    if (tmpf.at(0) == '0') tmpf = tmpf.mid(1,tmpf.count()-1);//2.31 remove first zero 0.455.000
     le_freq->SetText(tmpf);// freq 1.50
     //le_comment->setText("frq rezerve list.at(10)");
 
@@ -986,16 +993,20 @@ void HvEditW::SetEdit(QStringList list, int index)
     le_txex->setText(list.at(16));
     le_rxex->setText(list.at(17));
     //s_cont_id = list.at(18);//contest id hiden
-    int index2 = list.at(18).toInt(); //qDebug()<<index2;
-    if (index2 >= 0) cb_cont_id->setCurrentIndex(index2);
-        
-    //contest MULTI-TWO hiden 
+    int index2 = list.at(18).toInt();//qDebug()<<s_cont_name[index2];
+    if (index2 >= 0)
+    {
+    	index1 = cb_cont_id->findText(s_cont_name[index2],Qt::MatchCaseSensitive);//2.76
+   		if (index1>-1) cb_cont_id->setCurrentIndex(index1); 
+   	}
+
+    //contest MULTI-TWO hiden
     index2 = list.at(19).toInt(); //qDebug()<<index2;
-    if (index2 >= 0) cb_cabrillo_trmN->setCurrentIndex(index2);  
-        
-    s_dist = list.at(21);        //distance 
-    
-    index1 = 0;//Satellite	
+    if (index2 >= 0) cb_cabrillo_trmN->setCurrentIndex(index2);
+
+    s_dist = list.at(21);        //distance
+
+    index1 = 0;//Satellite
     for (int i = 0; i<cb_sat_nam->count(); ++i)
     {
         if (list.at(22)==s_id_sat_nam[i])
@@ -1008,7 +1019,7 @@ void HvEditW::SetEdit(QStringList list, int index)
     index1 = cb_sat_mod->findText(list.at(23),Qt::MatchCaseSensitive);
     if (index1 >= 0) cb_sat_mod->setCurrentIndex(index1);//Sat Mode
     else cb_sat_mod->setCurrentIndex(0);
-    le_rx_freq->setText(list.at(24));//RX Freq     
+    le_rx_freq->setText(list.at(24));//RX Freq
 }
 
 //#define _CONT_NAME_
@@ -1052,15 +1063,17 @@ static const QString lst_tim_cabr[COUNT_TRM_CABR] =
 static const QString lst_ovr_cabr[COUNT_OVR_CABR] =
     {"N/A","CLASSIC","ROOKIE","TB-WIRES","NOVICE-TECH","OVER-50"
     };
-#define COUNT_MOD_CABR 14
+#define COUNT_MOD_CABR 15
 static const QString lst_mod_cabr[COUNT_MOD_CABR] =
-    {"DIGI","FT4","FT8","MSK144","JTMS","FSK441","FSK315","ISCAT-A","ISCAT-B","JT6M","DIGITAL","SSB","RTTY","MIXED"
+    {"DIGI","FT2","FT4","FT8","MSK144","JTMS","FSK441","FSK315","ISCAT-A","ISCAT-B","JT6M","DIGITAL","SSB","RTTY","MIXED"
     };
 HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *wp_,QWidget * parent )
         : QWidget(parent)
 {
     //w_parent = wp_;
     f_km_mi = false;
+    pend_w = 0;
+    pend_h = 0;    
     THvProgrD = new HvProgressD(this);
     THvProgrD->close();
     s_udportcp_broad_logged_adif = false;
@@ -1081,6 +1094,7 @@ HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *w
     s_mode = "";
     s_band = "";
     FREQ_GLOBAL = "70230000";
+    f_off_auto_comm = false;//2.76.3
 
     addtolog_comment = "";
     addtolog_freq = "";
@@ -1092,7 +1106,7 @@ HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *w
     addtolog_satn = "";
     addtolog_satm = "";
     addtolog_rxfr = "";
-    
+
     f_addtolog = false;
     add_to_log_dialog = new QDialog(wp_); //2.71 old=add_to_log_dialog = new QDialog(this);
     //add_to_log_dialog->setWindowFlags(windowFlags() ^ Qt::WindowContextHelpButtonHint);// maha help butona
@@ -1101,9 +1115,9 @@ HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *w
     add_to_log_dialog->setWindowTitle(tr("ADD TO LOG"));
 
     QHBoxLayout *H_add_log_up= new QHBoxLayout();
-    H_add_log_up->setContentsMargins ( 0, 0, 0, 0);
+    H_add_log_up->setContentsMargins(0,0,0,0);
     H_add_log_up->setSpacing(10);
-    QLabel *l_warn = new QLabel("");
+    l_warn = new QLabel("");
     l_warn->setPixmap(QPixmap(":pic/warning_icon.png"));
     add_to_log_txt = new QLabel("");
     add_to_log_txt->setAlignment(Qt::AlignCenter);
@@ -1112,7 +1126,7 @@ HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *w
     H_add_log_up->addWidget(add_to_log_txt);
     H_add_log_up->setAlignment(Qt::AlignCenter);
 
-    QLabel *l_freq = new QLabel(tr("Frequency In")+" kHz:");
+    l_freq = new QLabel(tr("Frequency In")+" kHz:");
     //l_freq->setFixedWidth(110);
     add_to_log_le_frq = new QLineEdit();
     //add_to_log_le_frq->setMinimumWidth(150);
@@ -1127,7 +1141,6 @@ HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *w
 
     QLabel *l_prop = new QLabel();
     l_prop->setText(tr("Propagation")+":");
-    //l_prop->setFixedWidth(80);
     add_to_log_cb_prop = new QComboBox();
     add_to_log_cb_prop->setFixedWidth(160);
     QStringList lst_prop;
@@ -1170,62 +1183,66 @@ HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *w
             if (lst.count()<2) continue;
             if (lst.at(0).isEmpty() || lst.at(1).isEmpty()) continue;
             s_id_sat_nam.append(lst.at(0));
-			lst_prop.append(lst.at(1));
+            lst_prop.append(lst.at(1));
         }
         file.close();
     }
     else//if sat.dat missing
     {
-    	for (int i = 0; i<COUNT_SATIDN; ++i)
-    	{
-			s_id_sat_nam.append(s0_sat_id_mod[i][0]);    		
-    		lst_prop.append(s0_sat_id_mod[i][1]);    		
-   		}
-   	}    
+        for (int i = 0; i<COUNT_SATIDN; ++i)
+        {
+            s_id_sat_nam.append(s0_sat_id_mod[i][0]);
+            lst_prop.append(s0_sat_id_mod[i][1]);
+        }
+    }
     //Test and copy to default -> config_prop_all.h
     /*qDebug()<<"COUNT_SATIDN ="<<lst_prop.count()-1;
     for (int i = 1; i<lst_prop.count(); ++i)
     {
-    	if (i==1) qDebug().nospace()<<"{\n{"<<s_id_sat_nam.at(i)<<","<<lst_prop.at(i)<<"},";    			   		
+    	if (i==1) qDebug().nospace()<<"{\n{"<<s_id_sat_nam.at(i)<<","<<lst_prop.at(i)<<"},";    
     	else if (i==lst_prop.count()-1) qDebug().nospace()<<"{"<<s_id_sat_nam.at(i)<<","<<lst_prop.at(i)<<"}\n};";
     	else qDebug().nospace()<<"{"<<s_id_sat_nam.at(i)<<","<<lst_prop.at(i)<<"},";
-   	}*/
+    }*/
     cb_sat_nam->addItems(lst_prop);
     cb_sat_nam->setCurrentIndex(0);
     QLabel *l_rxfreq = new QLabel();
     l_rxfreq->setText("RX "+tr("Frequency In")+" MHz:");
     le_rx_freq = new QLineEdit();
-    le_rx_freq->setValidator(validator);//only digits
-    
+    QRegExp rxd("^[0-9][0-9.]*$");//+dot+0
+    QValidator *validatorD = new QRegExpValidator(rxd, this);    
+    le_rx_freq->setValidator(validatorD);//only digits
+
     QHBoxLayout *H_sat= new QHBoxLayout();
     H_sat->setContentsMargins(0,0,0,0);
-    H_sat->setSpacing(4);
-    H_sat->addWidget(l_satmodn);
+    H_sat->setSpacing(5);
+    H_sat->addWidget(l_satmodn);//H_sat->setAlignment(l_satmodn,Qt::AlignRight);
     H_sat->addWidget(cb_sat_nam);
-    H_sat->addWidget(l_satmod);
+    H_sat->addWidget(l_satmod);//H_sat->setAlignment(l_satmod,Qt::AlignRight);
     H_sat->addWidget(cb_sat_mod);
-    //H_sat->addWidget(l_rxfreq);
-    //H_sat->addWidget(le_rx_freq);
-    //H_sat->setAlignment(Qt::AlignLeft);
-	cb_sat_nam->setEnabled(false);
-	cb_sat_mod->setEnabled(false);
-	
-	QHBoxLayout *H_freq= new QHBoxLayout();
+    //H_sat->setAlignment(Qt::AlignCenter);
+    cb_sat_nam->setEnabled(false);
+    cb_sat_mod->setEnabled(false);
+    le_rx_freq->setEnabled(false);//2.75
+
+    QHBoxLayout *H_freq= new QHBoxLayout();
     H_freq->setContentsMargins(0,0,0,0);
     H_freq->setSpacing(4);
-	H_freq->addWidget(l_rxfreq);
-    H_freq->addWidget(le_rx_freq);	
+    H_freq->addWidget(l_rxfreq);
+    H_freq->addWidget(le_rx_freq);
 
-    QHBoxLayout *H_add_log_fp_prop= new QHBoxLayout();
-    H_add_log_fp_prop->setContentsMargins(0,0,0,0);
-    H_add_log_fp_prop->setSpacing(4);
-    H_add_log_fp_prop->addWidget(l_freq);
-    H_add_log_fp_prop->addWidget(add_to_log_le_frq);
-    H_add_log_fp_prop->addWidget(l_prop);
-    H_add_log_fp_prop->addWidget(add_to_log_cb_prop);
-    H_add_log_fp_prop->setAlignment(Qt::AlignCenter);
+    cb_enable_ali = new QCheckBox(tr("Enable Auto Logging Info"));
+    connect(cb_enable_ali,SIGNAL(toggled(bool)),this,SIGNAL(EmitCBEnableAliChanged(bool)));//clicked 2.75
 
-    QLabel *l_comment = new QLabel(tr("COMMENT")+":");
+    QHBoxLayout *H_p= new QHBoxLayout();
+    H_p->setContentsMargins(0,0,0,0);
+    H_p->setSpacing(4);
+    H_p->addWidget(cb_enable_ali);
+    H_p->addWidget(l_prop);
+    H_p->setAlignment(l_prop,Qt::AlignRight);
+    H_p->addWidget(add_to_log_cb_prop);
+    //H_p->setAlignment(Qt::AlignLegt);
+
+    l_comment = new QLabel(tr("COMMENT")+":");
     //l_comment->setFixedWidth(70);
     add_to_log_le = new QLineEdit();
     add_to_log_le->setMinimumWidth(110);
@@ -1233,21 +1250,28 @@ HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *w
     QRegExp rx2("^[^;]*$");//2.72 exclude -> ;
     QValidator *validator2 = new QRegExpValidator(rx2,this);
     add_to_log_le->setValidator(validator2);
-    /*QLabel *l_eqslmsg = new QLabel(tr("eQSL MSG")+":");
-    QLineEdit *le_eqslmsg = new QLineEdit(); 
-    le_eqslmsg->setValidator(validator2);*/
-
     QHBoxLayout *H_add_log_comm= new QHBoxLayout();
     H_add_log_comm->setContentsMargins(0,0,0,0);
     H_add_log_comm->setSpacing(4);
     H_add_log_comm->addWidget(l_comment);
     H_add_log_comm->addWidget(add_to_log_le);
-    //H_add_log_comm->addWidget(l_eqslmsg);
-    //H_add_log_comm->addWidget(le_eqslmsg);
-    //H_add_log_comm->addWidget(l_comment);
-    //H_add_log_comm->setAlignment(l_comment,Qt::AlignRight);
-    //H_add_log_comm->addWidget(add_to_log_le);
-    //H_add_log_comm->setAlignment(add_to_log_le,Qt::AlignLeft);
+
+    QGroupBox *GB_001 = new QGroupBox(tr("Auto Logging Info")+":");
+    QVBoxLayout *lgb001 = new QVBoxLayout();
+    lgb001->setContentsMargins(8,5,8,5);
+    lgb001->setSpacing(4);
+    lgb001->addLayout(H_p);
+    lgb001->addLayout(H_sat);
+    lgb001->addLayout(H_freq);
+    lgb001->addLayout(H_add_log_comm);
+    GB_001->setLayout(lgb001);
+
+    QHBoxLayout *H_add_log_fp_prop= new QHBoxLayout();
+    H_add_log_fp_prop->setContentsMargins(0,0,0,0);
+    H_add_log_fp_prop->setSpacing(4);
+    H_add_log_fp_prop->addWidget(l_freq);
+    H_add_log_fp_prop->addWidget(add_to_log_le_frq);
+    H_add_log_fp_prop->setAlignment(Qt::AlignCenter);
 
     //QRegExp rx1("^[1-9][0-9]*$");//^[2-9][0-9]{6}$ Out of 7 digits 1 is consumed by first position 2-9 and then next 6 digits can be from 0-9
     QValidator *validator1 = new QRegExpValidator(rx, this);
@@ -1274,9 +1298,7 @@ HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *w
     H_add_log_cont->addWidget(add_to_log_le_rxex);
 
     b_add_to_log_ok = new QPushButton(tr("Add QSO"));
-    //b_add_to_log_ok->setFixedWidth(80);//2.71 stop
     b_add_to_log_cacel = new QPushButton(tr("Cancel"));
-    //b_add_to_log_cacel->setFixedWidth(80);//2.71 stop
     QHBoxLayout *H_add_log_bt= new QHBoxLayout();
     H_add_log_bt->setContentsMargins(0,0,0,0);
     H_add_log_bt->setSpacing(10);
@@ -1287,14 +1309,15 @@ HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *w
     connect(b_add_to_log_cacel, SIGNAL(released()), this, SLOT(CancelAddToLog()));
 
     QVBoxLayout *V_add_log= new QVBoxLayout(add_to_log_dialog);
-    V_add_log->setContentsMargins(5,5,5,5);
+    V_add_log->setContentsMargins(6,5,6,5);
     V_add_log->setSpacing(5);
     V_add_log->addLayout(H_add_log_up);
     //V_add_log->setAlignment(add_to_log_txt,Qt::AlignCenter);
     V_add_log->addLayout(H_add_log_fp_prop);
-    V_add_log->addLayout(H_sat);
-	V_add_log->addLayout(H_freq);
-    V_add_log->addLayout(H_add_log_comm);
+    V_add_log->addWidget(GB_001);
+    //V_add_log->addLayout(H_sat);
+    //V_add_log->addLayout(H_freq);
+    //V_add_log->addLayout(H_add_log_comm);
     V_add_log->addLayout(H_add_log_cont);
     V_add_log->addLayout(H_add_log_bt);
     V_add_log->setAlignment(Qt::AlignCenter);
@@ -1323,7 +1346,7 @@ HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *w
     cb_cabrillo_cont = new QComboBox();
     //cb_cabrillo_cont->setFixedWidth(180);
     QStringList lst_cont;
-    for (int i = 0; i<COUNT_CONTEST; ++i) lst_cont << s_cont_name[i];
+    for (int i = 0; i<COUNT_CONTEST; ++i) lst_cont << s_cont_name[pos_cont[i]];
     cb_cabrillo_cont->addItems(lst_cont);
     cb_cabrillo_cont->setMaxVisibleItems(COUNT_CONTEST);
     QLabel *l_cn_id = new QLabel(tr("Contest ID")+":");
@@ -1795,7 +1818,7 @@ HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *w
     //connect(THvEditW, SIGNAL(CheckCall(QString,int)), this, SLOT(CheckCall_W(QString,int)));
     connect(THvEditW, SIGNAL(SendCorrContact(QStringList,int)), this, SLOT(SetCorrContact(QStringList,int)));
     THvEditW->hide();
-    connect(THvEditW, SIGNAL(EndEdit()), this, SLOT(End_Edit()));    
+    connect(THvEditW, SIGNAL(EndEdit()), this, SLOT(End_Edit()));
     THvEditW->SetSatIdNames(lst_prop,s_id_sat_nam);
 
     AddManQsoW = new HvEditW(tr("ADD QSO MANUALLY")," "+tr("Exit Add Mode")+" "," "+tr("Add QSO")+" ",indsty,this);
@@ -2057,23 +2080,26 @@ void HvLogW::ViewDialogStatstic()
 }*/
 void HvLogW::PropChanged(QString s)
 {
-	if (s=="Satellite")
-	{
-		cb_sat_nam->setEnabled(true);
-		cb_sat_mod->setEnabled(true);		
-	}
-	else
-	{
-		//cb_sat_nam->setCurrentIndex(0);
-		//cb_sat_mod->setCurrentIndex(0);
-		cb_sat_nam->setEnabled(false);
-		cb_sat_mod->setEnabled(false);		
-	}
+    if (s=="Satellite")
+    {
+        cb_sat_nam->setEnabled(true);
+        cb_sat_mod->setEnabled(true);
+        le_rx_freq->setEnabled(true);//2.75
+    }
+    else
+    {
+        /*cb_sat_nam->setCurrentIndex(0);
+        cb_sat_mod->setCurrentIndex(0);
+        le_rx_freq->setText("");*/
+        cb_sat_nam->setEnabled(false);
+        cb_sat_mod->setEnabled(false);
+        le_rx_freq->setEnabled(false);//2.75
+    }
 }
 void HvLogW::ReadEDILog()//2.57
 {
     //qDebug()<<s_my_grid;
-    ReadEDI(AppPath+"/log/mshvlog.edim",false,true);//2.75 bool check for old format
+    ReadEDI(AppPath+"/log/mshvlog.edim",false,true);// bool check for old format
     //DefaultSort();//2.57  if sorted return to normal
     //for (int i = 0; i < 10; ++i) MakeLoggedQSO(i);
 }
@@ -2081,6 +2107,7 @@ void HvLogW::Show_log()// 2.28
 {
     //if(!isVisible()) THvLogList->scrollToBottom();
     show();
+    if (pend_w>0) { resize(pend_w,pend_h); pend_w = 0; }// macOS: the size is reset before the first show
     //slow down first open HV
     //THvLogList->setCurrentIndex(THvLogList->model.index(THvLogList->model.rowCount()-1,0));
     THvLogList->scrollToBottom();//2.52
@@ -2088,15 +2115,25 @@ void HvLogW::Show_log()// 2.28
 void HvLogW::SetPosXYWH(QString s)//2.48
 {
     QStringList list_s = s.split("#");
-    if (list_s.count()==4)
+    if (list_s.count()>=4)
     {
         move(list_s[0].toInt(),list_s[1].toInt());
         if (!list_s[2].isEmpty() && !list_s[3].isEmpty())
         {
-            if (list_s[2] == "FULL" || list_s[3] == "FULL" )
-                setWindowState(Qt::WindowMaximized);
-            else
-                resize(list_s[2].toInt(), list_s[3].toInt());
+            if (list_s[2] == "FULL" || list_s[3] == "FULL" ) setWindowState(Qt::WindowMaximized);
+            else 
+            {
+            	resize(list_s[2].toInt(), list_s[3].toInt());
+            	pend_w = list_s[2].toInt(); pend_h = list_s[3].toInt();
+            	if (list_s.count()>=4+THvLogList->model.columnCount())
+            	{
+            		for (int i = 0; i<THvLogList->model.columnCount(); ++i)
+            		{
+            			int width0 = list_s[4+i].toInt();
+            			if (width0>0 && width0<1001) THvLogList->setColumnWidth(i,width0);          		
+           			}             		
+           		}          	
+           	}
         }
     }
 }
@@ -2252,7 +2289,12 @@ void HvLogW::AddExtrnalAdif()
             }
             else if (mode_disp=="MFSK" || mode_disp=="Q65") //wsjtx or N1MM
             {
-                if (smode_disp=="FT4")
+            	if (smode_disp=="FT2")
+                {
+                    fmode = true;
+                    mode_disp="FT2";
+                }
+                else if (smode_disp=="FT4")
                 {
                     fmode = true;
                     mode_disp="FT4";
@@ -2378,9 +2420,9 @@ void HvLogW::AddExtrnalAdif()
         QString prop_m = ExtractAdifRecord(line,"<PROP_MODE:");
         QString comm = ExtractAdifRecord(line,"<COMMENT:");
 
-		QString satn = ExtractAdifRecord(line,"<SAT_NAME:");
-		QString satm = ExtractAdifRecord(line,"<SAT_MODE:");
-		QString frrx = ExtractAdifRecord(line,"<FREQ_RX:");
+        QString satn = ExtractAdifRecord(line,"<SAT_NAME:");
+        QString satm = ExtractAdifRecord(line,"<SAT_MODE:");
+        QString frrx = ExtractAdifRecord(line,"<FREQ_RX:");
 
         QString tx_sn = ExtractAdifRecord(line,"<STX:");
         if (tx_sn.isEmpty()) tx_sn = ExtractAdifRecord(line,"<STX_STRING:");//SRX_STRING LogHX exception
@@ -2467,7 +2509,7 @@ void HvLogW::AddExtrnalAdif()
         <<tx_sn<<rx_sn<<log_tx_exch<<log_rx_exch<<log_cont_id<<trmN<<enum_sec_end<<dist
         <<satn<<satm<<frrx;
 
-        Insert(t_list,false,false,0,false);
+        Insert(t_list,false,false,0,false,false);
         added_qso++;
         line.clear();
 
@@ -2549,7 +2591,7 @@ void HvLogW::SetMarkTextAllRuleChanged(bool *f,int mode,QString band)
     f_isCheck[6] = f[25];//loc m
     s_mode = ModeStr(mode);
     s_band = band;
-    if (mode==0 || mode==7 || mode==8 || mode==9 || mode==11 || mode==12 || mode==13 ||
+    if (mode==0 || mode==7 || mode==8 || mode==9 || mode==11 || mode==12 || mode==13 || mode==18 ||
             mode==14 || mode==15 || mode==16 || mode==17)//ft4 q65
         s_allowed_modes = true;
     else
@@ -2879,8 +2921,8 @@ void HvLogW::DeleteSelected()
             {
                 for (int i = 0; i<THvLogList->model.columnCount(); i++)
                 {
-                	//2.73 no show, end-date,enum sec,cont-ID,distance,Satellite,SatMode,RX Freq
-                    if (i==2 || i==13 || i==18 || i==19  || i==20 || i==21 || i==22 || i==23 || i==24) continue; 
+                    //2.73 no show, end-date,enum sec,cont-ID,distance,Satellite,SatMode,RX Freq
+                    if (i==2 || i==13 || i==18 || i==19  || i==20 || i==21 || i==22 || i==23 || i==24) continue;
                     str_n.append(THvLogList->model.item(rows[j], i)->text());
                     str_n.append(" ");
                 }
@@ -2982,13 +3024,13 @@ void HvLogW::ReadEDI(QString path,bool pbarr,bool check_format)
         check_format = false;
         if (f_qsos)
         {
-        	bool fcount25 = false;
+            bool fcount25 = false;
             list = line.split(";");
             if (list.count() == 25) fcount25 = true;//old count=25 and 24column="24"
             if (list.count() < MIN_CCOUNT)
             {
-            	for (int i = list.count(); i < MIN_CCOUNT; ++i) list.append(""); 
-           	}
+                for (int i = list.count(); i < MIN_CCOUNT; ++i) list.append("");
+            }
             QStringList t_list;
             QString str_date = list.at(0);
             QString str_date_end = list.at(2);
@@ -3028,6 +3070,7 @@ void HvLogW::ReadEDI(QString path,bool pbarr,bool check_format)
             else if (mode_disp=="26") mode_disp="Q65B";
             else if (mode_disp=="27") mode_disp="Q65C";
             else if (mode_disp=="28") mode_disp="Q65D";
+            else if (mode_disp=="29") mode_disp="FT2";
 
             str_band.replace("k"," kHz",Qt::CaseInsensitive);
             str_band.replace("M"," MHz",Qt::CaseInsensitive);
@@ -3051,7 +3094,7 @@ void HvLogW::ReadEDI(QString path,bool pbarr,bool check_format)
             <<list.at(13)<<list.at(14)<<list.at(15)<<list.at(16)<<cont_id<<trmN<<enum_sec_end<<dist
             <<list.at(22)<<list.at(23)<<rxfrq;
 
-            Insert(t_list,false,false,0,false);//0=show_cont_id 0=no, 1=sn, 2=exch 3=sn+exch
+            Insert(t_list,false,false,0,false,false);//0=show_cont_id 0=no, 1=sn, 2=exch 3=sn+exch
             list.clear();
             t_list.clear();
 
@@ -3072,32 +3115,39 @@ void HvLogW::ReadEDI(QString path,bool pbarr,bool check_format)
     if (s_allowed_modes && (f_isCheck[0] || f_isCheck[3])) GetMarkTextAllFromLog_p(s_band,s_mode);
     if (pbarr) CheckLogCount();//only from add external
 }
+void HvLogW::SetLogAutoComm(bool f)//2.76.3
+{
+    f_off_auto_comm = f; 
+	if (!f_off_auto_comm) add_to_log_le->clear();//2.76.3 
+}
 void HvLogW::CancelAddToLog()
 {
-    //timer_canc_add_to_log_dialog->stop();
     add_to_log_dialog->close();
+	if (!f_off_auto_comm) add_to_log_le->clear();//2.76.3
 }
 void HvLogW::OkAddToLog()
 {
-    //timer_canc_add_to_log_dialog->stop();
     f_addtolog = true;
     addtolog_comment = add_to_log_le->text();
+	if (!f_off_auto_comm) add_to_log_le->clear();//2.76.3
     addtolog_freq = add_to_log_le_frq->text();
 
     int id = add_to_log_cb_prop->currentIndex();
     addtolog_prop = s_id_prop_mod[id];//None
-
     if (cb_sat_nam->isEnabled())
     {
-    	id = cb_sat_nam->currentIndex();
-    	addtolog_satn = s_id_sat_nam[id];    	
-   	} else addtolog_satn = "";
-	if (cb_sat_mod->isEnabled())
-	{
-    	id = cb_sat_mod->currentIndex();       
-    	addtolog_satm = s_id_sat_mod[id];		
-	} else addtolog_satm = "";
-	addtolog_rxfr = le_rx_freq->text();
+        id = cb_sat_nam->currentIndex();
+        addtolog_satn = s_id_sat_nam[id];
+    }
+    else addtolog_satn = "";
+    if (cb_sat_mod->isEnabled())
+    {
+        id = cb_sat_mod->currentIndex();
+        addtolog_satm = s_id_sat_mod[id];
+    }
+    else addtolog_satm = "";
+    if (le_rx_freq->isEnabled()) addtolog_rxfr = le_rx_freq->text();//2.75
+    else addtolog_rxfr = "";
 
     addtolog_txsn = add_to_log_le_txsn->text();
     addtolog_rxsn = add_to_log_le_rxsn->text();
@@ -3109,9 +3159,9 @@ void HvLogW::OkAddToLog()
 void HvLogW::StartAddToDialog(QStringList in_lst)
 {
     f_addtolog = false;
-    add_to_log_le->clear();
+    //add_to_log_le->clear();//2.76.3 stop
     add_to_log_le_frq->clear();
-
+    
     add_to_log_le_txsn->clear();
     add_to_log_le_rxsn->clear();
     add_to_log_le_txex->clear();
@@ -3127,7 +3177,7 @@ void HvLogW::StartAddToDialog(QStringList in_lst)
         }
         else if (i==12)//comment
         {
-            add_to_log_le->setText(in_lst.at(i));
+        	if (!f_off_auto_comm) add_to_log_le->setText(in_lst.at(i));//2.76.3           
             continue;
         }
         else if (i==14)//
@@ -3154,13 +3204,9 @@ void HvLogW::StartAddToDialog(QStringList in_lst)
         // no problem 13, 20, empty enum sec start end
         if (i!=2 && i!=18 && i!=19)//stop date end hiden 2 and 18 cont id and 19contest MULTI-TWO hiden
         {
-            if (i==1) // UTC Start
-                str_n.append(tr("From")+" "+in_lst.at(i));
-            else if (i==3) // UTC End
-                str_n.append(tr("To")+" "+in_lst.at(i));
-            else
-                str_n.append(in_lst.at(i));
-
+            if (i==1) str_n.append(tr("From")+" "+in_lst.at(i));// UTC Start                
+            else if (i==3) str_n.append(tr("To")+" "+in_lst.at(i));// UTC End                
+            else str_n.append(in_lst.at(i));                
             //if (i==0 || i==2)
             //str_n.append("-");
             //else
@@ -3180,6 +3226,42 @@ void HvLogW::StartAddToDialog(QStringList in_lst)
     add_to_log_dialog->exec();
 
     //b_add_to_log_cacel->setFocus();
+}
+void HvLogW::SetAutoLogInfo()//2.75
+{
+    l_txsn->setHidden(true);//f_addtolog = false; HV no use for this function
+    add_to_log_le_txsn->setHidden(true);
+    l_rxsn->setHidden(true);
+    add_to_log_le_rxsn->setHidden(true);
+    l_txex->setHidden(true);
+    add_to_log_le_txex->setHidden(true);
+    l_rxex->setHidden(true);
+    add_to_log_le_rxex->setHidden(true);
+
+    add_to_log_dialog->setWindowTitle(tr("Auto Logging Info Settings"));
+    l_warn->setHidden(true);
+    add_to_log_txt->setHidden(true);
+    l_freq->setHidden(true);
+    add_to_log_le_frq->setHidden(true);
+    if (!f_off_auto_comm)//2.76.3
+    {
+    	l_comment->setHidden(true);
+    	add_to_log_le->setHidden(true);    	
+   	}
+    b_add_to_log_ok->setHidden(true);
+    b_add_to_log_cacel->setText(tr("Close"));
+
+    add_to_log_dialog->exec();
+
+    add_to_log_dialog->setWindowTitle(tr("ADD TO LOG"));
+    l_warn->setHidden(false);
+    add_to_log_txt->setHidden(false);
+    l_freq->setHidden(false);
+    add_to_log_le_frq->setHidden(false);
+    l_comment->setHidden(false);
+    add_to_log_le->setHidden(false);
+    b_add_to_log_ok->setHidden(false);
+    b_add_to_log_cacel->setText(tr("Cancel"));//f_addtolog = true; HV no use for this function
 }
 /*QString HvLogW::GetFREQall(int id, int l_row) //ID 0=ADIF, 1=LOGEDQSO, 2=Cabrillo
 {
@@ -3254,7 +3336,12 @@ QString HvLogW::MakeAdifString(int l_row)
 
     //2.21 mode Adif 3.1.0 <mode:4>MFSK <submode:3>FT4 <-submode exeption ????
     s = THvLogList->model.item(l_row, 8)->text();
-    if (s=="FT4")
+    if (s=="FT2")
+    {
+        out.append("<MODE:4>MFSK");
+        out.append("<SUBMODE:"+QString("%1").arg(s.count())+">"+s);
+    }
+    else if (s=="FT4")
     {
         out.append("<MODE:4>MFSK");
         out.append("<SUBMODE:"+QString("%1").arg(s.count())+">"+s);
@@ -3387,6 +3474,7 @@ QString HvLogW::MakeAdifString(int l_row)
     //"Q65 Pileup" or "Pileup"		14	2		14 CQ 		 1			0 = CQ
     //"NCCC Sprint"					15	2		15 CQ NCCC	 1			8 = CQ NCCC
     //"ARRL Inter. EME Contest"		16	6		16 CQ 		 0			0 = CQ
+    //"FT Challenge Contest"		17  6       17 CQ FTC    0          9 = CQ FTC
 
     //2.64 All RU+FD  id_cont_t==7  id_cont_t==8
     if (id_cont_t==4 || id_cont_t==9 || id_cont_t==10 || id_cont_t==11 || id_cont_t==12)
@@ -3399,7 +3487,7 @@ QString HvLogW::MakeAdifString(int l_row)
     if (s.toInt()>0) out.append("<APP_N1MM_RUN1RUN2:"+QString("%1").arg(s.count())+">"+s); //2.65 <APP_N1MM_RUN1RUN2:1>0
 
     //n1mm rx-><APP_N1MM_EXCHANGE1:2>2A  rx-><ARRL_SECT:2>AL  <CONTEST_ID:14>ARRL-FIELD-DAY ????
-    //s = qslmsg; if (!s.isEmpty()) out.append("<QSLMSG:"+QString("%1").arg(s.count())+">"+s);       
+    //s = qslmsg; if (!s.isEmpty()) out.append("<QSLMSG:"+QString("%1").arg(s.count())+">"+s);
 
     out.append("<EOR>\n");
 
@@ -3501,9 +3589,9 @@ QString HvLogW::CalcDistance(QString hloc)
 
     return res;
 }
-bool HvLogW::Insert(QStringList lst, bool save_changes,bool warning_msg,int show_cont_id,bool f_maxqsoc)
+bool HvLogW::Insert(QStringList lst, bool save_changes,bool warning_msg,int show_cont_id,bool f_maxqsoc,bool add_prop_info)
 {
-    if (lst.count() < MIN_CCOUNT) return false;//2.73 21to25 w10 protection
+    if (lst.count() < MIN_CCOUNT) return false;//2.73 21to25 w10 protection    		    	
     if (!lst.empty() && warning_msg)
     {
         if (show_cont_id==0)//show_cont_id 0=no, 1=sn, 2=exch 3=sn+exch
@@ -3555,19 +3643,41 @@ bool HvLogW::Insert(QStringList lst, bool save_changes,bool warning_msg,int show
 
         if (f_addtolog)
         {
-            lst[12] = addtolog_comment;// comment
-            lst[11] = addtolog_prop;// prop
+            lst[12] = addtolog_comment;// comment           
+            lst[11] = addtolog_prop;   // prop
             lst[10] = addtolog_freq;
             lst[14] = addtolog_txsn;
             lst[15] = addtolog_rxsn;
             lst[16] = addtolog_txex;
             lst[17] = addtolog_rxex;
-    		lst[22] = addtolog_satn;
-    		lst[23] = addtolog_satm;
-    		lst[24] = addtolog_rxfr;            
+            lst[22] = addtolog_satn;
+            lst[23] = addtolog_satm;
+            lst[24] = addtolog_rxfr;
         }
         else return false;
     }
+
+    if (add_prop_info && cb_enable_ali->isChecked() && !warning_msg)//2.75
+    {
+        int id = add_to_log_cb_prop->currentIndex();
+        lst[11] = s_id_prop_mod[id];//prop
+        if (cb_sat_nam->isEnabled())
+        {
+            id = cb_sat_nam->currentIndex();
+            lst[22] = s_id_sat_nam[id];//sat
+        }
+        else lst[22] = "";
+        if (cb_sat_mod->isEnabled())
+        {
+            id = cb_sat_mod->currentIndex();
+            lst[23] = s_id_sat_mod[id];//sat mod
+        }
+        else lst[23] = "";
+        if (le_rx_freq->isEnabled()) lst[24] = le_rx_freq->text();//rx freq 2.75
+        else lst[24] = "";  
+        if (f_off_auto_comm) lst[12] = add_to_log_le->text();//2.76.3         
+    }
+
     if (lst.at(21).isEmpty())//readEDI readADIF ....
     {
         QString distt = CalcDistance(lst.at(5)); //qDebug()<<s_my_grid<<lst.at(5)<<distt;
@@ -3783,6 +3893,7 @@ void HvLogW::SaveEDI(QString path,bool fappend)
         else if (mode_code=="Q65B") mode_code="26";
         else if (mode_code=="Q65C") mode_code="27";
         else if (mode_code=="Q65D") mode_code="28";
+        else if (mode_code=="FT2") mode_code="29";
 
         out << mode_code<<";";//Mode code
 
@@ -3827,7 +3938,7 @@ void HvLogW::SaveEDI(QString path,bool fappend)
         out  <<THvLogList->model.item(j, 21)->text()<<";";//distance                  21
         out  <<THvLogList->model.item(j, 22)->text()<<";";//Satellite                 22
         out  <<THvLogList->model.item(j, 23)->text()<<";";//Sat Mode                  23
-        out  <<THvLogList->model.item(j, 24)->text()<<";";//RX Freq                   24        
+        out  <<THvLogList->model.item(j, 24)->text()<<";";//RX Freq                   24
         out  <<";";  //free reserve from 2.73 HV                                      25
         out  <<";";  //free reserve from 2.73 HV                                      26
         out  <<";"; //free reserve from 2.73 HV                                       27
@@ -4146,12 +4257,43 @@ QString HvLogW::GetSettings()
     res.append(le_cabrillo_addr_posc->text()); //8
     res.append("#");
     res.append(le_cabrillo_addr_cntr->text()); //9
-    //res.append("#");
     return res;
+}
+QString HvLogW::GetPropSettings()//2.75
+{
+    QString str;
+    str.append(add_to_log_cb_prop->currentText());
+    str.append("#");
+    str.append(cb_sat_nam->currentText());
+    str.append("#");
+    str.append(cb_sat_mod->currentText());
+    str.append("#");
+    str.append(le_rx_freq->text());
+    str.append("#");
+    str.append(QString("%1").arg(cb_enable_ali->isChecked()));
+    str.append("#");
+    str.append(add_to_log_le->text());//2.76.3
+    return str;
+}
+void HvLogW::SetPropSettings(QString s)
+{
+    QStringList ls = s.split("#");
+    if (ls.count()>5)
+    {
+        int index = add_to_log_cb_prop->findText(ls.at(0),Qt::MatchCaseSensitive);
+    	if (index >= 0) add_to_log_cb_prop->setCurrentIndex(index);
+    	index = cb_sat_nam->findText(ls.at(1),Qt::MatchCaseSensitive);
+    	if (index >= 0) cb_sat_nam->setCurrentIndex(index);
+    	index = cb_sat_mod->findText(ls.at(2),Qt::MatchCaseSensitive);
+    	if (index >= 0) cb_sat_mod->setCurrentIndex(index);
+        le_rx_freq->setText(ls.at(3));
+        if (ls.at(4)=="1") cb_enable_ali->setChecked(true);
+        add_to_log_le->setText(ls.at(5));//2.76.3 
+    }
 }
 void HvLogW::RefreshCbTrmN(int i)
 {
-    if ((i==2 || i==4 || i==5 || i==6) && cb_cabrillo_trm->currentText()=="TWO") cb_cabrillo_trmN->setEnabled(true);
+    if ((i==2 || i==4 || i==5 || i==6 || i==17) && cb_cabrillo_trm->currentText()=="TWO") cb_cabrillo_trmN->setEnabled(true);
     else
     {
         cb_cabrillo_trmN->setEnabled(false);
@@ -4160,23 +4302,24 @@ void HvLogW::RefreshCbTrmN(int i)
 }
 void HvLogW::CbContNameChanged(int i)
 {
-    le_cabrillo_cont_id->setText(s_cont_name_id[i]);
+	int i1 = pos_cont[i];
+    le_cabrillo_cont_id->setText(s_cont_name_id[i1]);
 
-    if (i==4)//FD
+    if (i1==4)//FD
     {
         QStringList l_exchfd = s_my_fd_exch.split(" ");
         if (l_exchfd.count()>=2 && !l_exchfd.at(1).isEmpty()) le_cabrillo_locat->setText(l_exchfd.at(1));
         else le_cabrillo_locat->setText("");
     }
     //else if (i==5 || i==6 || i==7 || i==8 || i==9 || i==10 || i==11 || i==12 || i==13 || i==14 || i==15)//RU, WW Digi DX Contest, CQ WW VHF Contest
-    else if (i>4) le_cabrillo_locat->setText(s_my_ru_exch);
+    else if (i1>4) le_cabrillo_locat->setText(s_my_ru_exch);
     else le_cabrillo_locat->setText("");
 
-    RefreshCbTrmN(i);
+    RefreshCbTrmN(i1);
 }
 void HvLogW::CbContTrmChanged(int)
 {
-    RefreshCbTrmN(cb_cabrillo_cont->currentIndex());
+    RefreshCbTrmN(pos_cont[cb_cabrillo_cont->currentIndex()]);
 }
 bool HvLogW::StartCabriloDialog()
 {
@@ -4192,12 +4335,12 @@ bool HvLogW::StartCabriloDialog()
 }
 void HvLogW::OkCabr()
 {
-    if (cb_cabrillo_cont->currentIndex()<1)
+    if (pos_cont[cb_cabrillo_cont->currentIndex()]<1)
     {
         QMessageBox::critical(this, "MSHV", tr("Please select Contest Name."), QMessageBox::Ok);
         return;
     }
-    int id_cont = cb_cabrillo_cont->currentIndex();//0=my old 1=na vhf 2=eu vhf 3=arrl fd 4=arrl rtty roundup
+    int id_cont = pos_cont[cb_cabrillo_cont->currentIndex()];//0=my old 1=na vhf 2=eu vhf 3=arrl fd 4=arrl rtty roundup
     if (exp_dte_start->dateTime().secsTo(exp_dte_end->dateTime())<0)//<=0
     {
         QString text = tr("The starting Date and Time have to be earlier than the End Date and Time");
@@ -4260,7 +4403,7 @@ void HvLogW::ExportToCabr()
 {
     if (!StartCabriloDialog()) return;
 
-    int id_cont = cb_cabrillo_cont->currentIndex();//0=none 1=my old 2=na vhf 3=eu vhf 4=arrl fd 5=arrl rtty roundup
+    int id_cont = pos_cont[cb_cabrillo_cont->currentIndex()];//0=none 1=my old 2=na vhf 3=eu vhf 4=arrl fd 5=arrl rtty roundup
     unsigned int dte_start = exp_dte_start->dateTime().toTime_t(); //qDebug()<<id_cont;
     unsigned int dte_end   = exp_dte_end->dateTime().toTime_t();
     QList<int> rows;
@@ -4566,7 +4709,7 @@ void HvLogW::ExportToCabr()
             out << st.leftJustified(8,' ');//last no need to be leftJustified
             out << "     "+trmN;//+4 to 81 char
         }
-	    else if (id_cont==16)//"ARRL Inter. EME Contest"
+        else if (id_cont==16)//"ARRL Inter. EME Contest"
         {
             out << s_my_call.leftJustified(13,' ')+" ";
             QString st = THvLogList->model.item(rows[j], 6)->text();//my txrpt
@@ -4586,7 +4729,27 @@ void HvLogW::ExportToCabr()
             //out << st.leftJustified(8,' ');//last no need to be leftJustified
             out << "     "+trmN;//+4 to 81 char
         }
-        
+        else if (id_cont==17)//"FT Challenge"
+        {
+            out << s_my_call.leftJustified(13,' ')+" ";
+            QString st = THvLogList->model.item(rows[j], 6)->text();//my txrpt
+            if (st.isEmpty()) st = "+99";
+            out << st.leftJustified(3,' ')+" ";
+            st = s_my_grid.mid(0,4);//my grid 4char
+            out << st.leftJustified(4,' ')+" ";
+
+            st = THvLogList->model.item(rows[j], 4)->text();//4 his call
+            out << st.leftJustified(13,' ')+" ";
+            st = THvLogList->model.item(rows[j], 7)->text();//my rxrpt
+            if (st.isEmpty()) st = "+99";
+            out << st.leftJustified(3,' ')+" ";
+            QString stg = THvLogList->model.item(rows[j], 5)->text();//5 his grid
+            if (stg.isEmpty()) stg = "ZZ00";
+            st = stg.mid(0,4);
+            out << st.leftJustified(4,' ')+" ";//last no need to be leftJustified
+            out << "   "+trmN;//+4 to 81 char
+        }        
+
         out <<"\n";
         THvProgrD->SetValue(j);
     }

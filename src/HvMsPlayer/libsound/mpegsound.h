@@ -518,7 +518,9 @@ private:
 #include "HvGenMsk/genmesage_msk.h"
 #include "HvGen65/gen65.h"
 #include "HvGenFt8/gen_ft8.h"
+#include "HvGenFt8/gen_sfox.h"//2.76
 #include "HvGenFt4/gen_ft4.h"
+#include "HvGenFt2/gen_ft2.h"
 #include "HvGenQ65/gen_q65.h" 
 #include "HvRawFilter/hvrawfilter.h" //hv
 #define IWAVE_BUFFER  (48000*140)  //2.53=2min.20sec  62s*48000=2976000  60s*48000=2880000
@@ -531,7 +533,7 @@ public:
     ~GenMessage();
 
     //int  getblock2(char *buffer,int size){ return 0; };
-    bool initialize(char*,int mod_iden,double tx_freq,int,int);//,int &ntxslot QString mygridl,
+    bool initialize(char*,int mod_iden,double tx_freq,int,int,bool,QString,QString);//,int &ntxslot QString mygridl,
     void setforcetomono(bool flag)
     {
         forcetomonoflag=flag;
@@ -557,7 +559,9 @@ public:
     GenMsk *TGenMsk;      
     Gen65 *TGen65;   
     GenFt8 *TGenFt8;
+    GenSFox *TGenSFox;//2.76
     GenFt4 *TGenFt4;
+    GenFt2 *TGenFt2;
     GenQ65 *TGenQ65;
       
     static int  setvolume_all(int volume);
@@ -574,6 +578,7 @@ private:
     bool mute_raw;//hv
     QString s_MyGridLoc; //for " R " in msg 1.31   
     int s_mode;
+    bool s_msf;//2.76
     double twopi;
     int  __errorcode;
     void seterrorcode(int errorcode)
@@ -613,7 +618,7 @@ private:
     bool getblock_raws(int*,int);
     bool getblock_rawc(unsigned char*,int); 
     QString format_msg(char *message_in, int cmsg);  
-    int hvmsgen(char*,int mod_ident,double tx_freq,int);//,int &ntxslot ,QString
+    int hvmsgen(char*,int mod_ident,double tx_freq,int,QString,QString);//,int &ntxslot ,QString
     //char *s_msg;
     //int s_period_t;
   

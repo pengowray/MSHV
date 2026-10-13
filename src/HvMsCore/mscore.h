@@ -84,7 +84,7 @@ private:
 */
 
 extern int _GetRxAudioReadTci_();
-extern void _SetRxAudioTci_(int *,int);
+extern void _SetRxAudioTci_(int *,int,int);
 
 class MsCore : public QObject
 {
@@ -147,7 +147,7 @@ private:
     unsigned int last_reset_sc_in;
     //void FastResetSound();
     //void setPeriodTime(int);
-    void SetupSettings_(QString,QString,int,int,int,int,bool);
+    void SetupSettings_(QString,int,int,int,int,bool);
     int s_mod_iden;
     double y_scale[DATA_WIDTH+80];//2.70 important signal/slot problem
     void Get_Graph(int);
@@ -201,6 +201,7 @@ private:
     int koef_resample;
     int in_sample_rate;
     int in_bitpersample;
+    int s_tci_k_res0;
 
     struct sound_conf
     {
@@ -275,7 +276,8 @@ private:
 #endif
     int s_count_resample;
     double s_in_level;    
-    HvRawFilter *THvRawFilter;
+    HvRawFilter *THvRawFilter0;
+    HvRawFilter *THvRawFilter1;
 
 };
 #endif

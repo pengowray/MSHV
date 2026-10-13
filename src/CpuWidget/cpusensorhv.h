@@ -16,7 +16,7 @@
 
 #if defined _WIN32_
 #include "windows.h"
-#define MAX_PROC 32
+#define MAX_PROC 34
 typedef DWORD (__stdcall *LPFN_NtQuerySystemInformation)(DWORD, PVOID, DWORD, PDWORD);
 #define SystemProcessorPerformanceInformation 0x8
 #pragma pack(push,8)
@@ -61,8 +61,8 @@ private:
     QString cpuNbr;
     int cpu_num;// for windows
 #if defined _WIN32_
-    SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION spi_old[MAX_PROC];
-    SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION spi[MAX_PROC];
+    SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION spi_old[MAX_PROC+2];
+    SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION spi[MAX_PROC+2];
     SYSTEM_INFO   systeminfo;
     unsigned long bytesreturned;
     LPFN_NtQuerySystemInformation ntquerysysteminformation;

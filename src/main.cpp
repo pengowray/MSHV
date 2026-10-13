@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <string>
 */
-
+ 
 #include <QApplication>
 #include <QSplashScreen>
 #include "main_ms.h"
@@ -18,7 +18,7 @@
 
 //#define TXT_CODEC_LIN "UTF-8"
 //#define TXT_CODEC_LIN "Windows-1251"
- 
+
 //#include <QtGui>
 /* no used just test
 namespace
@@ -75,7 +75,7 @@ int main(int argc, char ** argv)
         {
             QString tst = argv[i]; //qDebug()<<tst;
             if (!tst.startsWith("-")) continue;
-            if (tst.startsWith("--inst-name=")) inst0 = tst.mid(12,tst.count()-12);            	
+            if (tst.startsWith("--inst-name=")) inst0 = tst.mid(12,tst.count()-12);//else if (tst.startsWith("--rig-name=" )) inst0 = tst.mid(11,tst.count()-11);//N1MM Eception           	
             else
             {
                 err.append(tst);
@@ -150,7 +150,7 @@ int main(int argc, char ** argv)
     splash->finish(&win);
     delete splash;
     splash = 0;
- 
+  
     app.connect( &app, SIGNAL( lastWindowClosed() ), &app, SLOT( quit() ) );
     //qDebug()<<"ffff"<<argc<<argv[0]<<argv[1];
     //FreeConsole();//for windows detached from console

@@ -1480,7 +1480,7 @@ QString DecoderMs::extractmessage144(char *decoded,int &nhashflag,char &ident)
 {
     QString msgreceived;
     unsigned char i1Dec8BitBytes[10];
-    int ihashdec;
+    uint32_t ihashdec;
     unsigned char i1hash[4]={0};
     int i1hashdec;
     //int i4Dec6BitWords[12];
@@ -1502,6 +1502,7 @@ QString DecoderMs::extractmessage144(char *decoded,int &nhashflag,char &ident)
 
     //! Calculate the hash using the first 9 bytes.
     ihashdec=nhash(i1Dec8BitBytes,9,146);//ihashdec=nhash(c_loc(i1Dec8BitBytes),int(9,c_size_t),146)
+    ihashdec=(32767 & ihashdec);//2.76
     ihashdec=2*(ihashdec & 255);
     memcpy(i1hash, (unsigned char*)&ihashdec, 4);
     //qDebug()<<"ihashdec="<<ihashdec;
@@ -2308,10 +2309,8 @@ QString DecoderMs::str_round_20ms(double v)
 }
 bool f_only_one_color_rtd_msk = true;
 void DecoderMs::msk_144_40_rtd(double *dat,int,double s_istart,bool rpt_db_msk)
-{
-    //qDebug()<<"msk_144_40_rtd"<<ccc<<s_istart;
-    if (ss_msk144ms != rpt_db_msk)
-        f_first_msk144 = false;
+{     
+    if (ss_msk144ms != rpt_db_msk) f_first_msk144 = false;
     ss_msk144ms = rpt_db_msk;
 
     double rms;
@@ -2764,8 +2763,7 @@ void DecoderMs::print_rtd_decode_text(QString msgreceived,QString &s_msg_,int ns
 
 void DecoderMs::msk_144_40_decode(double *dat,int npts_in,double s_istart,bool rpt_db_msk)
 {
-    if (ss_msk144ms != rpt_db_msk)
-        f_first_msk144 = false;
+    if (ss_msk144ms != rpt_db_msk) f_first_msk144 = false;
     ss_msk144ms = rpt_db_msk;
 
     int NMAX = 30*DEC_SAMPLE_RATE;

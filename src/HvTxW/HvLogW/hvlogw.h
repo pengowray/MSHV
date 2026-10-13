@@ -20,6 +20,7 @@
 #include <QTimer>
 #include <QLineEdit>
 #include <QProgressDialog>
+#include <QGroupBox>
 //#include <QSpinBox>
 //#include "hvloglist.h"
 #include "../../config.h"
@@ -197,7 +198,7 @@ public:
     HvLogW(QString,QString app_path, bool,int,int,QWidget *, QWidget * parent = 0);
     virtual ~HvLogW();
 
-   	bool Insert(QStringList,bool,bool,int,bool);
+   	bool Insert(QStringList,bool,bool,int,bool,bool);
    	void SetMyCallGridExchAllCont(QString,QString,QString);	
    	void IsCallDupeInLog(QString,QString,QString,int,bool &);
    	void SetFont(QFont f);
@@ -215,7 +216,13 @@ public:
         }
         else
         {
-        	str.append("#"+QString("%1").arg(this->width())+"#"+QString("%1").arg(this->height()));
+        	//str.append("#"+QString("%1").arg(this->width())+"#"+QString("%1").arg(this->height()));
+        	if (pend_w>0) str.append("#"+QString("%1").arg(pend_w)+"#"+QString("%1").arg(pend_h));// never shown
+        	else str.append("#"+QString("%1").arg(this->width())+"#"+QString("%1").arg(this->height()));        	
+        	for (int i = 0; i<THvLogList->model.columnCount(); ++i)
+        	{
+        		str.append("#"+QString("%1").arg(THvLogList->columnWidth(i)));        		
+       		}
         }
 		return str;				
 	}
@@ -226,6 +233,10 @@ public:
 	void SetUseAdifSave(QString);
 	void SetMaxLogQsoCount(QString);
 	QString GetMaxLogQsoCount();
+	void SetAutoLogInfo();//2.75
+	QString GetPropSettings();//2.75
+	void SetPropSettings(QString);//2.75
+	void SetLogAutoComm(bool f);//2.76.3
 
 public slots:
    void EditQso();
@@ -237,6 +248,7 @@ signals:
    void EmitAdifRecord(QString);
    void EmitMarkTextLogAll(QStringList,int);
    void EmitUploadSelected(QByteArray);
+   void EmitCBEnableAliChanged(bool);
 
 private slots:
     void DeleteSelected();
@@ -275,6 +287,7 @@ private:
 	QAction *ac_use_adif_save;
 	HvQthLoc THvQthLoc;
 	bool f_km_mi;
+	int pend_w, pend_h;// macOS: size from settings, kept until the first show
 	QString CalcDistance(QString);
 	int beg_append;
 	bool save_in_new_format;
@@ -314,13 +327,18 @@ private:
     bool f_iem_ru_dx;
     QString GetBandInLambda(QString frq);        
     QDialog *add_to_log_dialog;
+    QLabel *l_warn;
     QLabel *add_to_log_txt;
+    QLabel *l_freq;
     QLineEdit *add_to_log_le_frq;
+    QCheckBox *cb_enable_ali;//2.75
     QComboBox *add_to_log_cb_prop;
     QComboBox *cb_sat_mod;
     QComboBox *cb_sat_nam;
     QLineEdit *le_rx_freq;
     QStringList s_id_sat_nam;
+    QLabel *l_comment;
+    bool f_off_auto_comm;//2.76.3
     QLineEdit *add_to_log_le;
     QPushButton *b_add_to_log_ok;
     QPushButton *b_add_to_log_cacel;

@@ -1,17 +1,16 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
-//// NO USED >= 2.26 CONFIG QT VERSION //////////
-//#define MSHV_QT5
-//#define MSHV_QT4
-//// END NO USED >= 2.26 CONFIG QT VERSION  /////
 
-#define VERSION_MAJOR 2
-#define VERSION_MINOR 74
-//#define VERSION_PATH 0
-//#define VERSION_REVISION 0
+//-------------------------Semantic Versioning 2.0.0---------------------------------------//
+#define VERSION_MAJOR 2  //version when you make incompatible API changes
+#define VERSION_MINOR 76 //version when you add functionality in a backward compatible manner
+#define VERSION_PATCH 7  //version when you make backward compatible bug fixes
+//#define VERSION_REVISION 1
+//--------------------END--Semantic Versioning 2.0.0--END----------------------------------//
+
 #define STR0(x) #x
 #define TOSTR0(x) STR0(x)
-#define VER_MS TOSTR0(VERSION_MAJOR) "." TOSTR0(VERSION_MINOR)
+#define VER_MS TOSTR0(VERSION_MAJOR) "." TOSTR0(VERSION_MINOR) "." TOSTR0(VERSION_PATCH)
 //#define VER_MS "2.65"
 
 #if defined _WIN64_
@@ -38,8 +37,8 @@
 #define FFT_END_FRQ         DATA_HEIGHT - (FFT_CUT_HI_FRQ - FFT_CUT_LOW_FRQ)
 //#define DATA_VDSP_HEIGHT    256
 
-static const double STAT_FFTW_H30_TIME = 30.0; 
-static const double STAT_FFTW_V60_TIME = 60.0; //waterfall data for 1 periond and full spead for full waterfall 
+static const double STAT_FFTW_H30_TIME = 30.0;
+static const double STAT_FFTW_V60_TIME = 60.0; //waterfall data for 1 periond and full spead for full waterfall
 static const double MAX_OPEN_WAW_TIME = 120.0;
 
 //#define TXT_CODEC_WIN "Windows-1251"

@@ -69,7 +69,6 @@ int GenMsk::hash(QString string,int len,int ihash)
     int MASK15=32767;//parameter (MASK15=32767)
     //!  character*(*), target :: string
     //character*1, target :: string
-    //ihash=nhash(i1Msg8BitBytes,9,146);//ihash=nhash(c_loc(i1Msg8BitBytes),int(9,c_size_t),146);
     //unsigned char word[50] = {' '};
     unsigned char word[50] = {' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
                               ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
@@ -84,7 +83,8 @@ int GenMsk::hash(QString string,int len,int ihash)
     //for (int i = 0; i < 50; i++)
     //qDebug()<<"word="<<(char)word[i];
 
-    int i=nhash(word,len,146);//hash(msg(2:i1-1),i1-2,ihash)
+    uint32_t i=nhash(word,len,146);//hash(msg(2:i1-1),i1-2,ihash)
+    i=(32767 & i);//2.76 
     ihash=(i & MASK15);
     return ihash;
 }
@@ -834,7 +834,8 @@ void GenMsk::genmsk144(int *i4Msg6BitWords, unsigned char *i1Msg8BitBytes, int *
             }
         }
 
-        int ihash=nhash(i1Msg8BitBytes,9,146); //ihash=nhash(c_loc(i1Msg8BitBytes),int(9,c_size_t),146)
+        uint32_t ihash=nhash(i1Msg8BitBytes,9,146); 
+        ihash=(32767 & ihash);//2.76
         ihash=2*(ihash & 32767);   //ihash=2*iand(ihash,32767)                   //!Generate the 8-bit hash
         memcpy(i1hash, (unsigned char*)&ihash, 4);
         i1Msg8BitBytes[9]=i1hash[0];//i1Msg8BitBytes(10)=i1hash(1)                !CRC to byte 10
@@ -1300,9 +1301,8 @@ int GenMsk::genmsk(char *message,double samfac,int *i4tone,bool f_generate,
     //qDebug()<<"new="<<message;
     //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
 
-    for (int i = 0; i < 234; i++)//Very inportent LZ2HV za6toto dolu obra6ta samo v 1 parity bit !Start with all 0's
-        i4tone[i]=0;
-
+    for (int i = 0; i < 234; i++) i4tone[i]=0;//Very inportent LZ2HV za6toto dolu obra6ta samo v 1 parity bit !Start with all 0's
+        
     if (message[0]=='<')
     {
         int next_ = msg_short.indexOf(">");//2.00
@@ -1321,10 +1321,10 @@ int GenMsk::genmsk(char *message,double samfac,int *i4tone,bool f_generate,
 
     //qDebug()<<message;
     itype = 0;
-    if (msk144ms)
-        TPackUnpackMsg.packmsg(message,i4Msg6BitWords,itype,msk144ms);
+    if (msk144ms) TPackUnpackMsg.packmsg(message,i4Msg6BitWords,itype,msk144ms);
     else
     {
+    	if (f_generate) TPackUnpackMsg77.reset_save_hash_calls_gen();//2.76.2
         int i3 = -1;
         int n3 = -1;
         TPackUnpackMsg77.pack77(msg_short,i3,n3,c77);
@@ -1349,10 +1349,8 @@ int GenMsk::genmsk(char *message,double samfac,int *i4tone,bool f_generate,
         goto c999;
     }
 
-
 c999:
-    if (!f_generate)
-        return 0;
+    if (!f_generate) return 0;
 
     //double dpha=0.0;
     double dt=1.0/(samfac*GEN_SAMPLE_RATE);//samfac

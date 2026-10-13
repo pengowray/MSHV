@@ -95,7 +95,7 @@ public:
     {
         return TciRigBox->currentIndex();
     };*/
-    void SetTciSelect(int);
+    void SetTciSelect(int,int,bool);
     //void SetFont(QFont);
     
 
@@ -112,7 +112,7 @@ signals:
     void DesleteRig();
     void SetCmd(CmdID,ptt_t,QString);
     void EmitWriteCmd(char*data,int size);
-    void EmitSetRigSet(RigSet,int);
+    void EmitSetRigSet(RigSet,int,int);
     //void EmitMode(int);//tci
 
     ////////////////////////////////////////////////////////new read com
@@ -124,7 +124,9 @@ signals:
     //void EmitReadDataRtsOnTrue(bool);
     ////////////////////////////////////////////////////////end new read com
     void EmitPttDtr(bool);// sea-235
-    void EmitTciSelect(int);
+    void EmitTciSelect(int,int,bool);
+    void EmitFullRigInfo(QString);//2.76.1
+    //void EmitFlexSliceReady();     //flex native vita-49: forwarded from Network
 
 private slots:
 ////// omnirig /////////////
@@ -186,6 +188,11 @@ private:
 //////////////////////////////////////////////
     bool s_f_ptt;
     int tci_select;
+    int max4min;
+    bool f_rig_active_never_stop;//2.76.1 Flex Slice
+    int vita_rx;
+    bool vita_tx;
+    
 protected:
 ////// omnirig /////////////
 #if defined _WIN32_

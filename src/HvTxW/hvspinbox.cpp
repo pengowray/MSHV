@@ -5,6 +5,105 @@
 #include "hvspinbox.h"
 //#include <QtGui>
 
+HvSpinBoxDt::HvSpinBoxDt(bool indsty,QWidget * parent)
+        : QWidget(parent)
+{
+    sb_dt = new QDoubleSpinBox();//sb_sn->SetMask("9999");
+    s_indsty=indsty;
+    s_val=0;
+    val0=0.0;
+    sb_dt->setRange(-2.0,2.5);
+    sb_dt->setSingleStep(0.1);
+    sb_dt->setAlignment(Qt::AlignRight);
+    sb_dt->setDecimals(1);
+    QPixmap pixmap23(":pic/clr_press.png");
+    QPixmap pixmap24(":pic/clr_rep.png");
+    bt_clr = new HvButton_Left2();
+    bt_clr->SetupButton_hv(pixmap24, pixmap23, 0, 0,false);
+    connect(bt_clr,SIGNAL(Release_Lift_Button_hv()),this,SLOT(ClrDT()));
+    bt_clr->setToolTip(tr("CLR DT"));
+    QHBoxLayout *H_s = new QHBoxLayout(this);
+    H_s->setContentsMargins(0,0,0,0);
+    H_s->setSpacing(2);//
+    H_s->addWidget(sb_dt);
+    H_s->addWidget(bt_clr);
+    this->setLayout(H_s);//yelow 255,255,200    //236,233,216   //215,252,255
+    sb_dt->setPrefix("DT ");
+    sb_dt->setSuffix(" s");
+    sb_dt->findChild<QLineEdit*>()->setReadOnly(true);
+    sb_dt->setContextMenuPolicy(Qt::NoContextMenu);
+    if (indsty) setStyleSheet("QDoubleSpinBox{selection-color:white;selection-background-color:rgb(30,30,30);}");
+    else setStyleSheet("QDoubleSpinBox{selection-color:black;selection-background-color:white;}");  
+    connect(sb_dt,SIGNAL(valueChanged(double)),this,SLOT(SetValueChanged(double)));
+    tim = new QTimer();
+    connect(tim,SIGNAL(timeout()),this,SLOT(Refresh()));
+}
+HvSpinBoxDt::~HvSpinBoxDt()
+{}
+void HvSpinBoxDt::Refresh()
+{
+	static bool f_0 = false;	
+	{
+		if (!f_0)
+		{
+			f_0=true;
+			if (s_indsty) setStyleSheet("QDoubleSpinBox{selection-color:white;selection-background-color:rgb(150,0,0);background-color:rgb(150,0,0);}");
+    		else setStyleSheet("QDoubleSpinBox{selection-color:black;selection-background-color:rgb(255,170,170);background-color:rgb(255,170,170);}");						
+		}
+		else
+		{
+			f_0=false;
+			if (s_indsty) setStyleSheet("QDoubleSpinBox{selection-color:white;selection-background-color:rgb(30,30,30);}");
+    		else setStyleSheet("QDoubleSpinBox{selection-color:black;selection-background-color:white;}");			
+		}	
+	}
+}
+void HvSpinBoxDt::SetEmitValueChanged_p(int val)	
+{
+	if (val!=0) 
+	{
+		tim->start(1000); //Refresh();		
+	}
+	else
+	{
+		tim->stop();
+		if (s_indsty) setStyleSheet("QDoubleSpinBox{selection-color:white;selection-background-color:rgb(30,30,30);}");
+    	else setStyleSheet("QDoubleSpinBox{selection-color:black;selection-background-color:white;}"); 			
+	}
+	if(val!=0) val*=-1;
+	emit EmitValueChanged(val); //qDebug()<<val;		
+}
+void HvSpinBoxDt::SetValueChanged(double d)
+{
+	if 		(d > val0+0.05) s_val+=100;
+	else if (d < val0-0.05) s_val-=100;
+	else return;
+	val0=d;	
+	if (s_val==0) sb_dt->setValue(0.0);//if (s_val!=0) tim->start(1000);	
+	SetEmitValueChanged_p(s_val);
+}
+void HvSpinBoxDt::ClrDT()
+{
+	s_val=0;
+	val0=0.0;
+	sb_dt->setValue(0.0);
+	SetEmitValueChanged_p(0);	
+}
+void HvSpinBoxDt::SetMode(int mode)
+{
+    if (mode==11 || mode==13 || mode==18) SetEmitValueChanged_p(s_val);
+    else SetEmitValueChanged_p(0);
+}
+void HvSpinBoxDt::SetFont(QFont f)
+{
+    sb_dt->setFont(f);
+}
+void HvSpinBoxDt::SetHidden(bool f)
+{
+    sb_dt->setHidden(f);
+    bt_clr->setHidden(f);
+}
+////////////////////////////////////////////////////////////////////////////////////////////
 HvSpinBox::HvSpinBox(QWidget * parent )
         : QSpinBox(parent)
 {}
@@ -71,7 +170,7 @@ void HvSpinBoxSn::SetHidden(bool f)
 HvSpinBoxDf::HvSpinBoxDf(bool indsty,QWidget * parent )
         : QSpinBox(parent)
 {
-	ft_df1500 = false;
+	//ft_df1500 = true;
     f_no_emit = false;
     setSingleStep(1);
     //s_value = 0;
@@ -87,13 +186,14 @@ HvSpinBoxDf::HvSpinBoxDf(bool indsty,QWidget * parent )
     s_dftolerance[8] = 600;//jt65b
     s_dftolerance[9] = 600;//jt65c
     s_dftolerance[10] = 400;//pi4
-    s_dftolerance[11] = 1000;//ft8 fictive
+    s_dftolerance[11] = 1500;//ft8 fictive
     s_dftolerance[12] = 150;//msk144ms
-    s_dftolerance[13] = 1000;//ft4 fictive
+    s_dftolerance[13] = 1500;//ft4 fictive
     s_dftolerance[14] = 1000;//q65a
     s_dftolerance[15] = 1000;//q65b
     s_dftolerance[16] = 1000;//q65c
     s_dftolerance[17] = 1000;//q65d
+    s_dftolerance[18] = 1500;//ft2 fictive
     //for (int i = 0; i < COUNT_MODE; ++i)
 
     setValue(400);
@@ -133,14 +233,12 @@ void HvSpinBoxDf::SetDfAllModes(QString s)
 void HvSpinBoxDf::SetValue(int i)
 {
     s_dftolerance[s_mode] = i;
-    setValue(s_dftolerance[s_mode]);
-    //setValue(i); //1.37 <- moze i taka samo
+    setValue(s_dftolerance[s_mode]); //setValue(i); //1.37 <- moze i taka samo
 }
-void HvSpinBoxDf::SetFtDf1500(bool f)
+/*void HvSpinBoxDf::SetFtDf1500(bool f)
 {
-	ft_df1500 = f;
-	// ft8 ft4
-	if (s_mode==11 || s_mode==13)
+	ft_df1500 = f;	
+	if (s_mode==11 || s_mode==13)// ft8 ft4
 	{
 		if (f) setPrefix("DF Tol def=1500 +/-  ");
 		else setPrefix("DF Tol def=1000 +/-  ");		
@@ -149,10 +247,9 @@ void HvSpinBoxDf::SetFtDf1500(bool f)
 	//setPrefix("DF Tol def=1000 +/-  ");
 	//SetMode(s_mode);
 	//qDebug()<<"flsg="<<f;
-}
+}*/
 void HvSpinBoxDf::SetMode(int i)
 {
-    //qDebug()<<s_dftolerance[i]<<ft_df1500;
     setRange(1,5000);//importent unset range 1.47
     s_mode = i;
     if (s_mode==7 || s_mode==8 || s_mode==9) // jt65abc
@@ -163,8 +260,7 @@ void HvSpinBoxDf::SetMode(int i)
             s_dftolerance[s_mode]=600;
             setValue(s_dftolerance[s_mode]);
         }
-        else
-            setValue(s_dftolerance[s_mode]);
+        else setValue(s_dftolerance[s_mode]);
         setRange(10,600);
     }
     else if (s_mode==10) // pi4
@@ -175,36 +271,52 @@ void HvSpinBoxDf::SetMode(int i)
             s_dftolerance[s_mode]=400;
             setValue(s_dftolerance[s_mode]);
         }
-        else
-            setValue(s_dftolerance[s_mode]);
+        else setValue(s_dftolerance[s_mode]);
         setRange(100,400);
     }
     else if (s_mode==11) // ft8
     {
-    	if (ft_df1500) setPrefix("DF Tol def=1500 +/-  ");
-        else setPrefix("DF Tol def=1000 +/-  ");
+    	/*if (ft_df1500) setPrefix("DF Tol def=1500 +/-  ");
+        else setPrefix("DF Tol def=1000 +/-  ");*/
+        setPrefix("DF Tol def=1500 +/-  ");
         if (s_dftolerance[s_mode]==50)
         {
-        	if (ft_df1500) s_dftolerance[s_mode]=1500;
-            else s_dftolerance[s_mode]=1000;
+        	/*if (ft_df1500) s_dftolerance[s_mode]=1500;
+            else s_dftolerance[s_mode]=1000;*/
+            s_dftolerance[s_mode]=1500;
             setValue(s_dftolerance[s_mode]);
         }
-        else
-            setValue(s_dftolerance[s_mode]);
+        else setValue(s_dftolerance[s_mode]);
         setRange(50,1500);
     }
     else if (s_mode==13) // ft4
     {
-    	if (ft_df1500) setPrefix("DF Tol def=1500 +/-  ");
-        else setPrefix("DF Tol def=1000 +/-  ");
+    	/*if (ft_df1500) setPrefix("DF Tol def=1500 +/-  ");
+        else setPrefix("DF Tol def=1000 +/-  ");*/
+        setPrefix("DF Tol def=1500 +/-  ");
         if (s_dftolerance[s_mode]==100)
         {
-        	if (ft_df1500) s_dftolerance[s_mode]=1500;
-            else s_dftolerance[s_mode]=1000;
+        	/*if (ft_df1500) s_dftolerance[s_mode]=1500;
+            else s_dftolerance[s_mode]=1000;*/
+            s_dftolerance[s_mode]=1500;
             setValue(s_dftolerance[s_mode]);
         }
-        else
+        else setValue(s_dftolerance[s_mode]);
+        setRange(100,1500);
+    }
+    else if (s_mode==18) // ft2
+    {
+    	/*if (ft_df1500) setPrefix("DF Tol def=1500 +/-  ");
+        else setPrefix("DF Tol def=1000 +/-  ");*/
+        setPrefix("DF Tol def=1500 +/-  ");
+        if (s_dftolerance[s_mode]==100)
+        {
+        	/*if (ft_df1500) s_dftolerance[s_mode]=1500;
+            else s_dftolerance[s_mode]=1000;*/
+            s_dftolerance[s_mode]=1500;
             setValue(s_dftolerance[s_mode]);
+        }
+        else setValue(s_dftolerance[s_mode]);
         setRange(100,1500);
     }
     else if (s_mode == 14 || s_mode == 15 || s_mode == 16 || s_mode == 17) // q65
@@ -219,19 +331,15 @@ void HvSpinBoxDf::SetMode(int i)
             s_dftolerance[s_mode]=1000;
             setValue(s_dftolerance[s_mode]);
         }
-        else
-            setValue(s_dftolerance[s_mode]);
+        else setValue(s_dftolerance[s_mode]);
         //setRange(50,1500);
         setRange(50,1000);
     }
     else
     {
-        if (s_mode==0 || s_mode==12)
-            setPrefix("DF Tol def=150 +/-  ");//msk144 msk144ms
-        else if (s_mode==6)
-            setPrefix("DF Tol def=200 +/-  ");//jt6m
-        else
-            setPrefix("DF Tol def=400 +/-  ");
+        if (s_mode==0 || s_mode==12) setPrefix("DF Tol def=150 +/-  ");//msk144 msk144ms
+        else if (s_mode==6) setPrefix("DF Tol def=200 +/-  ");//jt6m
+        else setPrefix("DF Tol def=400 +/-  ");
         setValue(s_dftolerance[s_mode]);
         setRange(10,400);
     }
@@ -241,14 +349,12 @@ void HvSpinBoxDf::ExpandShrinkDf(bool f)//2.05
     //qDebug()<<s_dftolerance[s_mode]<<minimum()<<maximum();
     if (f)
     {
-        if (s_dftolerance[s_mode]>=maximum())
-            return;
+        if (s_dftolerance[s_mode]>=maximum()) return;
         Slot_valueChanged(1 + s_dftolerance[s_mode]);
     }
     else
     {
-        if (s_dftolerance[s_mode]<=minimum())
-            return;
+        if (s_dftolerance[s_mode]<=minimum()) return;
         Slot_valueChanged(s_dftolerance[s_mode] - 1);
     }
 }
@@ -431,6 +537,7 @@ HvSpinBox4per30s::HvSpinBox4per30s(bool indsty,QWidget * parent )
     s_pt_all_modes[15] = 30;//q65b
     s_pt_all_modes[16] = 30;//q65c
     s_pt_all_modes[17] = 30;//q65d
+    s_pt_all_modes[18] = 3;//ft4 3.75s
     //for (int i = 0; i < COUNT_MODE; ++i)
 
     setValue(30);
@@ -459,7 +566,7 @@ void HvSpinBox4per30s::SetPiriodTimeAllModes(QString s)
             if (ls[j].contains(tstr))
             {
                 ls[j].remove(tstr);
-                if (!ls[j].isEmpty() && (ls[j]=="5" || ls[j]=="7" || ls[j]=="10" || ls[j]=="15" ||
+                if (!ls[j].isEmpty() && (ls[j]=="3" || ls[j]=="5" || ls[j]=="7" || ls[j]=="10" || ls[j]=="15" ||                	
                 	 ls[j]=="30" || ls[j]=="60" || ls[j]=="120" || ls[j]=="300"))// only valid values hv
                 {
                     s_pt_all_modes[i] = ls[j].toInt();
@@ -491,6 +598,12 @@ void HvSpinBox4per30s::SetMode(int i)
         setEnabled(false);
         setValue(7);
     }
+    else if (s_mode==18) // ft2
+    {
+        setRange(3,3);//new ft2  problem because is 15s static
+        setEnabled(false);
+        setValue(3);
+    }
     else if (s_mode == 14 || s_mode == 15 || s_mode == 16 || s_mode == 17) // q65
     {
         setRange(5,120);//2.53  inportent open from min to max val
@@ -508,6 +621,7 @@ void HvSpinBox4per30s::SetMode(int i)
         //qDebug()<<"2 SB_PeriodTime"<<s_pt_all_modes[s_mode]<<s_mode;
     }
     if (value()==7) setSuffix(".5s");
+    else if (value()==3) setSuffix(".8s");
     else setSuffix("  s");
 }
 void HvSpinBox4per30s::Slot_valueChanged(int val)
@@ -525,6 +639,10 @@ void HvSpinBox4per30s::Slot_valueChanged(int val)
         f_no_emit = true;
         switch (s_pt_all_modes[s_mode])
         {
+        case 3:
+            //f_no_emit = false;// if step 1 f_no_emit = false;
+            setValue(5); //2.20 new ft4
+            break;
         case 5:
             //f_no_emit = false;// if step 1 f_no_emit = false;
             setValue(7); //2.20 new ft4
@@ -554,6 +672,10 @@ void HvSpinBox4per30s::Slot_valueChanged(int val)
         f_no_emit = true;
         switch (s_pt_all_modes[s_mode])
         {
+        case 5:
+            //f_no_emit = false;// if step 1 f_no_emit = false;
+            setValue(3);
+            break;
         case 7:
             //f_no_emit = false;// if step 1 f_no_emit = false;
             setValue(5);
@@ -580,15 +702,18 @@ void HvSpinBox4per30s::Slot_valueChanged(int val)
     }
     s_pt_all_modes[s_mode] = value();
     float ptf = s_pt_all_modes[s_mode];//ft4 problem
-    if (ptf==7.0) ptf = 7.5;
+    if (ptf==7.0) ptf = 7.5;//
+    if (ptf==3.0) ptf = 3.75;//3.75=ft2
     emit EmitValueChanged(ptf);    
     if (value()==7) setSuffix(".5s");
+    else if (value()==3) setSuffix(".8s");
     else setSuffix("  s");
 }
 float HvSpinBox4per30s::get_period_time()//1.56=
 {
 	float ptf = s_pt_all_modes[s_mode];//ft4 problem
     if (ptf==7.0) ptf = 7.5;
+    if (ptf==3.0) ptf = 3.75;//3.75=ft2
     return ptf;
 }
 void HvSpinBox4per30s::keyPressEvent(QKeyEvent* event)

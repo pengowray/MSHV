@@ -122,7 +122,7 @@ private:
     void q65_ccf_85(double s1_[800][7000],int iz,int jz,double nfqso,int ia,int ia2,
 					int &ipk,int &jpk,double &f0,double &xdt/*,int &imsg_best*/,double &better/*,double *ccf1*/);	
 	int fmaxloc_da_beg_to_end(float*a,int a_beg,int a_end);				
-	int imaxval_da_beg_to_end(int*a,int a_beg,int a_end);				
+	//int imaxval_da_beg_to_end(int*a,int a_beg,int a_end);				
 	void q65_bzap(float *s3,int LL);				
 	void q65_s1_to_s3(double s1_[800][7000],int iz,int jz,int ipk,int jpk,int LL,
 								float *s3_1df);

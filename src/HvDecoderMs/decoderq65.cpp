@@ -902,7 +902,7 @@ void DecoderQ65::q65_ccf_85(double s1_[800][7000],int iz,int jz,double nfqso,int
     //qDebug()<<"2="<<imsg_best<<ccf_best<<ipk<<jpk<<"f0="<<f0<<"xdt="<<xdt<<better;
     delete [] ccf_;
 }
-int DecoderQ65::imaxval_da_beg_to_end(int*a,int a_beg,int a_end)
+/*int DecoderQ65::imaxval_da_beg_to_end(int*a,int a_beg,int a_end)
 {
     int max = a[a_beg];
     for (int i = a_beg; i < a_end; i++)
@@ -913,7 +913,7 @@ int DecoderQ65::imaxval_da_beg_to_end(int*a,int a_beg,int a_end)
         }
     }
     return max;
-}
+}*/
 int DecoderQ65::fmaxloc_da_beg_to_end(float*a,int a_beg,int a_end)
 {
     float max = a[a_beg];
@@ -968,7 +968,7 @@ void DecoderQ65::q65_bzap(float *s3f,int LL)
         }
     }*/
 
-    if (imaxval_da_beg_to_end(hist,0,LL)>NBZAP)
+    if (pomAll.maxval_ia_beg_to_end(hist,0,LL)>NBZAP)
     {
         for (int i = 0; i < LL; ++i)
         {
@@ -1600,6 +1600,7 @@ void DecoderQ65::q65_ap(int nQSOprogresst,int ipass,int cont_id,int cont_type,bo
     //"Q65 Pileup" or "Pileup"		14	2		14 CQ 		 1			0 = CQ
     //"NCCC Sprint"					15	2		15 CQ NCCC	 1			8 = CQ NCCC
     //"ARRL Inter. EME Contest"		16	6		16 CQ 		 0			0 = CQ
+    //"FT Challenge"				17  6       17 CQ FTC    0          9 = CQ FTC
 
     /*! Conditions that cause us to bail out of AP decoding
     !  if(ncontest.le.5 .and. iaptype.ge.3 .and. (abs(f1-nfqso).gt.napwid .and. abs(f1-nftx).gt.napwid) ) goto 900
@@ -2272,7 +2273,7 @@ void DecoderQ65::ana64(double *iwave,int npts,double complex *c0)
     for (int i=0; i<npts ; ++i) c0[i]=fac*iwave[i];//c0(0:npts-1)=fac*iwave(1:npts)
     f2a.four2a_c2c(c0,nfft1,-1,1);//four2a(c0,nfft1,1,-1,1) //!Forward c2c FFT
     for (int i=nfft2/2; i<nfft2; ++i) c0[i]=0.0+0.0*I;//c0(nfft2/2+1:nfft2-1)=0.
-    c0[0]=0.5*c0[0];// //c0(0)=0.5*c0(0)
+    c0[0]=0.5*c0[0];// //c0(0)=0.5*c0(0)   (0.5+0.5*I)
     f2a.four2a_c2c(c0,nfft2,1,1); //call four2a(c0,nfft2,1,1,1)              //!Inverse c2c FFT; c0 is analytic sig
 }
 void DecoderQ65::twkfreq(double complex *c3,double complex *c4,int npts,double fsample,double *a)

@@ -4182,6 +4182,7 @@ void DecoderMs::AvgDecodeChanged(bool f)
 {
     s_avg_jt65 = f;
     DecQ65->AvgDecodeChanged(f);
+    DecFt2_0->AvgDecodeChanged(f);
     //qDebug()<<"s_avg_jt65"<<s_avg_jt65;
 }
 void DecoderMs::DeepSearchChanged(bool f)

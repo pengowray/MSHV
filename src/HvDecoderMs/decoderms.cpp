@@ -21,7 +21,10 @@ static const double DEC_SAMPLE_RATE_12000 = 12000.0;
 
 DecoderMs::DecoderMs(QString p)//QObject *parent
 //: QObject(parent)
-{
+{	
+	//ttt.start();
+	//f2a.InitPlansAllStatic();//2.76.2 time = 182ms + destroy = 192ms
+	//qDebug()<<ttt.elapsed();
     pomAll.initPomAll();//2.66 for pctile_shell in jt65 and pi4
     for (int i = 0; i <  MAXDUPMSGTHR; ++i)
     {
@@ -59,6 +62,24 @@ DecoderMs::DecoderMs(QString p)//QObject *parent
     connect(DecFt4_5, SIGNAL(EmitDecodetTextFt(QStringList)), this, SLOT(SetDecodetTextFtQ65(QStringList)));
     connect(DecFt4_5, SIGNAL(EmitBackColor()), this, SLOT(ThrSetBackColor()));
     /////////// FT4 END ///////////////////////////////////////////////////////
+    DecFt2_0 = new DecoderFt2(0);
+    connect(DecFt2_0, SIGNAL(EmitDecodetTextFt(QStringList)), this, SLOT(SetDecodetTextFtQ65(QStringList)));
+    connect(DecFt2_0, SIGNAL(EmitBackColor()), this, SLOT(ThrSetBackColor()));  
+    DecFt2_1 = new DecoderFt2(1);
+    connect(DecFt2_1, SIGNAL(EmitDecodetTextFt(QStringList)), this, SLOT(SetDecodetTextFtQ65(QStringList)));
+    connect(DecFt2_1, SIGNAL(EmitBackColor()), this, SLOT(ThrSetBackColor()));
+    DecFt2_2 = new DecoderFt2(2);
+    connect(DecFt2_2, SIGNAL(EmitDecodetTextFt(QStringList)), this, SLOT(SetDecodetTextFtQ65(QStringList)));
+    connect(DecFt2_2, SIGNAL(EmitBackColor()), this, SLOT(ThrSetBackColor()));
+    DecFt2_3 = new DecoderFt2(3);
+    connect(DecFt2_3, SIGNAL(EmitDecodetTextFt(QStringList)), this, SLOT(SetDecodetTextFtQ65(QStringList)));
+    connect(DecFt2_3, SIGNAL(EmitBackColor()), this, SLOT(ThrSetBackColor())); 
+    DecFt2_4 = new DecoderFt2(4);
+    connect(DecFt2_4, SIGNAL(EmitDecodetTextFt(QStringList)), this, SLOT(SetDecodetTextFtQ65(QStringList)));
+    connect(DecFt2_4, SIGNAL(EmitBackColor()), this, SLOT(ThrSetBackColor()));
+    DecFt2_5 = new DecoderFt2(5);
+    connect(DecFt2_5, SIGNAL(EmitDecodetTextFt(QStringList)), this, SLOT(SetDecodetTextFtQ65(QStringList)));
+    connect(DecFt2_5, SIGNAL(EmitBackColor()), this, SLOT(ThrSetBackColor())); 
     /////////// FT8 ///////////////////////////////////////////////////////////
     //ft8 3 dec
     fromBufFt = false;
@@ -94,6 +115,12 @@ DecoderMs::DecoderMs(QString p)//QObject *parent
     connect(DecQ65, SIGNAL(EmitDecodetText(QStringList)), this, SLOT(SetDecodetTextFtQ65(QStringList)));
     connect(DecQ65, SIGNAL(EmitBackColor()), this, SLOT(SetBackColorQ65()));
     connect(DecQ65, SIGNAL(EmitAvgSavesQ65(int,int)), this, SIGNAL(EmitAvgSavesQ65(int,int)));
+
+    id_mshf = 0;
+    f_dec_sfox = false;
+	DecSFox = new DecoderSFox();
+    connect(DecSFox, SIGNAL(EmitDecodetText(QStringList)), this, SLOT(SetDecodetTextFtQ65(QStringList)));
+    connect(DecSFox, SIGNAL(EmitBackColor()), this, SLOT(SetBackColorQ65()));
 
     /////////// PI4 ///////////////////////////////////////////////////////////
     first_pi4 = true;
@@ -179,7 +206,7 @@ DecoderMs::DecoderMs(QString p)//QObject *parent
     ////msk144///////
     first_dec_msk = true;
     first_sq = true;
-    s_HisCall = "NOCALL";
+    s_HisCall = "NOCALL";    
     s_R1HisCall = "NOCALL";//for fr8 MA QSO Foxs
     s_R2HisCall = "NOCALL";//for fr8 MA QSO Foxs
 
@@ -223,11 +250,12 @@ DecoderMs::DecoderMs(QString p)//QObject *parent
     f_first_msk40 = false;
     ////msk40///////
 
-    s_mod = 2;//HV important set to default mode fsk441
+    s_mode = 2;//HV important set to default mode fsk441
     DEC_SAMPLE_RATE = DEC_SAMPLE_RATE_11025;//HV important set to default mode fsk441 sample rate
 
     s_MyCall = "NOT__EXIST";
     s_MyBaseCall = "NOT__EXIST";
+    s_HisBaseCall = "NOT__EXIST";
     a1_ = 0.0;
     a2_ = 0.0;
     a3_ = 0.0;
@@ -262,7 +290,6 @@ DecoderMs::DecoderMs(QString p)//QObject *parent
     //gen441(itone,ndits_s,cfrag_s);
     f_back_color = false;
     //qDebug()<<"CREATE";
-
 }
 DecoderMs::~DecoderMs()
 {
@@ -284,20 +311,31 @@ void DecoderMs::SetPerodTime(int i)
 {
     DecQ65->SetPeriod(i);
 }
+void DecoderMs::SetMsh(uint8_t id)
+{
+	 id_mshf = id;//printf("TX s_msf=%d\n",s_msf);
+}
 void DecoderMs::Decode3intFt(bool f)//2.39 remm
 {
     DecFt8_0->Decode3intFt(f);//2.39 remm
 }
+void DecoderMs::SetVarDecodeFtPar(bool f,int dcyc,int dsens)
+{
+	DecFt8_0->SetVarDecodeFtPar(f,dcyc,dsens);
+}
 void DecoderMs::SetMAMCalls(QStringList ls)
 {
     DecFt4_0->SetMAMCalls(ls);// static no need more
+    DecFt2_0->SetMAMCalls(ls);
 }
 void DecoderMs::SetTxFreq(double f)
 {
     s_nftx = f;
     DecFt8_0->SetStTxFreq(f);
     DecFt4_0->SetStTxFreq(f);
+    DecFt2_0->SetStTxFreq(f);
     DecQ65->SetTxFreq(f);
+    DecSFox->SetTxFreq(f);
 }
 void DecoderMs::SetDecAftEMEDelay(bool f)
 {
@@ -307,9 +345,21 @@ void DecoderMs::SetQSOProgress(int i)
 {
     if (i==5 || i==6) s_nQSOProgress = 0;        
     else s_nQSOProgress = i+1; //MSHV +1  CQ LZ2HV 237 for +AP
-    DecFt8_0->SetStQSOProgress(s_nQSOProgress);//2.51 i=error
+	int nlasttx = i+1;
+	if (i==5 || i==6) nlasttx=6;    
+    DecFt8_0->SetStQSOProgress(s_nQSOProgress,nlasttx);//2.51 i=error
     DecFt4_0->SetStQSOProgress(s_nQSOProgress);//2.51 i=error
-    DecQ65->SetStQSOProgress(s_nQSOProgress);//2.51 i=error
+    DecFt2_0->SetStQSOProgress(s_nQSOProgress);//2.51 i=error
+    DecQ65->SetStQSOProgress(s_nQSOProgress);//2.51 i=error       
+        /*!nlasttx  last TX message
+    !  0       Tx was halted
+    !  1      AA1AA BB1BB PL35
+    !  2      AA1AA BB1BB -15
+    !  3      AA1AA BB1BB R-15
+    !  4      AA1AA BB1BB RRR/RR73
+    !  5      AA1AA BB1BB 73
+    !  6      CQ BB1BB PL35*/
+    
     //qDebug()<<"i="<<i<<"QSOProgress="<<s_nQSOProgress;
     /*
     1  call mycall kn23
@@ -327,10 +377,15 @@ void DecoderMs::SetQSOProgress(int i)
       SIGNOFF       5
     */
 }
+void DecoderMs::SetFreqGlobal(QString s)//2.76.5
+{
+	DecFt8_0->SetFreqGlobal(s); //qDebug()<<s;
+}
 void DecoderMs::SetMultiAnswerMod(bool f)
 {
     DecFt8_0->SetStMultiAnswerMod(f);
     DecFt4_0->SetStMultiAnswerMod(f); //qDebug()<<"f_multi_answer_mod="<<f;
+    DecFt2_0->SetStMultiAnswerMod(f); //qDebug()<<"f_multi_answer_mod="<<f;
     DecQ65->SetStMultiAnswerMod(f);
 }
 void DecoderMs::SetThrLevel(int i)//0=1 1=th/2 2=all
@@ -346,6 +401,7 @@ void DecoderMs::SetApDecode(bool f)
     s_lapon = f;//Ap decoding ?
     DecFt8_0->SetStApDecode(f);
     DecFt4_0->SetStApDecode(f);// only in mshv
+    DecFt2_0->SetStApDecode(f);// only in mshv
     DecQ65->SetStApDecode(f);// only in mshv
     //qDebug()<<"ft8 s_lapon="<<s_lapon;
 }
@@ -354,6 +410,7 @@ void DecoderMs::SetDecoderDeep(int d)
     s_decoder_deep = d;
     DecFt8_0->SetStDecoderDeep(d);
     DecFt4_0->SetStDecoderDeep(d);
+    DecFt2_0->SetStDecoderDeep(d);
     DecQ65->SetStDecoderDeep(d);  //qDebug()<<"s_decoder_deep="<<s_decoder_deep;
 }
 void DecoderMs::SetSingleDecQ65(bool f)
@@ -523,18 +580,19 @@ void DecoderMs::SetWords(QStringList lst,int cont_cq,int cont_type)
     //"Q65 Pileup" or "Pileup"		14	2		14 CQ 		 1			0 = CQ
     //"NCCC Sprint"					15	2		15 CQ NCCC	 1			8 = CQ NCCC
     //"ARRL Inter. EME Contest"		16	6		16 CQ 		 0			0 = CQ
+    //"FT Challenge"				17  6       17 CQ FTC    0          9 = CQ FTC
 
     DecFt8_0->SetStWords(s_MyCall,s_MyBaseCall,cont_cq,cont_type,lst.at(2));
     DecFt4_0->SetStWords(s_MyCall,s_MyBaseCall,cont_cq,cont_type,lst.at(2));
+    DecFt2_0->SetStWords(s_MyCall,s_MyBaseCall,cont_cq,cont_type,lst.at(2));
     DecQ65->SetStWords(s_MyCall,s_MyBaseCall,cont_cq,cont_type,lst.at(2));
-    //qDebug()<<"CQ="<<cont_cq<<"type="<<cont_type;
+    //qDebug()<<"CQ="<<cont_cq<<"type="<<cont_type<<lst.at(2);
 }
 void DecoderMs::SetRxFreqF0F1(double frq,double f00,double f01)
 {
     s_nfqso_all = frq;
     s_f00 = f00;
-    s_f01 = f01;
-    //qDebug()<<"START="<<(int)s_f00<<"RX="<<(int)s_nfqso_all<<"STOP="<<(int)s_f01;
+    s_f01 = f01; //qDebug()<<"START="<<(int)s_f00<<"RX="<<(int)s_nfqso_all<<"STOP="<<(int)s_f01;
 }
 void DecoderMs::SetDfSdb(int sdb,int df)
 {
@@ -545,27 +603,32 @@ void DecoderMs::SetZap(bool f)
 {
     s_nzap = f; //qDebug()<<s_nzap;
 }
+void DecoderMs::setBand(int ident)//2.76.7 for reset ap7
+{
+	static int prev_band = -1;
+	if (prev_band==ident) return;
+	prev_band=ident;
+	uint8_t iu8 = (uint8_t)prev_band;
+	DecFt2_0->SetBandChangedStaticAll(iu8); //qDebug()<<"BandChenged="<<ident;
+	DecFt4_0->SetBandChangedStaticAll(iu8);
+	DecFt8_0->SetBandChangedStaticAll(iu8);
+}
 void DecoderMs::setMode(int ident)
 {
     static int prev_mod = 2;
-    s_mod = ident;
-    if (s_mod == 14 || s_mod == 15 || s_mod == 16 || s_mod == 17) allq65 = true;
+    s_mode = ident;
+    if (s_mode == 14 || s_mode == 15 || s_mode == 16 || s_mode == 17) allq65 = true;
     else allq65 = false;
-    /*if (s_mod == 0 || s_mod == 7 || s_mod == 8 || s_mod == 9 || s_mod == 10 || s_mod == 11 ||
-            s_mod == 12 || s_mod == 13 || allq65)//jt65abc //zaradi zap msk144 pi4 ft8 ft4
-        DEC_SAMPLE_RATE = DEC_SAMPLE_RATE_12000;
-    else
-        DEC_SAMPLE_RATE = DEC_SAMPLE_RATE_11025;*/
-    if (s_mod>0 && s_mod<7) //2.65
-        DEC_SAMPLE_RATE = DEC_SAMPLE_RATE_11025;
-    else
-        DEC_SAMPLE_RATE = DEC_SAMPLE_RATE_12000;
+    
+    if (s_mode>0 && s_mode<7) DEC_SAMPLE_RATE = DEC_SAMPLE_RATE_11025;//2.65  
+    else DEC_SAMPLE_RATE = DEC_SAMPLE_RATE_12000;
 
     is_new_rpt_msk = false;//reset s_list_rpt_msk QStringList
     f2a.DestroyPlansAll(true);//2.09  true inidiatly
 
     if (prev_mod == 14 || prev_mod == 15 || prev_mod == 16 || prev_mod == 17) DecQ65->SetClearAvgQ65all();
     prev_mod = ident;
+    DecFt8_0->SetModeChangedStaticAll();
 }
 void DecoderMs::analytic(double *d,int d_count_begin,int npts,int nfft,double *s,double complex *c)
 {
@@ -1168,7 +1231,7 @@ c20:
         pingdat_[nping][0]=(0.5*(double)count_in)*dt - 0.08;//1.34 = -0.1->dae w sredata  0.08   problem triabva da se oprawi
         //pingdat_[nping][0]=((double)count_in/2.0)*dt;// problem triabva da se oprawi
 
-        if (s_mod==3)//fsk315
+        if (s_mode==3)//fsk315
             pingdat_[nping][1]=0.34; //hv v1.04 0.16 to 0.34 tested fsk315
         else
             //fsk441 and jtms
@@ -1204,7 +1267,7 @@ c20:
 
         //jjz=nint((width+0.02)/dt)+1 // +0.02 -> hv ne decodira short pings v0.98
         int jjz;
-        if (s_mod==3)//fsk315
+        if (s_mode==3)//fsk315
             jjz=(int)(((double)(width+0.18)/dt)+1.0); //fsk315 v1.04 +0.36 or 0.18 tested  //
         else
             //fsk441 and jtms
@@ -1245,7 +1308,7 @@ c20:
         //qDebug()<<"T2="<<t2<<iping;
         //int jj = 0;
         //int jjz = count_in;
-        if (s_mod == 2 || s_mod == 3)//fsk441 fsk315
+        if (s_mode == 2 || s_mode == 3)//fsk441 fsk315
         {   //qDebug()<<"Count="<<count_in<<"Start="<<jj<<"Width="<<jjz;
             //! Compute average spectrum of this ping.
 
@@ -1259,7 +1322,7 @@ c20:
                 sss.append(",");
             }
             qDebug()<<"222 mi="<<sss;*/
-            msg = longx(raw_in,jj,jjz,ps,DFTol,msglen,bauderr,s_mod);
+            msg = longx(raw_in,jj,jjz,ps,DFTol,msglen,bauderr,s_mode);
             //msg->setfont
             dfx_all = (int)noffset_fsk441_dfx;
             //dfx_all = 401;
@@ -1271,7 +1334,7 @@ c20:
             double dfx_real_hv = 0.0;
 
             //double width1 = 0.120;
-            nok = chk441(raw_in,count_in,tstart,width,nfreeze,mousedf,DFTol,pick,s_mod,dfx_real_hv);
+            nok = chk441(raw_in,count_in,tstart,width,nfreeze,mousedf,DFTol,pick,s_mode,dfx_real_hv);
             //qDebug()<<nok;
             //qDebug()<<"nping="<<nping<<iping<<"msglen="<<msglen<<"nok="<<nok<<tstart<<width;
             if (msglen==0 || nok==0)//!Reject non-FSK441 signals
@@ -1287,7 +1350,7 @@ c20:
         }
 
 
-        if (s_mod == 1)//jtms
+        if (s_mode == 1)//jtms
         {
             int jjzz=fmin(jjz,2*DEC_SAMPLE_RATE); // !Max data size 2 s
             //qDebug()<<"dat_c_beginJTMS="<<jj<<jjz;
@@ -1934,7 +1997,7 @@ void DecoderMs::CalcZapDat()
 static bool have_dec0_ = false;
 void DecoderMs::StrtDecode()
 {
-    if (s_f_rtd || s_mod==11 || s_mod==13 || allq65)//ft8 ft4 q65
+    if (s_f_rtd || s_mode==11 || s_mode==13 || s_mode==18 || allq65)//ft8 ft4 q65
         usleep(20000);  //1.30 important time>10ms 20000us=20ms slab PC pri auto decode da zabavi malko pri postoqnno decodirane hv
     else
         usleep(100000); //1.30 important time>10ms 100000us=100ms slab PC pri auto decode da zabavi malko pri postoqnno decodirane hv
@@ -1944,8 +2007,8 @@ void DecoderMs::StrtDecode()
     int nforce = 1;//force_decode
     bool pick;
 
-    if ((s_mod!=0 && s_mod!=7 && s_mod!=8 && s_mod!=9 && s_mod!=10 && s_mod!=11 && s_mod!=12 &&
-            s_mod!=13 && !allq65) && s_nzap) //1.52 msk144 JT65abc ft8 pi4 ft4  no zap
+    if ((s_mode!=0 && s_mode!=7 && s_mode!=8 && s_mode!=9 && s_mode!=10 && s_mode!=11 && s_mode!=12 &&
+            s_mode!=13 && !allq65) && s_nzap) //1.52 msk144 JT65abc ft8 pi4 ft4  no zap
     {//if(mode.ne.2 .and. nzap.ne.0) then // nzap e check box
         //qDebug()<<"2ZAP Start";
         double fzap[200];//pri men ne se izpolzva jt65-jt4
@@ -1958,63 +2021,64 @@ void DecoderMs::StrtDecode()
 
         if (s_mousebutton==0 && s_static_dat_count>100000)//mousebutton Left=1, Right=3 fullfile=0 rtd=2
         {
-            avesp2(static_dat0,s_static_dat_count,2,s_mod,nfrz,MouseDF,G_DfTolerance,fzap);
+            avesp2(static_dat0,s_static_dat_count,2,s_mode,nfrz,MouseDF,G_DfTolerance,fzap);
         }
         else if (s_zap_count>100000)
         {
             //qDebug()<<"ZAP Start";
             CalcZapDat();
             //qDebug()<<"ZAP Calc"<<s_zap_count;
-            avesp2(s_zap_dat,s_zap_count,2,s_mod,nfrz,MouseDF,G_DfTolerance,fzap);
+            avesp2(s_zap_dat,s_zap_count,2,s_mode,nfrz,MouseDF,G_DfTolerance,fzap);
 
         }
         int nadd=1;
         //qDebug()<<"ZAP BZAP"<<s_static_dat_count;
-        bzap(static_dat0,s_static_dat_count,nadd,s_mod,fzap);//fzap
+        bzap(static_dat0,s_static_dat_count,nadd,s_mode,fzap);//fzap
     }
 
     sq=0.0;
     for (int j = 0; j<s_static_dat_count; j++)
-    {                //!Compute power level for whole array
+    {   //!Compute power level for whole array
         sq=sq + static_dat0[j]*static_dat0[j];
     }
     double avesq=(double)sq/s_static_dat_count;
     s_basevb=pomAll.db(avesq) - 44.0;    //!Base power level
-    if (avesq==0.0)
-        goto c900;
+    if (avesq==0.0) goto c900;
 
     pick = false;
     if (s_mousebutton != 0)//mousebutton Left=1, Right=3 fullfile=0 rtd=2
         pick = true; //!This is a mouse-picked decoding
-    if (!pick && nforce==0 && (s_basevb<-15.0 || s_basevb>20.0))
-        goto c900;
+    if (!pick && nforce==0 && (s_basevb<-15.0 || s_basevb>20.0)) goto c900;
 
-    if (s_mod == 0 || s_mod == 12)//msk144 msk144ms
+    if (s_mode == 0 || s_mode == 12)//msk144 msk144ms
     {
         bool f_mskms = false;
-        if (s_mod == 12)//msk144ms
-            f_mskms = true;
-
-        if (s_f_rtd)
-            msk_144_40_rtd(static_dat0,s_static_dat_count,s_in_istart,f_mskms);
-        else
-            msk_144_40_decode(static_dat0,s_static_dat_count,s_in_istart,f_mskms);
+        if (s_mode == 12) f_mskms = true;//msk144ms            
+        if (s_f_rtd) msk_144_40_rtd(static_dat0,s_static_dat_count,s_in_istart,f_mskms);
+        else msk_144_40_decode(static_dat0,s_static_dat_count,s_in_istart,f_mskms);
     }
-    else if (s_mod == 11)//one thread ft8
-    {
-        DecFt8_0->ft8_decode(static_dat0,s_static_dat_count,s_f00,s_f01,s_nfqso_all,have_dec0_,id3decFt,s_f00,s_f01);
+    else if (s_mode == 11)//one thread ft8
+    {                
+        if (f_dec_sfox) DecSFox->sfox_decode(static_dat0,s_f00,s_f01,s_nfqso_all,have_dec0_);
+        else DecFt8_0->ft8_decode(static_dat0,s_static_dat_count,s_f00,s_f01,s_nfqso_all,have_dec0_,id3decFt,s_f00,s_f01);        
         ResetDupThr();
         goto c990;
     }
-    else if (s_mod == 13)//ft4
+    else if (s_mode == 13)//ft4
     {
         DecFt4_0->ft4_decode(static_dat0,s_f00,s_f01,s_f00,s_f01,s_nfqso_all,have_dec0_);
         ResetDupThr();
         goto c990;
     }
+    else if (s_mode == 18)//ft4
+    {
+        DecFt2_0->ft2_decode(static_dat0,s_f00,s_f01,s_f00,s_f01,s_nfqso_all,have_dec0_);
+        ResetDupThr();
+        goto c990;
+    }
     else if (allq65)//q65
     {
-        DecQ65->q65_decode(static_dat0,s_f00,s_f01,s_nfqso_all,s_mod,have_dec0_);
+        DecQ65->q65_decode(static_dat0,s_f00,s_f01,s_nfqso_all,s_mode,have_dec0_);
         if (is_thrTime)
         {       	
             if (have_dec0_)
@@ -2029,9 +2093,9 @@ void DecoderMs::StrtDecode()
         //ResetDupThr();
         //goto c990;
     }
-    else if (s_mod == 1 || s_mod == 2 || s_mod == 3)//jtms fsk144 fsk315
+    else if (s_mode == 1 || s_mode == 2 || s_mode == 3)//jtms fsk144 fsk315
     {
-        if (s_mod == 2 || s_mod == 3)//fsk441 fsk315
+        if (s_mode == 2 || s_mode == 3)//fsk441 fsk315
         {
             double sigma = 0.0;
             spec2d(static_dat0,s_static_dat_count,sigma);
@@ -2044,29 +2108,29 @@ void DecoderMs::StrtDecode()
         }
         wsjt1_mtdecode(static_dat0,s_static_dat_count,pick);//30sec static dufer for decode
     }
-    else if (s_mod == 4)//iskat-a
+    else if (s_mode == 4)//iskat-a
     {
         int	mode4=1;
         wsjt1_iscat(static_dat0,s_static_dat_count,mode4,pick);
     }
-    else if (s_mod == 5)//iskat-b
+    else if (s_mode == 5)//iskat-b
     {
         int	mode4=2;
         wsjt1_iscat(static_dat0,s_static_dat_count,mode4,pick);
     }
-    else if (s_mod == 6)//jt6m
+    else if (s_mode == 6)//jt6m
         wsjt1_jt6m(static_dat0,s_static_dat_count,s_basevb);
-    else if (s_mod == 7)//jt65a
+    else if (s_mode == 7)//jt65a
     {
         //int n2pass = 1;
         //int mode65 = 1;
         jt65_decode(static_dat0,s_static_dat_count,1);
     }
-    else if (s_mod == 8)//jt65b
+    else if (s_mode == 8)//jt65b
         jt65_decode(static_dat0,s_static_dat_count,2);
-    else if (s_mod == 9)//jt65c
+    else if (s_mode == 9)//jt65c
         jt65_decode(static_dat0,s_static_dat_count,4);
-    else if (s_mod == 10)//pi4
+    else if (s_mode == 10)//pi4
         pi4_decode(static_dat0,s_static_dat_count);//for test
 
 c900:
@@ -2106,7 +2170,7 @@ void *DecoderMs::ThreadDecode(void *argom)
     QString sf1 = list.at(7);
     int f1 = sf1.toInt();
     int f1tool = 6;
-    if (s_mod == 13) f1tool = 10;
+    if (s_mode == 13) f1tool = 10;
 
     for (int id = 0; id < dup_camsgf_thr; ++id)
     {
@@ -2181,11 +2245,12 @@ void DecoderMs::SetDecodetTextFtQ65(QStringList list)//2.66
     QString message = list.at(4);
     QString sf1 = list.at(7);
     int f1 = sf1.toInt();
-    if (s_mod == 11 || s_mod == 13)//ft8/4
+    if (s_mode==11 || s_mode==13 || s_mode==18)//ft8/4
     {
         bool ldupe = false;
         int f1tool = 6;
-        if (s_mod == 13) f1tool = 10;
+        if (s_mode==13) f1tool = 10;
+        if (s_mode==18) f1tool = 20;
         for (int id = 0; id < dup_camsgf_thr; ++id)
         {
             if (message==dup_amsgs_thr[id] && abs(dup_afs_thr[id]-f1)<f1tool)
@@ -2270,6 +2335,7 @@ void DecoderMs::ResetDupThr()
         f2a.DestroyPlansAll(false);
         emit EmitDecodeInProgresPskRep(false);
         have_decALL3_ = false; //qDebug()<<"END-DestroyPlansAll"<<ddd;  ddd = 0;
+        DecFt8_0->SetEndPStaticAll();//2.76.5
     }
 }//2.56 stop  static bool thr_only_one_color = true;
 void DecoderMs::ThrSetBackColor()
@@ -2309,19 +2375,22 @@ static double _f01_ = 700;
 void DecoderMs::StrtDec0()
 {
     usleep(17000); //qDebug()<<"0";
-    if      (s_mod == 11) DecFt8_0->ft8_decode(static_dat0,s_static_dat_count,_f00_,_f01_,s_nfqso_all,have_dec0_,id3decFt,s_f00,s_f01);
-    else if (s_mod == 13) DecFt4_0->ft4_decode(static_dat0,_f00_,_f01_,s_f00,s_f01,s_nfqso_all,have_dec0_);
+    if      (s_mode == 11) DecFt8_0->ft8_decode(static_dat0,s_static_dat_count,_f00_,_f01_,s_nfqso_all,have_dec0_,id3decFt,s_f00,s_f01);
+    else if (s_mode == 13) DecFt4_0->ft4_decode(static_dat0,_f00_,_f01_,s_f00,s_f01,s_nfqso_all,have_dec0_);
+    else if (s_mode == 18) DecFt2_0->ft2_decode(static_dat0,_f00_,_f01_,s_f00,s_f01,s_nfqso_all,have_dec0_);
     end_dec0_ = true;
     TryEndThr();
 }
 static double _f02_ = 1200;
 #define CORFT8 60.0
 #define CORFT4 100.0
+#define CORFT2 200.0
 void DecoderMs::StrtDec1()
 {
     usleep(18000); //qDebug()<<"1";
-    if      (s_mod == 11) DecFt8_1->ft8_decode(static_dat1,s_static_dat_count,(_f01_-CORFT8),_f02_,s_nfqso_all,have_dec1_,id3decFt,s_f00,s_f01);
-    else if (s_mod == 13) DecFt4_1->ft4_decode(static_dat1,(_f01_-CORFT4),_f02_,s_f00,s_f01,s_nfqso_all,have_dec1_);
+    if      (s_mode == 11) DecFt8_1->ft8_decode(static_dat1,s_static_dat_count,(_f01_-CORFT8),_f02_,s_nfqso_all,have_dec1_,id3decFt,s_f00,s_f01);
+    else if (s_mode == 13) DecFt4_1->ft4_decode(static_dat1,(_f01_-CORFT4),_f02_,s_f00,s_f01,s_nfqso_all,have_dec1_);
+    else if (s_mode == 18) DecFt2_1->ft2_decode(static_dat1,(_f01_-CORFT2),_f02_,s_f00,s_f01,s_nfqso_all,have_dec1_);
     end_dec1_ = true;
     TryEndThr();
 }
@@ -2329,8 +2398,9 @@ static double _f03_ = 1700;
 void DecoderMs::StrtDec2()
 {
     usleep(19000); //qDebug()<<"2";
-    if      (s_mod == 11) DecFt8_2->ft8_decode(static_dat2,s_static_dat_count,(_f02_-CORFT8),_f03_,s_nfqso_all,have_dec2_,id3decFt,s_f00,s_f01);
-    else if (s_mod == 13) DecFt4_2->ft4_decode(static_dat2,(_f02_-CORFT4),_f03_,s_f00,s_f01,s_nfqso_all,have_dec2_);
+    if      (s_mode == 11) DecFt8_2->ft8_decode(static_dat2,s_static_dat_count,(_f02_-CORFT8),_f03_,s_nfqso_all,have_dec2_,id3decFt,s_f00,s_f01);
+    else if (s_mode == 13) DecFt4_2->ft4_decode(static_dat2,(_f02_-CORFT4),_f03_,s_f00,s_f01,s_nfqso_all,have_dec2_);
+    else if (s_mode == 18) DecFt2_2->ft2_decode(static_dat2,(_f02_-CORFT2),_f03_,s_f00,s_f01,s_nfqso_all,have_dec2_);
     end_dec2_ = true;
     TryEndThr();
 }
@@ -2338,8 +2408,9 @@ static double _f04_ = 2200;
 void DecoderMs::StrtDec3()
 {
     usleep(20000); //qDebug()<<"3";
-    if      (s_mod == 11) DecFt8_3->ft8_decode(static_dat3,s_static_dat_count,(_f03_-CORFT8),_f04_,s_nfqso_all,have_dec3_,id3decFt,s_f00,s_f01);
-    else if (s_mod == 13) DecFt4_3->ft4_decode(static_dat3,(_f03_-CORFT4),_f04_,s_f00,s_f01,s_nfqso_all,have_dec3_);
+    if      (s_mode == 11) DecFt8_3->ft8_decode(static_dat3,s_static_dat_count,(_f03_-CORFT8),_f04_,s_nfqso_all,have_dec3_,id3decFt,s_f00,s_f01);
+    else if (s_mode == 13) DecFt4_3->ft4_decode(static_dat3,(_f03_-CORFT4),_f04_,s_f00,s_f01,s_nfqso_all,have_dec3_);
+    else if (s_mode == 18) DecFt2_3->ft2_decode(static_dat3,(_f03_-CORFT2),_f04_,s_f00,s_f01,s_nfqso_all,have_dec3_);
     end_dec3_ = true;
     TryEndThr();
 }
@@ -2347,8 +2418,9 @@ static double _f05_ = 2700;
 void DecoderMs::StrtDec4()
 {
     usleep(21000); //qDebug()<<"4";
-    if      (s_mod == 11) DecFt8_4->ft8_decode(static_dat4,s_static_dat_count,(_f04_-CORFT8),_f05_,s_nfqso_all,have_dec4_,id3decFt,s_f00,s_f01);
-    else if (s_mod == 13) DecFt4_4->ft4_decode(static_dat4,(_f04_-CORFT4),_f05_,s_f00,s_f01,s_nfqso_all,have_dec3_);
+    if      (s_mode == 11) DecFt8_4->ft8_decode(static_dat4,s_static_dat_count,(_f04_-CORFT8),_f05_,s_nfqso_all,have_dec4_,id3decFt,s_f00,s_f01);
+    else if (s_mode == 13) DecFt4_4->ft4_decode(static_dat4,(_f04_-CORFT4),_f05_,s_f00,s_f01,s_nfqso_all,have_dec3_);
+    else if (s_mode == 18) DecFt2_4->ft2_decode(static_dat4,(_f04_-CORFT2),_f05_,s_f00,s_f01,s_nfqso_all,have_dec3_);
     end_dec4_ = true;
     TryEndThr();
 }
@@ -2356,8 +2428,9 @@ static double _f06_ = 3200;
 void DecoderMs::StrtDec5()
 {
     usleep(22000); //qDebug()<<"5";
-    if      (s_mod == 11) DecFt8_5->ft8_decode(static_dat5,s_static_dat_count,(_f05_-CORFT8),_f06_,s_nfqso_all,have_dec4_,id3decFt,s_f00,s_f01);
-    else if (s_mod == 13) DecFt4_5->ft4_decode(static_dat5,(_f05_-CORFT4),_f06_,s_f00,s_f01,s_nfqso_all,have_dec3_);
+    if      (s_mode == 11) DecFt8_5->ft8_decode(static_dat5,s_static_dat_count,(_f05_-CORFT8),_f06_,s_nfqso_all,have_dec4_,id3decFt,s_f00,s_f01);
+    else if (s_mode == 13) DecFt4_5->ft4_decode(static_dat5,(_f05_-CORFT4),_f06_,s_f00,s_f01,s_nfqso_all,have_dec3_);
+    else if (s_mode == 18) DecFt2_5->ft2_decode(static_dat5,(_f05_-CORFT2),_f06_,s_f00,s_f01,s_nfqso_all,have_dec3_);
     end_dec5_ = true;
     TryEndThr();
 }
@@ -2428,18 +2501,20 @@ void DecoderMs::SETftBuff()
     {
         is_ftBuff = false; //qDebug()<<"STOP TIMM";
     }
-}
-void DecoderMs::SetDecode(int *raw,int count_q,QString time, int t_istart,int mousebutton,bool f_rtd,bool end_rtd,bool ffopen)//1.27 psk rep   fopen bool true    false no file open
+} 
+void DecoderMs::SetDecode(int *raw,int count_q,QString time,int t_istart,int mousebutton,bool f_rtd,bool end_rtd,bool ffopen)//1.27 psk rep   fopen bool true    false no file open
 {
-    //qDebug()<<count_q<<mousebutton<<is_ftBuff;
-    if (count_q<512) return; //2.69=512 min samples 2.51 200, old=100
-    if (s_mod == 11)
+	//int raw[200000];
+	//for (int i = 0; i<count_q; ++i) raw[i]=0;    		
+    //printf("Limit=%d Count=%d\n",(int)(6*DEC_SAMPLE_RATE),count_q);
+    if (count_q<1024) return; //2.76.2=1024 2.69=512 min samples 2.51 200, old=100 msk144=7000
+    if (s_mode == 11)
     {
         bool t_busy = thred_busy;
         if (is_ftBuff) t_busy = true; //click to display no in -> mousebutton>3
         if (mousebutton>3 && !fromBufFt && t_busy && (!is_stat_ftb[0] || !is_stat_ftb[1]))
         {
-            if (count_q<5*DEC_SAMPLE_RATE) return;//tf8 minimum
+            if (count_q<6*DEC_SAMPLE_RATE) return;//tf8 minimum
             if (count_q > 186000) count_q = 186000;
             if (!is_stat_ftb[0] && mousebutton==5)
             {
@@ -2477,15 +2552,17 @@ void DecoderMs::SetDecode(int *raw,int count_q,QString time, int t_istart,int mo
     	return;    	
    	}
     int static_dat_max = 0;
+    f_dec_sfox = false;//2.76
+    s_time = time;//2.76
     //////////// Minimum Count For Decode from mode in 1.46 realy this is from second display data ////////////
-    if (s_mod == 7 || s_mod == 8 || s_mod == 9 || s_mod == 10)//10sec min pi4 full 24s  jt65abc full 50s (RRR RO 73 on 5s)
+    if (s_mode == 7 || s_mode == 8 || s_mode == 9 || s_mode == 10)//10sec min pi4 full 24s  jt65abc full 50s (RRR RO 73 on 5s)
     {
         if (count_q<10*DEC_SAMPLE_RATE) return;
         s_static_dat_count = fmin(60*DEC_SAMPLE_RATE,count_q);//max 60sec jt65abc pi4
     }
-    else if (s_mod == 11) //4 esc min ft8 full 15s
+    else if (s_mode == 11) //4 esc min ft8 full 15s
     {
-        if (count_q<5*DEC_SAMPLE_RATE)
+        if (count_q<6*DEC_SAMPLE_RATE)
         {
             //qDebug()<<"Except Three-stage Decoding FT8="<<count_q<<(mousebutton-3);
             if (mousebutton == 6)
@@ -2497,12 +2574,22 @@ void DecoderMs::SetDecode(int *raw,int count_q,QString time, int t_istart,int mo
             return;
         }
         static_dat_max = 16*DEC_SAMPLE_RATE;//=192000
-        s_static_dat_count = fmin(static_dat_max,count_q);//max 15sec ft8
+        s_static_dat_count = fmin(static_dat_max,count_q);//max 15sec ft8               
+        if (id_mshf>0)//2.76sf res=0 (even first), or res=1 (odd second)
+        {
+        	 if (!DecFt8_0->ft8_even_odd(s_time)) f_dec_sfox = true;
+       	}      
     }
-    else if (s_mod == 13) //ft4 2.35=8s
+    else if (s_mode == 13) //ft4 2.35=8s
     {
         if (count_q<4*DEC_SAMPLE_RATE) return;
         static_dat_max = 8*DEC_SAMPLE_RATE;
+        s_static_dat_count = fmin(static_dat_max,count_q);
+    }
+    else if (s_mode == 18) //ft4 2.35=8s
+    {
+        if (count_q<2*DEC_SAMPLE_RATE) return;
+        static_dat_max = 4*DEC_SAMPLE_RATE;
         s_static_dat_count = fmin(static_dat_max,count_q);
     }
     else if (allq65) //q65
@@ -2518,7 +2605,7 @@ void DecoderMs::SetDecode(int *raw,int count_q,QString time, int t_istart,int mo
     //kkk = false;
     //2.39 mousebutton Left=1, Right=3 fullfile=0 rtd=2 ft8=4,5,6
     //2.39 for thread, normal and mouse click decode ft8/4
-    if (s_mod == 11 && mousebutton > 3)
+    if (s_mode == 11 && mousebutton > 3)
     {
         id3decFt = (mousebutton-3);
         if (mousebutton==6 && !is_thrTime) CreateStartTimerthr();//hv inportent
@@ -2526,10 +2613,10 @@ void DecoderMs::SetDecode(int *raw,int count_q,QString time, int t_istart,int mo
     else
     {
         id3decFt = 100;
-        if ((s_mod == 11 || s_mod == 13 || allq65) && !is_thrTime) CreateStartTimerthr();
+        if ((s_mode == 11 || s_mode == 13 || s_mode == 18 || allq65) && !is_thrTime) CreateStartTimerthr();
     }
-	//qDebug()<<"DECODE -------"<<STATIC_DAT_COUNT<<">"s_static_dat_count<<;
-    //qDebug()<<"Decode C="<<s_static_dat_count<<(double)s_static_dat_count/12000.0;
+	//qDebug()<<"DECODE -------"<<72000<<"<"<<s_static_dat_count;
+    //qDebug()<<"Decode C="<<s_static_dat_count<<(double)s_static_dat_count/12000.0<<mousebutton;
 
     s_fopen = ffopen;
     emit EmitDecodeInProgresPskRep(true);
@@ -2538,11 +2625,13 @@ void DecoderMs::SetDecode(int *raw,int count_q,QString time, int t_istart,int mo
     else 	   emit EmitDecode(true,1);//dec_state no=0 dec=1 rtddec=2
 
     s_in_istart = (double)t_istart;
-    s_time = time;
+    //s_time = time;
     s_mousebutton = mousebutton; //mousebutton Left=1, Right=3 fullfile=0 rtd=2 ft8=4,5,6
     DecFt8_0->SetStDecode(time,mousebutton,s_fopen);//2.66 for ap7 s_fopen8
-    DecFt4_0->SetStDecode(time,mousebutton);
+    DecFt4_0->SetStDecode(time,mousebutton,s_fopen);
+    DecFt2_0->SetStDecode(time,mousebutton,s_fopen);
     DecQ65->SetStDecode(time,mousebutton,s_fopen);//2.72 for ap pileup
+    DecSFox->SetStDecode(time,mousebutton,s_fopen);
 
     s_f_rtd = f_rtd;
     s_end_rtd = end_rtd;
@@ -2558,12 +2647,21 @@ void DecoderMs::SetDecode(int *raw,int count_q,QString time, int t_istart,int mo
 
     int smpl = 14500;
     bool fade = false;
-    if (s_mod == 11) fade = true;
-    if (s_mod == 13) 
+    if (s_mode == 11)
+    {
+		fade = true;
+		if (f_dec_sfox) smpl = 100;//200;//5500;//9750;//250 3500;//
+   	}
+    if (s_mode == 13) 
     {
     	fade = true;
     	smpl = 12500;
-   	}    
+   	}  
+   	if (s_mode == 18) 
+    {
+    	fade = true;
+    	smpl = 6000;
+   	}   
     double st_smpl = 1.0/(double)smpl;
     double kv_smpl = 0.0;
     int nave=int((double)sum/(double)s_static_dat_count);
@@ -2584,10 +2682,10 @@ void DecoderMs::SetDecode(int *raw,int count_q,QString time, int t_istart,int mo
     /*int nave=int((double)sum/(double)s_static_dat_count);
     for (int i = 0; i<s_static_dat_count; ++i)
     {
-        raw_in_s[i]=raw[i]-nave;
+        if (i>13*DEC_SAMPLE_RATE) raw_in_s[i]=0;
     }*/
 
-    if (s_mod != 0 && s_mod != 12 && s_mod != 11 && s_mod != 13 && !allq65)//old modes only kogato e celia region ili >14s
+    if (s_mode != 0 && s_mode != 12 && s_mode != 11 && s_mode != 13 && s_mode != 18 && !allq65)//old modes only kogato e celia region ili >14s
     {
         if (s_static_dat_count>14*DEC_SAMPLE_RATE) dtrim(raw_in_s,s_static_dat_count);
     }
@@ -2617,11 +2715,12 @@ void DecoderMs::SetDecode(int *raw,int count_q,QString time, int t_istart,int mo
 
     double thrsum = 0.0;
     int nthr = s_thr_used;
-    if ((s_mod != 11 && s_mod != 13) || nagain) nthr = 1;
+    if ((s_mode!=11 && s_mode!=13 && s_mode!=18) || nagain || f_dec_sfox) nthr = 1;//2.76sh f_dec_sfox
     else if (nthr>1)
     {
         double limit = 300.0;//ft8 300
-        if (s_mod == 13) limit = 400.0;//ft4 500
+        if (s_mode==13) limit = 400.0;//ft4 500
+        if (s_mode==18) limit = 500.0;//ft2 500
         double band_all = s_f01 - s_f00;
 
         thrsum = band_all/(double)nthr;
@@ -2672,10 +2771,15 @@ void DecoderMs::SetDecode(int *raw,int count_q,QString time, int t_istart,int mo
         double tcorf = 0.0;
         double corf = 25.0;
         int c_arrrs = 184000;//2.71 186000 ft8  15,5s
-        if (s_mod==13)
+        if (s_mode==13)
         {
             corf = 50.0; //140
             c_arrrs = 96000;//ft4 8s
+        }
+        if (s_mode==18)
+        {
+            corf = 100.0; //140
+            c_arrrs = 48000;//ft2 4s
         }
 
         for (int i = 0; i < c_arrrs; ++i)

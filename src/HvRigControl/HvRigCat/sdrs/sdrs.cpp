@@ -26,11 +26,19 @@ sdr_cmd_set_t;
 
 static sdr_cmd_set_t ncmd[SDRS_COUNT] =
     {
-        //// fgsdfg  ////
-        //{"ZZAI0;ZZDX1","","ZZTX1","ZZTX0","ZZFA","ZZMD01","ZZMD00","ZZIF","ZZIF"}, //Smart SDR
-        //{"AI0"        ,"","TX"   ,"RX"   ,"FA"  ,"MD2"   ,"MD1"   ,"IF"  ,"IF"},   //Power SDR
-        {"ZZAI0;ZZDX1","","ZZTX1","ZZTX0","ZZFA","ZZMD01","ZZMD07","ZZIF","ZZIF"}, //Smart SDR
-        {"AI0"        ,"","TX"   ,"RX"   ,"FA"  ,"MD2"   ,"MD9"   ,"IF"  ,"IF"},   //Power SDR        	
+        //// fgsdfg  ////        
+        {"AI0"        ,"","TX"   ,"RX"   ,"FA"  ,"MD2"   ,"MD9"   ,"IF"  ,"IF"  }, //FlexRadio PowerSDR
+        {"AI0"        ,"","TX"   ,"RX"   ,"FA"  ,"MD2"   ,"MD9"   ,"IF"  ,"IF"  }, //Thetis
+        {"ZZAI0;ZZDX1","","ZZTX1","ZZTX0","ZZFA","ZZMD01","ZZMD07","ZZIF","ZZIF"}, //FlexRadio SmartSDR
+        {"ZZAI0;ZZDX1","","ZZTX1","ZZTX0","ZZFA","ZZMD01","ZZMD07","ZZFA","ZZMD"}, //FlexRadio SmartSDR Slice A 
+        {"ZZAI0;ZZDX1","","ZZTX1","ZZTX0","ZZFA","ZZMD01","ZZMD07","ZZFA","ZZMD"}, //FlexRadio SmartSDR Slice B
+        {"ZZAI0;ZZDX1","","ZZTX1","ZZTX0","ZZFA","ZZMD01","ZZMD07","ZZFA","ZZMD"}, //FlexRadio SmartSDR Slice C
+        {"ZZAI0;ZZDX1","","ZZTX1","ZZTX0","ZZFA","ZZMD01","ZZMD07","ZZFA","ZZMD"}, //FlexRadio SmartSDR Slice D
+        {"ZZAI0;ZZDX1","","ZZTX1","ZZTX0","ZZFA","ZZMD01","ZZMD07","ZZFA","ZZMD"}, //FlexRadio SmartSDR Slice E
+        {"ZZAI0;ZZDX1","","ZZTX1","ZZTX0","ZZFA","ZZMD01","ZZMD07","ZZFA","ZZMD"}, //FlexRadio SmartSDR Slice F
+        {"ZZAI0;ZZDX1","","ZZTX1","ZZTX0","ZZFA","ZZMD01","ZZMD07","ZZFA","ZZMD"}, //FlexRadio SmartSDR Slice G 
+        {"ZZAI0;ZZDX1","","ZZTX1","ZZTX0","ZZFA","ZZMD01","ZZMD07","ZZFA","ZZMD"}, //FlexRadio SmartSDR Slice H 
+             	
     };
 
 SDRs::SDRs(int ModelID,QWidget *parent)
@@ -41,8 +49,7 @@ SDRs::SDRs(int ModelID,QWidget *parent)
     //s_rig_name = rigs_sdrs[s_ModelID].name;
     s_CmdID = -1;
     s_read_array.clear();
-    ////////////////////////////////////////////////////////end new read com
-    
+    ////////////////////////////////////////////////////////end new read com   
     /*QByteArray array;
     array.append("99");
     qDebug()<<"WriteCmd"<<(QString(array.toHex()));*/
@@ -53,17 +60,13 @@ SDRs::~SDRs()
 }
 void SDRs::SetOnOffCatCommand(bool f, int model_id, int fact_id)
 {
-    if (model_id!=s_ModelID || fact_id!=SDRS_ID)
-        return;
-
+    if (model_id!=s_ModelID || fact_id!=SDRS_ID) return;
     if (f && !ncmd[s_ModelID].on.isEmpty())
     {
         char cmdnc[50];
         QString cmd = ncmd[s_ModelID].on;
         cmd.append(";");
-
-        for (int i = 0; i < cmd.count(); i++)
-            cmdnc[i]=cmd.at(i).toLatin1();
+        for (int i = 0; i < cmd.count(); i++) cmdnc[i]=cmd.at(i).toLatin1();
         emit EmitWriteCmd(cmdnc,cmd.count());
     }
     if (!f && !ncmd[s_ModelID].off.isEmpty())
@@ -71,9 +74,7 @@ void SDRs::SetOnOffCatCommand(bool f, int model_id, int fact_id)
         char cmdnc[50];
         QString cmd = ncmd[s_ModelID].off;
         cmd.append(";");
-
-        for (int i = 0; i < cmd.count(); i++)
-            cmdnc[i]=cmd.at(i).toLatin1();
+        for (int i = 0; i < cmd.count(); i++) cmdnc[i]=cmd.at(i).toLatin1();
         emit EmitWriteCmd(cmdnc,cmd.count());
     }
 }
@@ -107,15 +108,10 @@ void SDRs::set_ptt(ptt_t ptt)
 {
     char cmdnc[50];
     QString cmd;
-    if (ptt==RIG_PTT_ON)
-        cmd = ncmd[s_ModelID].ptton;
-    else
-        cmd = ncmd[s_ModelID].pttoff;
-
+    if (ptt==RIG_PTT_ON) cmd = ncmd[s_ModelID].ptton;       
+    else cmd = ncmd[s_ModelID].pttoff;
     cmd.append(";");
-
-    for (int i = 0; i < cmd.count(); i++)
-        cmdnc[i]=cmd.at(i).toLatin1();
+    for (int i = 0; i < cmd.count(); i++) cmdnc[i]=cmd.at(i).toLatin1();
     emit EmitWriteCmd(cmdnc,cmd.count());
 }
 void SDRs::set_freq(unsigned long long freq)
@@ -136,7 +132,6 @@ void SDRs::set_mode(QString str)
     //TS590S TS590SG //TS990S
     char cmdnc[50];
     QString md;
-
     if (str=="USB") md.append(ncmd[s_ModelID].setmodeu+";");//USB
     else if (str=="DIGU") md.append(ncmd[s_ModelID].setmodedu+";");//DIGU
     //else if (str=="LSB") md.append(ncmd[s_ModelID].setmodel+";");//LSB
@@ -150,7 +145,6 @@ void SDRs::get_freq()
     // IF;  answer -> 144.195.000 ->IF00144195000........;
     char cmdnc[50];
     QString cmd = ncmd[s_ModelID].getfreq+";";
-
     for (int i = 0; i < cmd.count(); i++) cmdnc[i]=cmd.at(i).toLatin1();
     emit EmitWriteCmd(cmdnc,cmd.count());
 }
@@ -159,7 +153,6 @@ void SDRs::get_mode()
     // IF;  answer -> 144.195.000 ->IF00144195000........ 29=MD;
     char cmdnc[50];
     QString cmd = ncmd[s_ModelID].getmode+";";
-
     for (int i = 0; i < cmd.count(); i++) cmdnc[i]=cmd.at(i).toLatin1();
     emit EmitWriteCmd(cmdnc,cmd.count());
 }
@@ -171,42 +164,13 @@ void SDRs::SetReadyRead(QByteArray ar,int size0)
         {
         	//qDebug()<<"SDRS READ ALL COMMAND="<<(QString(s_read_array.toHex()))<<s_read_array.size();
             int size = s_read_array.size();
-
-            if (s_ModelID==0)//Smart SDR
-            {
-                if (size < 40)//37 bez ;
-                {
-                    s_read_array.clear();
-                    return;
-                }
-                //Z=5A Z=5A I=49 F=46
-                QString sid =(QString)s_read_array.mid(0,4);
-                //qDebug()<<"SDRS"<<sid;
-                if ((s_CmdID==GET_FREQ || s_CmdID==GET_MODE) && sid=="ZZIF")
-                {
-                    QByteArray tfreq;
-                    tfreq.append(s_read_array.mid(4,11));
-                    unsigned long long f = tfreq.toLongLong();
-                    emit EmitReadedInfo(GET_FREQ,QString("%1").arg(f));
-
-                    QString smode = "WRONG_MODE";
-                    if (s_read_array[31]==(char)0x30 && s_read_array[32]==(char)0x31)//0x30=0 0x31=1 USB=01
-                        smode = "USB";
-                    else if (s_read_array[31]==(char)0x30 && s_read_array[32]==(char)0x37)// DATA-USB=07
-                        smode = "DIGU";    
-                        
-                    emit EmitReadedInfo(GET_MODE,smode);
-                    s_CmdID = -1;//I Find my answer no need more
-                }
-            }
-            else if (s_ModelID==1)//Power SDR
+            if (s_ModelID==0 || s_ModelID==1)//PowerSDR, Thetis
             {            	
                 if (size < 37)//37 bez ;
                 {
                     s_read_array.clear();
                     return;
-                }
-                //I=49 F=46
+                }//I=49 F=46
                 if ((s_CmdID==GET_FREQ || s_CmdID==GET_MODE) &&
                         s_read_array[0]==(char)0x49 && s_read_array[1]==(char)0x46)
                 {
@@ -216,14 +180,58 @@ void SDRs::SetReadyRead(QByteArray ar,int size0)
                     emit EmitReadedInfo(GET_FREQ,QString("%1").arg(f));
 
                     QString smode = "WRONG_MODE";
-                    if (s_read_array[29]==(char)0x32)//0x32=USB=2
-                        smode = "USB";
-                    else if (s_read_array[29]==(char)0x39)// DATA-USB=09
-                        smode = "DIGU";   
-                       
+                    if (s_read_array[29]==(char)0x32) smode = "USB";//0x32=USB=2                        
+                    else if (s_read_array[29]==(char)0x39) smode = "DIGU";// DATA-USB=09                                                  
                     emit EmitReadedInfo(GET_MODE,smode);
                     s_CmdID = -1;//I Find my answer no need more
                 }
+            }
+            else if (s_ModelID==2)//SmartSDR
+            {
+                if (size < 40)//37 bez ;
+                {
+                    s_read_array.clear();
+                    return;
+                }//Z=5A Z=5A I=49 F=46
+                QString sid =(QString)s_read_array.mid(0,4);//qDebug()<<"SDRS"<<sid;
+                if ((s_CmdID==GET_FREQ || s_CmdID==GET_MODE) && sid=="ZZIF")
+                {
+                    QByteArray tfreq;
+                    tfreq.append(s_read_array.mid(4,11));
+                    unsigned long long f = tfreq.toLongLong();
+                    emit EmitReadedInfo(GET_FREQ,QString("%1").arg(f));
+
+                    QString smode = "WRONG_MODE";
+                    if (s_read_array[31]==(char)0x30 && s_read_array[32]==(char)0x31) smode = "USB";//0x30=0 0x31=1 USB=01                        
+                    else if (s_read_array[31]==(char)0x30 && s_read_array[32]==(char)0x37) smode = "DIGU";// DATA-USB=07                                                    
+                    emit EmitReadedInfo(GET_MODE,smode);
+                    s_CmdID = -1;//I Find my answer no need more
+                }
+            }
+            else if (s_ModelID>2 && s_ModelID<11)//FlexRadio SmartSDR Slice A-H
+            {
+                if (size < 6)//6 bez ;
+                {
+                    s_read_array.clear();
+                    return;
+                }//Z=5A Z=5A I=49 F=46
+                QString sid =(QString)s_read_array.mid(0,4); //qDebug()<<"SDRS"<<size<<s_read_array;
+                if (s_CmdID==GET_FREQ && sid=="ZZFA" && size>14)
+                {
+                    QByteArray tfreq;
+                    tfreq.append(s_read_array.mid(4,11));
+                    unsigned long long f = tfreq.toLongLong();
+                    emit EmitReadedInfo(GET_FREQ,QString("%1").arg(f));
+                    s_CmdID = -1;//I Find my answer no need more*/
+                }
+                if (s_CmdID==GET_MODE && sid=="ZZMD" && size>5)
+                {
+                    QString smode = "WRONG_MODE";
+                    if (s_read_array[4]==(char)0x30 && s_read_array[5]==(char)0x31) smode = "USB";//0x30=0 0x31=1 USB=01                        
+                    else if (s_read_array[4]==(char)0x30 && s_read_array[5]==(char)0x37) smode = "DIGU";// DATA-USB=07                                                    
+                    emit EmitReadedInfo(GET_MODE,smode);
+                    s_CmdID = -1;//I Find my answer no need more*/
+                }               
             }
             s_read_array.clear();
         }

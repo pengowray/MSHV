@@ -376,7 +376,7 @@ QString GenMessage::format_msg(char *message_in, int cmsg)
     for (int z = beg; z < end+1; ++z) out.append(message_in[z]); 
     return out;           
 }
-int GenMessage::hvmsgen(char*msg_org,int mod_ident,double tx_freq,int period_t)//,int &ntxslot QString mygridloc,
+int GenMessage::hvmsgen(char*msg_org,int mod_ident,double tx_freq,int period_t,QString sfmta,QString otptk)//,int &ntxslot QString mygridloc,
 {
     int nwave = 0;
     int k = 0;
@@ -402,7 +402,7 @@ int GenMessage::hvmsgen(char*msg_org,int mod_ident,double tx_freq,int period_t)/
     if (fabs(samfacout-1.0)>0.02) fsample_out=1.0;
     // fsample_out=fsample_out/4;
     
-    int nmsg = strlen(msg_org); 
+    int nmsg = strlen(msg_org); //qDebug()<<"nmsg="<<nmsg;
     if(nmsg > max_len) nmsg = max_len;
     for (int z = 0; z < nmsg; ++z) msg[z] = msg_org[z];
 
@@ -443,7 +443,9 @@ tune:
     if (mod_ident==11)
     {//FT8
     	QString tstr = format_msg(msg,max_len);//2.65
-        nwave = TGenFt8->genft8(tstr,iwave,GEN_SAMPLE_RATE,tx_freq); //,i3b
+        if (s_msf) nwave = TGenSFox->gensfox(tstr,iwave,GEN_SAMPLE_RATE,tx_freq,sfmta,otptk);
+        else nwave = TGenFt8->genft8(tstr,iwave,GEN_SAMPLE_RATE,tx_freq,sfmta,otptk); //,i3b
+        //printf("period_t=%d\n",period_t);	
         goto end;
     }
     else if (mod_ident==13)
@@ -451,7 +453,13 @@ tune:
     	QString tstr = format_msg(msg,max_len);//2.65
         nwave = TGenFt4->genft4(tstr,iwave,GEN_SAMPLE_RATE,tx_freq);//,i3b 
         goto end;
-    }    
+    }   
+    else if (mod_ident==18)
+    {//FT2
+    	QString tstr = format_msg(msg,max_len);//2.65
+        nwave = TGenFt2->genft2(tstr,iwave,GEN_SAMPLE_RATE,tx_freq);//,i3b 
+        goto end;
+    } 
     else if (mod_ident==14 || mod_ident==15  || mod_ident==16 || mod_ident==17)
     {//Q65
     	int mq65 = 1;

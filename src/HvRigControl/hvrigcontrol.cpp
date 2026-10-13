@@ -39,11 +39,13 @@ struct netSP
 };
 //#include "HvRigCat/network/network_def.h"
 //#define COU_NET_PS NETWORK_COUNT//5 //=NETWORK_COUNT
-#define COU_NET_PS 6
-static netSP netServPort[COU_NET_PS];
-
+#include "HvRigCat/network/network_def.h"
+//#define COU_NET_PS NETWORK_COUNT
+static netSP netServPort[NETWORK_COUNT];
 struct netTciCS
 {
+	QString srate;
+	int txbuff;
     uint8_t channels;
     QString samples;
     uint8_t type;
@@ -55,13 +57,12 @@ HvRigControl::HvRigControl( QWidget *parent )
 {
     //this->setWindowTitle(APP_NAME + (QString)" Rig Control");
     //this->setWindowTitle("Rig Control");
-
     this->setWindowTitle(tr("Interface Control"));
     setWindowFlags(windowFlags() ^ Qt::WindowContextHelpButtonHint);
     //QGridLayout *l = new QGridLayout( this, 1, 1, 0, 0, "boardLayout");
     //setStyleSheet("border: 1px solid red");
     //setMinimumSize(612,548);//+125%
-    setMinimumSize(640,556);//2.74
+    //setMinimumSize(640,556);//2.74 stop->2.76.2
 
     end_rs0 = 0;
     rig_cat_active_and_read = false;//2.30
@@ -229,6 +230,8 @@ HvRigControl::HvRigControl( QWidget *parent )
 
     // Network Defaults
     s_rig_name = "None";
+    s_net_model_id = -100;
+    s_rig_full_name = "None";//2.76.1
     block_save_net = false;
     net_active = false;
     netServPort[0].serv="127.0.0.1";
@@ -242,7 +245,27 @@ HvRigControl::HvRigControl( QWidget *parent )
     netServPort[4].serv="127.0.0.1";
     netServPort[4].port="50001";		//TCI Client rx2
     netServPort[5].serv="127.0.0.1";
-    netServPort[5].port="4532";		    //NET rigctl
+    netServPort[5].port="4532";		    //Hamlib NET rigctl
+    netServPort[6].serv="127.0.0.1";
+    netServPort[6].port="4532";		    //FlexRadio 6xxx
+    netServPort[7].serv="RIG IP Addr";
+    netServPort[7].port="4992";		    //FlexRadio SmartSDR Slice A
+    netServPort[8].serv="RIG IP Addr";
+    netServPort[8].port="4992";		    //FlexRadio SmartSDR Slice
+    netServPort[9].serv="RIG IP Addr";
+    netServPort[9].port="4992";		    //FlexRadio SmartSDR Slice
+    netServPort[10].serv="RIG IP Addr";
+    netServPort[10].port="4992";		//FlexRadio SmartSDR Slice
+    netServPort[11].serv="RIG IP Addr";
+    netServPort[11].port="4992";		//FlexRadio SmartSDR Slice
+    netServPort[12].serv="RIG IP Addr";
+    netServPort[12].port="4992";		//FlexRadio SmartSDR Slice
+    netServPort[13].serv="RIG IP Addr";
+    netServPort[13].port="4992";		//FlexRadio SmartSDR Slice
+    netServPort[14].serv="RIG IP Addr";
+    netServPort[14].port="4992";		//FlexRadio SmartSDR Slice H
+    //netServPort[15].serv="XXXX";
+    //netServPort[15].port="9999";		//XXXX
 
     TCPServer = new QLineEdit();
     TCPServer->setText(netServPort[0].serv);
@@ -277,6 +300,21 @@ HvRigControl::HvRigControl( QWidget *parent )
     lst_tci <<"int16"<<"int24"<<"int32"<<"float32";
     tci_tcistype->addItems(lst_tci);
     tci_tcistype->setCurrentIndex(3);
+    
+    l_tcisrate = new QLabel(tr("Audio Sample Rate")+":");
+    //l_tcisrate->setContentsMargins(4,0,0,0);
+    tci_rample_rate = new QComboBox();
+    lst_tci.clear();
+    lst_tci <<"12000"<<"24000"<<"48000";
+    tci_rample_rate->addItems(lst_tci);
+    tci_rample_rate->setCurrentIndex(2);
+    tci_tx_buff = new QSpinBox();
+    tci_tx_buff->setRange(50,400);
+    tci_tx_buff->setSingleStep(50);
+    tci_tx_buff->setPrefix("Tx Buffer def=50  ");
+    tci_tx_buff->setSuffix("  ms");
+    tci_tx_buff->setValue(50);  
+    tci_tx_buff->findChild<QLineEdit*>()->setReadOnly(true); 
 
     QHBoxLayout *H_tci0 = new QHBoxLayout();
     H_tci0->setContentsMargins(0,0,0,0);
@@ -288,21 +326,38 @@ HvRigControl::HvRigControl( QWidget *parent )
     H_tci0->addWidget(l_tcistype);
     H_tci0->addWidget(tci_tcistype);
     H_tci0->setAlignment(Qt::AlignLeft);
-    /*gb_tci = new QGroupBox("TCI: ");
-    gb_tci->setLayout(H_tci0);
-    gb_tci->setHidden(true);*/
+    
+    QHBoxLayout *H_tci1 = new QHBoxLayout();
+    H_tci1->setContentsMargins(0,0,0,0);
+    H_tci1->setSpacing(5);
+    H_tci1->addWidget(l_tcisrate);
+    H_tci1->addWidget(tci_rample_rate);
+    H_tci1->addWidget(tci_tx_buff);
+    //H_tci1->addWidget(l_tcisamp);
+    //H_tci1->addWidget(tci_samples);
+    H_tci1->setAlignment(Qt::AlignLeft);  
+    
+    l_tcisrate->setHidden(true);
+    tci_rample_rate->setHidden(true);
+    tci_tx_buff->setHidden(true);
     l_tcich->setHidden(true);
     tci_channels->setHidden(true);
     l_tcisamp->setHidden(true);
     tci_samples->setHidden(true);
     l_tcistype->setHidden(true);
     tci_tcistype->setHidden(true);
+    netTciChSmp[0].srate = "48000";
+    netTciChSmp[0].txbuff = 50;
     netTciChSmp[0].channels = 1;
     netTciChSmp[0].samples  = "2048";
     netTciChSmp[0].type  = 3;
+    netTciChSmp[1].srate = "48000";
+    netTciChSmp[1].txbuff = 50;
     netTciChSmp[1].channels = 1;
     netTciChSmp[1].samples  = "2048";
     netTciChSmp[1].type  = 3;
+    connect(tci_rample_rate, SIGNAL(currentIndexChanged(QString)), this, SLOT(TCPSPChanged(QString)));
+    connect(tci_tx_buff, SIGNAL(valueChanged(QString)), this, SLOT(TCPSPChanged(QString)));    
     connect(tci_channels, SIGNAL(currentIndexChanged(QString)), this, SLOT(TCPSPChanged(QString)));
     connect(tci_samples, SIGNAL(currentIndexChanged(QString)), this, SLOT(TCPSPChanged(QString)));
     connect(tci_tcistype, SIGNAL(currentIndexChanged(QString)), this, SLOT(TCPSPChanged(QString)));
@@ -326,6 +381,7 @@ HvRigControl::HvRigControl( QWidget *parent )
     V_net->setContentsMargins(10,0,4,4);
     V_net->addWidget(l_con_info);
     V_net->addLayout(H_addr_port_bt);
+    V_net->addLayout(H_tci1);
     V_net->addLayout(H_tci0);
     gb_net = new QGroupBox(tr("Network")+":");
     gb_net->setLayout(V_net);
@@ -335,7 +391,7 @@ HvRigControl::HvRigControl( QWidget *parent )
     connect(THvRigCat, SIGNAL(EmitNetConnInfo(QString,bool,bool)), this, SLOT(SetNetConnInfo(QString,bool,bool)));
 
     QHBoxLayout *H_net_port = new QHBoxLayout();
-    H_net_port->setContentsMargins (8,0,0,0);
+    H_net_port->setContentsMargins(8,0,0,0);
 
     //H_net_port->addLayout(V_net);
     H_net_port->addWidget(gb_net);
@@ -412,9 +468,9 @@ HvRigControl::HvRigControl( QWidget *parent )
     //rb_static_tx = new QRadioButton("Enable Frequency Shift RIG For FT8");
     gb_static_tx = new QGroupBox(tr("Selected Constant TX  Audio Frequency")+" FT Q65 "+
                                  tr("(RIG frequency must be readable && writable via CAT)"));
-    rb_static_tx = new QRadioButton(tr("Use Selected Constant TX  Audio Frequency")+" FT Q65");
+    rb_static_tx = new QCheckBox(tr("Use Selected Constant TX  Audio Frequency")+" FT Q65");
     //rb_static_tx->setContentsMargins(0,0,4,0);
-    QLabel *l_static_tx = new QLabel(tr("Select  Audio Frequency")+":");
+    l_static_tx = new QLabel(tr("Select  Audio Frequency")+":");//QLabel *l_static_tx = new QLabel(tr("Select  Audio Frequency")+":");
     sb_static_tx = new QSpinBox();
     sb_static_tx->setPrefix("def=1500  ");
     sb_static_tx->setSuffix("  Hz");
@@ -453,7 +509,7 @@ HvRigControl::HvRigControl( QWidget *parent )
     //// end qrg /////
 
     ///////////////////////////////////////////////////
-    s_id_band = 16;//default "70 MHz";
+    s_id_band = 17;//2.76.5 17 default HV 70 MHz
 
     FreqOffsetTR = "0";
     for (int i = 0; i<COUNT_BANDS; ++i)
@@ -718,10 +774,12 @@ HvRigControl::HvRigControl( QWidget *parent )
 
     connect(THvRigCat, SIGNAL(EmitCatAactiveAndRead(bool,bool)), this, SLOT(SetCatAactiveAndRead(bool,bool)));
     connect(THvRigCat, SIGNAL(EmitWriteCmd(char*,int)), this, SLOT(SetWriteCmd(char*,int)));
-    connect(THvRigCat, SIGNAL(EmitSetRigSet(RigSet,int)), this, SLOT(SetRigSet(RigSet,int)));
+    connect(THvRigCat, SIGNAL(EmitSetRigSet(RigSet,int,int)), this, SLOT(SetRigSet(RigSet,int,int)));
     connect(THvRigCat, SIGNAL(EmitGetedFreq(QString)), this, SLOT(SetGetedFreq(QString)));
     connect(THvRigCat, SIGNAL(EmitGetedMode(QString)), this, SLOT(SetGetedMode(QString)));
     connect(THvRigCat, SIGNAL(EmitPttDtr(bool)), this, SLOT(SetPttDtr(bool)));// sea-235
+    connect(THvRigCat, SIGNAL(EmitFullRigInfo(QString)), this, SLOT(SetFullRigInfo(QString)));//2.76.1 for pskreporter
+    //connect(THvRigCat, SIGNAL(EmitFlexSliceReady()), this, SIGNAL(EmitFlexSliceReady()));//flex native vita-49
 
     ////// omnirig /////////////
     omnirig_active = false;
@@ -760,8 +818,9 @@ HvRigControl::HvRigControl( QWidget *parent )
     timer_set_rig_mode = new QTimer();
     connect(timer_set_rig_mode, SIGNAL(timeout()),this,SLOT(SetRigModeFreq()));
     timer_set_rig_mode->setSingleShot(true);
-
-
+    f_msf = false;
+    f_msf_new = false;
+    f_msf_special_tx_rx = 0;
     //only_one = true;//za mahane
     //SetRigName("Yaesu FT-847");//za mahane
 }
@@ -770,9 +829,20 @@ HvRigControl::~HvRigControl()
     //DestroyPort();//za mahane
     //qDebug()<<"CLOSE DestroyPort()";//za mahane
 }
-void HvRigControl::SetTciSelect(int i)
+void HvRigControl::SetTciSelect(int i,int vr,bool vt)
 {
-    THvRigCat->SetTciSelect(i);
+    THvRigCat->SetTciSelect(i,vr,vt);
+}
+void HvRigControl::SetMsf(bool f)//2.76sf
+{
+    if (f_msf_new==f) return;//2.76sf protrct from 0,1,2 from main_ms
+    f_msf_new = f; //qDebug()<<"SetMsf()="<<s_mode<<f_msf_special_tx_rx<<f;
+    if (f_msf_special_tx_rx==0)
+    {
+        f_msf = f_msf_new;
+        RbSetStaticTxF(false);
+    }
+    else f_msf_special_tx_rx = 2;
 }
 void HvRigControl::CatStopPttIfClose()
 {
@@ -783,9 +853,11 @@ void HvRigControl::CatStopPttIfClose()
         if (f_static_tx && all_static_tx_modes && f_static_tx_active)
         {
             usleep(50000);
-            long long int static_tx_f = (long long int)sb_static_tx->value();
+            int fst = sb_static_tx->value();
+            if (s_mode==11 && f_msf) fst = 750;
+            long long int static_tx_f = (long long int)fst;
             long long int return_rig_frq = curr_rig_tx_frq + (static_tx_f - last_v_disp_tx_frq);
-            SetFreq(QString("%1").arg(return_rig_frq),3);//2.74 0=mybe frq,no mod, 1=mybe frq,mod, 2=frq,mod, 3=frq,no mod 
+            SetFreq(QString("%1").arg(return_rig_frq),3);//2.74 0=mybe frq,no mod, 1=mybe frq,mod, 2=frq,mod, 3=frq,no mod
             //qDebug()<<"CLOSE DestroyPort()"<<return_rig_frq<<f_static_tx_active;
         }
     }
@@ -798,12 +870,12 @@ void HvRigControl::CatStopPttIfClose()
 void HvRigControl::SetMode(int mod)
 {
     s_mode = mod; //qDebug()<<mod;
-    if (s_mode==11 || s_mode==13 || s_mode==14 || s_mode==15 || s_mode==16 || s_mode==17) all_static_tx_modes = true;
+    if (s_mode==11 || s_mode==13 || s_mode==18 || s_mode==14 || s_mode==15 || s_mode==16 || s_mode==17) all_static_tx_modes = true;
     else all_static_tx_modes = false;
     corr_app_ind_tx_frq = 0;//for any case
     if ((s_mode==0 || s_mode==2 || s_mode==3 || s_mode==12) && rig_cat_active_and_read) emit EmitQrgActive(1);
     else emit EmitQrgActive(0);
-    //THvRigCat->SetMode(mod);//tci
+    RbSetStaticTxF(false);//2.76sf fictive for Q65 FT4 no SF
 }
 /*void HvRigControl::SetFont(QFont fo)
 {
@@ -816,19 +888,29 @@ void HvRigControl::SBStaticTxChanged(int)
 }
 void HvRigControl::RbSetStaticTxF(bool)
 {
-    if (rb_static_tx->isChecked() && gb_static_tx->isEnabled())
+    int fst = sb_static_tx->value();//2.76sf
+    if (s_mode==11 && f_msf)
     {
-        emit EmitStaticTxFrq(true,sb_static_tx->value());
+    	fst = 750;
+    	sb_static_tx->setHidden(true);
+    	l_static_tx->setText(tr("Select  Audio Frequency")+":  def=750  750  Hz   ");    	    	
+   	}
+    else 
+    {
+    	l_static_tx->setText(tr("Select  Audio Frequency")+":");
+    	sb_static_tx->setHidden(false);    	
+   	} 
+    if (rb_static_tx->isChecked() && gb_static_tx->isEnabled())//no move RIG static freq -> || rig_cat_active_and_read
+    {
+        emit EmitStaticTxFrq(true,fst);
         f_static_tx = true;
-        corr_app_ind_tx_frq = 0;
-        //qDebug()<<"On"<<sb_static_tx->value();
+        corr_app_ind_tx_frq = 0; //qDebug()<<"RbSetStaticTxF()"<<"On"<<fst;
     }
     else
     {
-        emit EmitStaticTxFrq(false,sb_static_tx->value());
+        emit EmitStaticTxFrq(false,fst);
         f_static_tx = false;
-        corr_app_ind_tx_frq = 0;
-        //qDebug()<<"Off"<<sb_static_tx->value();
+        corr_app_ind_tx_frq = 0; //qDebug()<<"RbSetStaticTxF()"<<"Off"<<fst;
     }
 }
 void HvRigControl::SetTxFreq(double f)
@@ -868,28 +950,31 @@ void HvRigControl::SetStaticTxParms(QString s)
         if (ls.at(0)=="1") rb_static_tx->setChecked(true);
     }
 }
+void HvRigControl::SetFullRigInfo(QString s)//2.76.1 for pskreporter
+{
+    s_rig_full_name = s;//qDebug()<<s_rig_full_name;
+}
 void HvRigControl::SetCatAactiveAndRead(bool f,bool toTxWidget)
 {
     //if (net_active) f = false; // if net stop static tx
     //if (g_block_rig_st_tx) f = false; //2.50 if "DX Lab Suite Commander" stop static tx, block for specific rig
     if (toTxWidget)
     {
-        emit EmitRigCatActiveAndRead(f); //2.53
+        emit EmitRigCatActiveAndRead(f,s_rig_full_name);//2.53 //2.76.1 or s_rig_name for pskreporter
         if (!f) end_rs0 = 0;//2.55 reset
     }
     rig_cat_active_and_read = f; //2.30
-    gb_static_tx->setEnabled(f);
+    gb_static_tx->setEnabled(f); //qDebug()<<f;
 
     if (f && (s_mode==0 || s_mode==2 || s_mode==3 || s_mode==12)) emit EmitQrgActive(1);
     else emit EmitQrgActive(0);
 
-    if (f)
-    {
-        RbSetStaticTxF(false); // fictive
-    }
+    if (f) RbSetStaticTxF(false); // fictive
     else
     {
-        emit EmitStaticTxFrq(false,sb_static_tx->value());
+        int fst = sb_static_tx->value();//2.76sf
+        if (s_mode==11 && f_msf) fst = 750;
+        emit EmitStaticTxFrq(false,fst);
         f_static_tx = false;
         corr_app_ind_tx_frq = 0; //qDebug()<<"Off"<<sb_static_tx->value();
     }
@@ -907,7 +992,7 @@ void HvRigControl::SetOmniRigActive(bool f1,QString s)
 
     if (omnirig_active)
     {
-        omnirig_type = s;
+        omnirig_type = " "+s;
         pb_test_port->setEnabled(true);
         pb_test_port->setText(" "+tr("START PTT TEST")+" "+omnirig_type);
         THvRigCat->StartStopPollingTimer(true);
@@ -930,7 +1015,17 @@ void HvRigControl::SetOmniRigActive(bool f1,QString s)
         omnirig_false_refresh = true;
         gb_troffs->setEnabled(true);
     }
-    //qDebug()<<"OmniRigActive"<<f1;
+    //s="OmniRig Rig 1 = A";
+    int id0 = s.indexOf(" ");//2.76.1 for pskreporter
+    if (id0>-1)
+    {
+        int id1 = s.indexOf("=");
+        if (id1>-1 && s.count()>id1+2)
+        {
+            s.replace(id0,id1-id0+1,"");
+            SetFullRigInfo(s);//qDebug()<<"OmniRigFullName="<<s;
+        }
+    }
 }
 #endif
 ////// omnirig end /////////////
@@ -939,7 +1034,7 @@ void HvRigControl::SetNetRigSrvPort(QString s)
 {
     QStringList ls = s.split("#");  //HRD=7809, FlRig=12345, DXCommander=52002
     int cls = ls.count();
-    if (cls > COU_NET_PS) cls = COU_NET_PS;
+    if (cls > NETWORK_COUNT) cls = NETWORK_COUNT;
     for (int i = 0; i < cls; ++i)
     {
         QString s0 = ls.at(i);
@@ -949,74 +1044,57 @@ void HvRigControl::SetNetRigSrvPort(QString s)
             netServPort[i].serv = ls0.at(0);
             netServPort[i].port = ls0.at(1);
         }
-        if (ls0.count()==5 && (i==3 || i==4))//tci 1,2
+        if (ls0.count()==7 && (i==3 || i==4))//tci 1,2
         {
             netServPort[i].serv = ls0.at(0);
             netServPort[i].port = ls0.at(1); //qDebug()<<i<<ls0.at(3)<<ls0.at(3);
             int z = ls0.at(2).toInt();
             if (z>-1 && z<2) netTciChSmp[i-3].channels = z;
-            netTciChSmp[i-3].samples  = ls0.at(3);
+            netTciChSmp[i-3].samples = ls0.at(3);
             z = ls0.at(4).toInt();
             if (z>-1 && z<4) netTciChSmp[i-3].type = z;
+            netTciChSmp[i-3].srate = ls0.at(5);
+            z = ls0.at(6).toInt();
+            if (z>49 && z<401) netTciChSmp[i-3].txbuff = z;
         }
     }
 }
 QString HvRigControl::net_rig_srv_port()
 {
     QString out;
-    for (int i = 0; i < COU_NET_PS; ++i) //HRD=7809, FlRig=12345, DXCommander=52002
+    for (int i = 0; i < NETWORK_COUNT; ++i) //HRD=7809, FlRig=12345, DXCommander=52002
     {
         out.append(netServPort[i].serv+";"+netServPort[i].port);
         if (i==3 || i==4) out.append(";"+QString("%1").arg(netTciChSmp[i-3].channels)+";"+
-                                         netTciChSmp[i-3].samples+";"+QString("%1").arg(netTciChSmp[i-3].type));
-        if (i<COU_NET_PS-1) out.append("#");
+                                         netTciChSmp[i-3].samples+";"+QString("%1").arg(netTciChSmp[i-3].type)+";"+
+                                         netTciChSmp[i-3].srate+";"+QString("%1").arg(netTciChSmp[i-3].txbuff));
+        if (i<NETWORK_COUNT-1) out.append("#");
     }
     return out;
 }
 void HvRigControl::TCPSPChanged(QString)
 {
     if (block_save_net) return;
-    if (s_rig_name=="Ham Radio Deluxe")
+    if (s_net_model_id>-1 && s_net_model_id<NETWORK_COUNT)
     {
-        netServPort[0].serv = TCPServer->text();
-        netServPort[0].port = TCPPort->text();
-    }
-    else if (s_rig_name=="FLRig")
-    {
-        netServPort[1].serv = TCPServer->text();
-        netServPort[1].port = TCPPort->text();
-    }
-    else if (s_rig_name=="DX Lab Suite Commander")
-    {
-        netServPort[2].serv = TCPServer->text();
-        netServPort[2].port = TCPPort->text();
-    }
-    else if (s_rig_name=="TCI Client RX1")//tci
-    {
-        netServPort[3].serv = TCPServer->text();
-        netServPort[3].port = TCPPort->text();
-        netTciChSmp[0].channels = tci_channels->currentIndex();
-        netTciChSmp[0].samples  = tci_samples->currentText();
-        netTciChSmp[0].type = tci_tcistype->currentIndex();
-    }
-    else if (s_rig_name=="TCI Client RX2")//tci
-    {
-        netServPort[4].serv = TCPServer->text();
-        netServPort[4].port = TCPPort->text();
-        netTciChSmp[1].channels = tci_channels->currentIndex();
-        netTciChSmp[1].samples  = tci_samples->currentText();
-        netTciChSmp[1].type = tci_tcistype->currentIndex();
-    }
-    else if (s_rig_name=="NET RigCtl")// net rigctl
-    {
-        netServPort[5].serv = TCPServer->text();
-        netServPort[5].port = TCPPort->text();
+        netServPort[s_net_model_id].serv = TCPServer->text();
+        netServPort[s_net_model_id].port = TCPPort->text();
+        if (s_net_model_id==3 || s_net_model_id==4)
+        {
+            int id = s_net_model_id - 3;
+            netTciChSmp[id].channels = tci_channels->currentIndex();
+            netTciChSmp[id].samples  = tci_samples->currentText();
+            netTciChSmp[id].type = tci_tcistype->currentIndex();
+            netTciChSmp[id].srate = tci_rample_rate->currentText();
+            netTciChSmp[id].txbuff = tci_tx_buff->value();
+        }
     }
 }
 void HvRigControl::SetNetConnect()
 {
     QString s = TCPServer->text()+"#"+TCPPort->text()+"#"+tci_channels->currentText()+"#"+
-                tci_samples->currentText()+"#"+tci_tcistype->currentText();
+                tci_samples->currentText()+"#"+tci_tcistype->currentText()+"#"+tci_rample_rate->currentText()+"#"+
+                QString("%1").arg(tci_tx_buff->value());
     emit EmitNetSP(s);//TCPServer->text(),TCPPort->text(),tci_channels->currentText(),tci_samples->currentText());
 }
 void HvRigControl::SetNetConnInfo(QString s,bool f1,bool f2)
@@ -1030,6 +1108,9 @@ void HvRigControl::SetNetConnInfo(QString s,bool f1,bool f2)
         pb_test_port->setEnabled(true);
         pb_test_port->setText(" "+tr("START PTT TEST")+" "+omnirig_type);
 
+        l_tcisrate->setEnabled(false);
+        tci_rample_rate->setEnabled(false);
+        tci_tx_buff->setEnabled(false);
         l_tcich->setEnabled(false);
         tci_channels->setEnabled(false);
         l_tcisamp->setEnabled(false);
@@ -1046,6 +1127,9 @@ void HvRigControl::SetNetConnInfo(QString s,bool f1,bool f2)
         THvRigCat->StartStopPollingTimer(false);
         pb_test_port->setEnabled(false);
 
+        l_tcisrate->setEnabled(false);
+        tci_rample_rate->setEnabled(false);
+        tci_tx_buff->setEnabled(false);
         l_tcich->setEnabled(false);
         tci_channels->setEnabled(false);
         l_tcisamp->setEnabled(false);
@@ -1062,6 +1146,9 @@ void HvRigControl::SetNetConnInfo(QString s,bool f1,bool f2)
         THvRigCat->StartStopPollingTimer(false);
         pb_test_port->setEnabled(false);
 
+        l_tcisrate->setEnabled(true);
+        tci_rample_rate->setEnabled(true);
+        tci_tx_buff->setEnabled(true);
         l_tcich->setEnabled(true);
         tci_channels->setEnabled(true);
         l_tcisamp->setEnabled(true);
@@ -1479,15 +1566,19 @@ void HvRigControl::PttChanget(bool)
 #endif
     ////// omnirig end /////////////
 }
-void HvRigControl::SetRigSet(RigSet sett, int have_read_data_rts_on)
+void HvRigControl::SetRigSet(RigSet sett, int have_read_data_rts_on,int net_model_id)
 {
     //2.50 "DX Lab Suite Commander" resolution is to 1kHz
     //if (sett.name=="DX Lab Suite Commander") g_block_rig_st_tx = true;//2.50 block for specific rig
     //else g_block_rig_st_tx = false;
 
+    s_net_model_id = net_model_id;
     s_rig_name = sett.name;
     ////// net //////////
     block_save_net = true;
+    l_tcisrate->setHidden(true);
+    tci_rample_rate->setHidden(true);
+    tci_tx_buff->setHidden(true);
     l_tcich->setHidden(true);
     tci_channels->setHidden(true);
     l_tcisamp->setHidden(true);
@@ -1496,65 +1587,34 @@ void HvRigControl::SetRigSet(RigSet sett, int have_read_data_rts_on)
     tci_tcistype->setHidden(true);
     if (sett.port_type==RIG_PORT_NETWORK)
     {
-        //HRD=7809, FlRig=12345, DXCommander=52002
-        if 		(s_rig_name=="Ham Radio Deluxe")
+        if (s_net_model_id>-1 && s_net_model_id<NETWORK_COUNT)
         {
-            TCPServer->setText(netServPort[0].serv);
-            TCPPort->setText(netServPort[0].port);
-        }
-        else if (s_rig_name=="FLRig")
-        {
-            TCPServer->setText(netServPort[1].serv);
-            TCPPort->setText(netServPort[1].port);
-        }
-        else if (s_rig_name=="DX Lab Suite Commander")
-        {
-            TCPServer->setText(netServPort[2].serv);
-            TCPPort->setText(netServPort[2].port);
-        }
-        else if (s_rig_name=="TCI Client RX1")//tci
-        {
-            TCPServer->setText(netServPort[3].serv);
-            TCPPort->setText(netServPort[3].port);
-
-            tci_channels->setCurrentIndex(netTciChSmp[0].channels);
-            int index = tci_samples->findText(netTciChSmp[0].samples, Qt::MatchCaseSensitive);
-            if (index >= 0) tci_samples->setCurrentIndex(index);
-            tci_tcistype->setCurrentIndex(netTciChSmp[0].type);
-
-            l_tcich->setHidden(false);
-            tci_channels->setHidden(false);
-            l_tcisamp->setHidden(false);
-            tci_samples->setHidden(false);
-            l_tcistype->setHidden(false);
-            tci_tcistype->setHidden(false);
-        }
-        else if (s_rig_name=="TCI Client RX2")//tci
-        {
-            TCPServer->setText(netServPort[4].serv);
-            TCPPort->setText(netServPort[4].port);
-
-            tci_channels->setCurrentIndex(netTciChSmp[1].channels);
-            int index = tci_samples->findText(netTciChSmp[1].samples, Qt::MatchCaseSensitive);
-            if (index >= 0) tci_samples->setCurrentIndex(index);
-            tci_tcistype->setCurrentIndex(netTciChSmp[1].type);
-
-            l_tcich->setHidden(false);
-            tci_channels->setHidden(false);
-            l_tcisamp->setHidden(false);
-            tci_samples->setHidden(false);
-            l_tcistype->setHidden(false);
-            tci_tcistype->setHidden(false);
-        }
-        else if (s_rig_name=="NET RigCtl")
-        {
-            TCPServer->setText(netServPort[5].serv);
-            TCPPort->setText(netServPort[5].port);
+            TCPServer->setText(netServPort[s_net_model_id].serv);
+            TCPPort->setText(netServPort[s_net_model_id].port);
+            if (s_net_model_id==3 || s_net_model_id==4)
+            {
+                int id = s_net_model_id - 3;
+                tci_channels->setCurrentIndex(netTciChSmp[id].channels);
+                int index = tci_samples->findText(netTciChSmp[id].samples,Qt::MatchCaseSensitive);
+                if (index >= 0) tci_samples->setCurrentIndex(index);
+                tci_tcistype->setCurrentIndex(netTciChSmp[id].type);
+                index = tci_rample_rate->findText(netTciChSmp[id].srate,Qt::MatchCaseSensitive);
+                if (index >= 0) tci_rample_rate->setCurrentIndex(index); 
+                tci_tx_buff->setValue(netTciChSmp[id].txbuff);               
+                l_tcisrate->setHidden(false);
+                tci_rample_rate->setHidden(false);
+                tci_tx_buff->setHidden(false);
+                l_tcich->setHidden(false);
+                tci_channels->setHidden(false);
+                l_tcisamp->setHidden(false);
+                tci_samples->setHidden(false);
+                l_tcistype->setHidden(false);
+                tci_tcistype->setHidden(false);
+            }
         }
         net_active = true;
         gb_net->setEnabled(true);
         cb_port->setCurrentIndex(0);
-        //SetNetConnect(); //2.51 changed to down
     }
     else
     {
@@ -1672,8 +1732,7 @@ void HvRigControl::SetRigSet(RigSet sett, int have_read_data_rts_on)
         mp_v_disp_tx_frq=1.0;
 
     //qDebug()<<sett.name<<mp_v_disp_tx_frq;
-    if (mp_v_disp_tx_frq!=1.0)
-        SetTxFreq((double)v_disp_tx_frq);
+    if (mp_v_disp_tx_frq!=1.0) SetTxFreq((double)v_disp_tx_frq);
 
 }
 void HvRigControl::SetupPtt(QString str)
@@ -1922,6 +1981,9 @@ void HvRigControl::TimerTryStaticTxF()
             f_block_display_static_tx = false;
             timer_try_static_tx_isActive = false;
             corr_ms_static_tx = 0;
+            f_msf = f_msf_new; //qDebug()<<"TimerTryStaticTxF()="<<f_msf_special_tx_rx;
+            if (f_msf_special_tx_rx==2) RbSetStaticTxF(false);
+            f_msf_special_tx_rx=0;
         }
         else
         {
@@ -1947,11 +2009,19 @@ void HvRigControl::TimerTryStaticTxF()
     }
 }
 void HvRigControl::SetPtt(bool flag, int id)//id 0=All 1=p1 2=p2
-{
+{   
+	//if (flag) qDebug()<<"SetPtt====== TO TX"<<flag<<id;
+	//else  qDebug()<<"SetPtt=RX"<<flag<<id;	
     bool all_sttx = false;  //ft8  ft4 q65
     if (f_static_tx && all_static_tx_modes) all_sttx = true;
     bool all_qrg = false;  //msk fsk
-    if (f_qrg_tx && f_qso7tx) all_qrg = true;  //qDebug()<<f_static_tx<<f_qrg_tx;
+    if (f_qrg_tx && f_qso7tx) all_qrg = true; //qDebug()<<f_static_tx<<f_qrg_tx;
+
+    if (f_msf_special_tx_rx<2 || !f_static_tx)//f_msf_special_tx_rx 0=RX, 1=TX, 2=TXtoRX after end TX
+    {
+        if (flag) f_msf_special_tx_rx=1;
+        else f_msf_special_tx_rx=0; //qDebug()<<"SetPtt()="<<f_msf_special_tx_rx<<"f_static_tx="<<f_static_tx;
+    }
 
     if (all_sttx || all_qrg)//to TX
     {
@@ -1968,7 +2038,9 @@ void HvRigControl::SetPtt(bool flag, int id)//id 0=All 1=p1 2=p2
             f_block_display_static_tx = true;
             if (all_sttx)
             {
-                long long int static_tx_f = (long long int)sb_static_tx->value();
+                int fst = sb_static_tx->value();//2.76sf
+                if (s_mode==11 && f_msf) fst = 750;
+                long long int static_tx_f = (long long int)fst;
                 last_curr_rig_tx_frq = curr_rig_tx_frq - (static_tx_f - v_disp_tx_frq);
                 last_v_disp_tx_frq = v_disp_tx_frq;
                 corr_app_ind_tx_frq = (static_tx_f - v_disp_tx_frq);
@@ -2005,7 +2077,9 @@ void HvRigControl::SetPtt(bool flag, int id)//id 0=All 1=p1 2=p2
 
             if (all_sttx)
             {
-                long long int static_tx_f = (long long int)sb_static_tx->value();
+                int fst = sb_static_tx->value();//2.76sf
+                if (s_mode==11 && f_msf) fst = 750;
+                long long int static_tx_f = (long long int)fst;
                 last_curr_rig_tx_frq = curr_rig_tx_frq + (static_tx_f - last_v_disp_tx_frq);
             }
             if (f_qrg_tx)
@@ -2065,7 +2139,7 @@ void HvRigControl::SetOffsetTrsvRigParms(QString s)
             }
         }
     } //qDebug()<<"offset_trsv_rig="<<offset_trsv_rig[11].freq<<s_id_band;
-    if (s_id_band==16)//default 70 mhz
+    if (s_id_band==17)//2.76.5 17 default HV 70 MHz 
     {
         s_id_band=-1;
         SetBand("70 MHz");//for exception
@@ -2219,6 +2293,7 @@ void HvRigControl::SetOffSetFrqToRig(QString str)
     //qDebug()<<"off mode"<<str;
 }
 #define TSRMI 80
+#define TSTCI 300
 void HvRigControl::SetRigModeFreq()
 {
     if (set_rig_mode_id==1)
@@ -2227,7 +2302,8 @@ void HvRigControl::SetRigModeFreq()
         int mo = cb_rig_mod->currentIndex();
         if (mo==1) THvRigCat->set_mode("USB");
         if (mo==2) THvRigCat->set_mode("DIGU");
-        timer_set_rig_mode->start(TSRMI); //qDebug()<<"SetModeToRIG"<<cb_rig_mod->currentText();
+        if (s_net_model_id==3 || s_net_model_id==4) timer_set_rig_mode->start(TSTCI);
+        else timer_set_rig_mode->start(TSRMI); //qDebug()<<"SetModeToRIG"<<cb_rig_mod->currentText();
     }
     else if (set_rig_mode_id==2)
     {
@@ -2270,7 +2346,8 @@ void HvRigControl::SetFreq(QString str,int id)
     {	//2.74 0=mybe frq,no mod, 1=mybe frq,mod, 2=frq,mod, 3=frq,no mod
         set_rig_mode_id=1;
         s_set_rig_mode_frq = str;
-        timer_set_rig_mode->start(TSRMI); //qDebug()<<"SetFrqToRIG 1="<<s_set_rig_mode_frq;
+        if (s_net_model_id==3 || s_net_model_id==4) timer_set_rig_mode->start(TSTCI);
+        else timer_set_rig_mode->start(TSRMI); //qDebug()<<"SetFrqToRIG 1="<<s_set_rig_mode_frq;
     }
 }
 void HvRigControl::SetGetedFreq(QString str)

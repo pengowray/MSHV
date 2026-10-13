@@ -66,7 +66,7 @@ void GenPomFt::encode174_91(bool *message77,bool *codeword)
             for (int j = 0; j < 23; ++j)//23 bb a8 30 e2 3b 6b 6f 50 98 2e
             {
                 bool ok;
-				QString temp = g_ft8_174_91[i].mid(j,1);
+                QString temp = g_ft8_174_91[i].mid(j,1);
                 int istr = temp.toInt(&ok, 16); //read(g(i)(j:j),"(Z1)") istr
                 for (int jj = 0; jj < 4; ++jj)
                 {
@@ -77,7 +77,7 @@ void GenPomFt::encode174_91(bool *message77,bool *codeword)
         }
         first_ft_enc_174_91=false;
     }
-    
+
     //! Add 14-bit CRC to form 91-bit message+CRC14
     //write(tmpchar,'(77i1)') message77
     //tmpchar(78:80)='000'
@@ -125,4 +125,108 @@ void GenPomFt::encode174_91(bool *message77,bool *codeword)
     for (int i = 0; i < M; ++i)//174-91=83
         codeword[i+91]=pchecks[i];
 }
+//otp//
+#include <QMessageAuthenticationCode>
+#include <QtEndian>
+#include <QtMath>
+// FROM https://github.com/RikudouSage/QtOneTimePassword/
+/*
+MIT License
 
+Copyright (c) 2023 Dominik Chrastecky
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+QByteArray GenPomFt::generateHOTP(const QByteArray &rawSecret, quint64 counter, int length)
+{
+#if Q_BYTE_ORDER == Q_LITTLE_ENDIAN
+    counter = qToBigEndian(counter);
+#endif
+    QByteArray data;
+    data.reserve(8);
+    for (int i = 7; i >= 0; --i)
+    {
+        data.append(counter & 0xff);
+        counter >>= 8;
+    }
+    QMessageAuthenticationCode mac(QCryptographicHash::Sha1);
+    mac.setKey(rawSecret);
+    mac.addData(data);
+    QByteArray hmac = mac.result();
+    int offset = hmac.at(hmac.length() - 1) & 0xf;
+    quint32 truncatedHash = ((hmac.at(offset) & 0x7f) << 24)
+                            | ((hmac.at(offset + 1) & 0xff) << 16)
+                            | ((hmac.at(offset + 2) & 0xff) << 8)
+                            | (hmac.at(offset + 3) & 0xff);
+    int modulus = int(qPow(10, length));
+    return QByteArray::number(truncatedHash % modulus, 10).rightJustified(length, '0');
+}
+QByteArray GenPomFt::fromBase32(const QString &input)
+{
+    QByteArray result;
+    result.reserve((input.length() * 5 + 7) / 8);
+    int buffer = 0;
+    int bitsLeft = 0;
+    for (int i = 0; i < input.length(); i++)
+    {
+        int ch = input[i].toLatin1();
+        int value;
+        if (ch >= 'A' && ch <= 'Z') value = ch - 'A';
+        else if (ch >= '2' && ch <= '7') value = 26 + ch - '2';
+        else continue;
+        buffer = (buffer << 5) | value;
+        bitsLeft += 5;
+        if (bitsLeft >= 8)
+        {
+            result.append(buffer >> (bitsLeft - 8));
+            bitsLeft -= 8;
+        }
+    }
+    return result;
+}
+/*QString GenPomFt::generateHOTP(const QString &secret, quint64 counter, int length)
+{
+    return generateHOTP(fromBase32(secret), counter, length);
+}
+QByteArray GenPomFt::generateTOTP(const QByteArray &rawSecret, int length)
+{
+    const qint64 counter = QDateTime::currentDateTime().toMSecsSinceEpoch() / 30000;
+    return generateHOTP(rawSecret, counter, length);
+}
+QString GenPomFt::generateTOTP(const QString &secret, int length)
+{
+    return generateTOTP(fromBase32(secret), length);//return GenPomFt::generateTOTP(fromBase32(secret), length);
+}*/
+QString GenPomFt::generateTOTP(const QString &secret, QDateTime dt, int length)//TX
+{
+    const qint64 counter = dt.toMSecsSinceEpoch() / 30000;
+    return generateHOTP(fromBase32(secret), counter, length);
+}
+QString GenPomFt::foxOTPcode(QString s)
+{
+    QString code;
+    if (!s.isEmpty() && s.length() == 16)
+    {
+        QDateTime dateTime = dateTime.currentDateTime();
+        code = generateTOTP(s,dateTime,6);
+    }
+    else code = "000000";
+    return code;
+}
+//end otp//

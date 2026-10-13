@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 uint32_t nhash( const void * key, size_t length, uint32_t initval);
+uint32_t nhash2( const void * key, uint64_t length, uint32_t initval);
 
 #ifdef __cplusplus
 }

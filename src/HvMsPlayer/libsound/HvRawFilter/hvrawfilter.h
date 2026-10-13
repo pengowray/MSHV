@@ -23,6 +23,8 @@ public:
     double band_l(double);
     //double band_r(double);
     void set_rate(double);
+    void set_lpf_hpf_parm(double,double);
+    //void set_down_up(double,double);
     //void filter_parm(int all_gain, double min_down_frq, double max_up_frq, bool type_lhsh_lhpf);
 
 private:

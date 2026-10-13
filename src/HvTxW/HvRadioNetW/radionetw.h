@@ -35,8 +35,8 @@ signals:
     void ConectionInfo(QString);
 
 public slots:
-    void Connect(QString host,QString port,QString login_name);
-    void SetData(QString data);
+    void Connect(QString host,QString port,QString login_name,QString);
+    //void SetData(QString data);
 
 private slots:
     void connectToHost();
@@ -45,6 +45,9 @@ private slots:
     void disconnected_s();
 
 private:
+    //uint8_t stat_disp;
+	QRegExp rx_login;
+	QRegExp rx_passw;
     HvQthLoc THvQthLoc;
     bool tray_once_agen;
     bool is_pfx(QString s);
@@ -53,8 +56,9 @@ private:
     //QTimer *t_tcp_connect;
     QString s_tcphost;
     QString s_tcpport;
-    QString s_tcpdata;
+    //QString s_tcpdata;
     QString s_login_name;
+    QString s_pass;
     QTcpSocket *socket;
     QString itcp_call_err;
 
@@ -214,8 +218,9 @@ public:
     void CloseBcnList();
     //void CreateDialogSpot(QWidget*);
     //void StartEmptySpotDialog();
+    void SetFullRigInfo(QString);
     void SetLocalStation(QString myCall,QString myLoc,QString band,int con_id);
-    void AddRemoteStation(QString hisCall,QString hisLoc,int frq,QString mode,int snr,int id,QString pwidth);
+    void AddRemoteStation(QString hisCall,QString hisLoc,int frq,QString mode,int snr,int id,QString pwidth,QString);
     void SetLocFromDB(QString);
     void SetDistUnit(bool);
     void SetModeForFreqFromMode(int i);
@@ -232,6 +237,7 @@ public:
     void ShowBcnList();
     void FindFreqLocFromBcnList(QString hisCall,int id,QString &hisLoc,QString &sfrq);
     void SaveSettings();
+    void SendOtpCheck(QString s);
 
     bool GetUdpBroadLoggedQso()
     {
@@ -277,14 +283,20 @@ public:
     {
         return TRadListW;
     };
+    void RefreshOtpKeyMsg();    
 
 signals:
     void FindLocFromDB(QString);
     void EmitUdpBroadLoggedAll(bool,bool);
     void EmitUdpCmdDl(QStringList);
+    void EmitUdpConfigure(int);//2.76.7
     void EmitUdpCmdStop(bool);
     void EmitOpenRadNetWToRecon();
     void EmitUploadClubLogInfo(QString);
+    void EmitOtpTxKey(QString);
+    void EmitOtpRxMsg(bool);
+    void EmitOtpVerif(QString,uint8_t);
+    
 
 public slots:
     void ConDiscon();
@@ -301,7 +313,7 @@ public slots:
     void replayDecodes();
     void networkErrorUDPBrodcast(QString const&);
     void SetUploadSelected(QByteArray);
-
+    
 private:
     QWidget *w_parent;
     int s_cont_id;
@@ -360,6 +372,7 @@ private:
 
     QString s_myCall;
     QString s_myLoc;
+    QString s_rigInfo;
 
     QPushButton *pb_re_conect;
 
@@ -367,6 +380,7 @@ private:
     void ReadTelnetList(QString path);
     QLineEdit *TCPServer;
     QLineEdit *TCPPort;
+    QLineEdit *TCPPass;
     QPushButton *pb_tcp_conect;
     QComboBox *Cb_telnet;
 
@@ -458,7 +472,26 @@ private:
     QCheckBox *cb_eqsl;
     void CheckEQSLError();
     void StartStopEQSL(bool);
-    void SendEQSLAdif(QString);    
+    void SendEQSLAdif(QString); 
+    
+    uint8_t otp_pos_ch_writ;
+    uint8_t otp_pos_ch_read;
+    uint8_t otp_is_act_send_check;
+    QTimer *otp_check_timer;
+    QSslSocket *socet_tcp_otp;
+    QLineEdit *LeOtpServer;
+    QLineEdit *LeOtpPort;
+    QComboBox *CbOTPServers;
+    QLineEdit *LeOtpKey;
+    QCheckBox *cb_otp_key; 
+    //QCheckBox *cb_otp_mamd_key;
+    QCheckBox *cb_otp_msg;
+    void StartStopOtp(bool);
+    //bool StartStopOtp(bool);
+    void SendOtpTxKey();
+    void ParseOtpMsg(QString,uint8_t);
+    //void SendSFoxCheckDataGram();
+    //void SendSFoxCheck(QString s);
     
     QString AppPath;
     QCheckBox *cb_wr_status;
@@ -486,6 +519,7 @@ private slots:
     void ResetDefaultFreqsBut();
     void SetDefaultFreqs(bool f);
     void set_reply_clr(QStringList);
+    void set_configure(QStringList);
     void set_halt_tx(bool);
     //void connected_clublog();
     //void disconnected_clublog();
@@ -498,12 +532,22 @@ private slots:
     void cb_qrzlog_toggled();
     void readQRZLog();
     void UplQRZLogAdif();    
-  	//void connected_eqsl();
-  	//void disconnected_eqsl();    
+    //void connected_eqsl();
+    //void disconnected_eqsl();    
     void cb_eqsl_toggled();
     void readEQSL();
     void UplEQSLAdif();   
     void WriteStatusTimer();
+    
+	//void connected_sfox();
+	//void disconnected_sfox(); 
+	//void sslError( QList<QSslError> errors );   
+	void cb_otp_key_toggled();
+	void cb_otp_msg_toggled(bool);
+    void LeOtpKeyEdited(QString);
+    void readOtp();
+    void SendOtpCheckDataGram();
+    void CbOTPServersChanged(QString);
 
 };
 

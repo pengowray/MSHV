@@ -45,7 +45,7 @@ static int setup_c2c_d2c_(bool &wait,fftw_plan &p,double complex *a,int nfft,int
     if 		(isign==-1 && iform==1) p=fftw_plan_dft_1d(nfft,a,a,FFTW_FORWARD,FFTW_ESTIMATE_PATIENT);
     else if (isign==1 &&  iform==1) p=fftw_plan_dft_1d(nfft,a,a,FFTW_BACKWARD,FFTW_ESTIMATE_PATIENT);
     else if (isign==-1 && iform==0) p=fftw_plan_dft_r2c_1d(nfft,d,a,FFTW_ESTIMATE_PATIENT);
-    else if (isign==1 && iform==-1) p=fftw_plan_dft_c2r_1d(nfft,a,d,FFTW_ESTIMATE_PATIENT);    
+    else if (isign==1 && iform==-1) p=fftw_plan_dft_c2r_1d(nfft,a,d,FFTW_ESTIMATE_PATIENT);
 
     _block_th_all_ = false;
     return 0;
@@ -194,7 +194,7 @@ static double complex ca_c2c1[NPAMAX+NPAMA_];
 static int nplan_c2c2 = 0;
 static fftw_plan plan_c2c2[NPMAX+NAMA_];
 static double complex ca_c2c2[NPAMAX+NPAMA_];
-static int nplan_c2c3 = 0; 
+static int nplan_c2c3 = 0;
 static fftw_plan plan_c2c3[NPMAX+NAMA_];
 static double complex ca_c2c3[NPAMAX+NPAMA_];
 static int nplan_c2c4 = 0;
@@ -250,30 +250,70 @@ void F2a::DestroyPlansAll(bool imid)
     //imid = true; // test only
     //qDebug()<<"Plans C2C="<<nplan_c2c0<<nplan_c2c1<<nplan_c2c2<<nplan_c2c3<<nplan_c2c4<<nplan_c2c5;
     //qDebug()<<"Plans D2C="<<nplan_d2c0<<nplan_d2c1<<nplan_d2c2<<nplan_d2c3<<nplan_d2c4<<nplan_d2c5;
-
     HvThr0.DestroyPlans(plan_c2c0,nplan_c2c0,plan_d2c0,nplan_d2c0,imid);
     HvThr1.DestroyPlans(plan_c2c1,nplan_c2c1,plan_d2c1,nplan_d2c1,imid);
     HvThr2.DestroyPlans(plan_c2c2,nplan_c2c2,plan_d2c2,nplan_d2c2,imid);
     HvThr3.DestroyPlans(plan_c2c3,nplan_c2c3,plan_d2c3,nplan_d2c3,imid);
     HvThr4.DestroyPlans(plan_c2c4,nplan_c2c4,plan_d2c4,nplan_d2c4,imid);
     HvThr5.DestroyPlans(plan_c2c5,nplan_c2c5,plan_d2c5,nplan_d2c5,imid);
-
     //qDebug()<<"Destroy2-------------------";
     //cplu = 0;
     //retr = 0;
 }
+/*void F2a::InitPlansAllStatic()//2.76.2
+{
+	for (int i = 0; i < (NPAMAX/10); ++i)//NPAMAX=1441000
+	{
+		//NPAMAX=421Mb, NPAMAX/2=256Mb, NPAMAX/4=170Mb, NPAMAX/10=124Mb <- from RAM memory
+		ca_c2c0[i] = 0.0+0.0*I;
+		da_d2c0[i] = 0.0;
+		ca_d2c0[i] = 0.0+0.0*I;
+		ca_c2c1[i] = 0.0+0.0*I;
+		da_d2c1[i] = 0.0;
+		ca_d2c1[i] = 0.0+0.0*I;
+		ca_c2c2[i] = 0.0+0.0*I;
+		da_d2c2[i] = 0.0;
+		ca_d2c2[i] = 0.0+0.0*I;
+		ca_c2c3[i] = 0.0+0.0*I;
+		da_d2c3[i] = 0.0;
+		ca_d2c3[i] = 0.0+0.0*I;
+		ca_c2c4[i] = 0.0+0.0*I;
+		da_d2c4[i] = 0.0;
+		ca_d2c4[i] = 0.0+0.0*I;
+		ca_c2c5[i] = 0.0+0.0*I;
+		da_d2c5[i] = 0.0;
+		ca_d2c5[i] = 0.0+0.0*I;
+	}
+    //for (int i = 0; i < NPMAX; ++i)
+    //{
+    	//fftw_destroy_plan(plan_c2c0[i]);
+    	//fftw_destroy_plan(plan_c2c1[i]);
+    	//fftw_destroy_plan(plan_c2c2[i]);
+    	//fftw_destroy_plan(plan_c2c3[i]);
+    	//fftw_destroy_plan(plan_c2c4[i]);
+    	//fftw_destroy_plan(plan_c2c5[i]);
+
+    	//fftw_destroy_plan(plan_d2c0[i]);
+    	//fftw_destroy_plan(plan_d2c1[i]);
+    	//fftw_destroy_plan(plan_d2c2[i]);
+    	//fftw_destroy_plan(plan_d2c3[i]);
+    	//fftw_destroy_plan(plan_d2c4[i]);
+    	//fftw_destroy_plan(plan_d2c5[i]);
+   	//}
+}*/
 //// END F2A ///
 
 ////  POMALL ///
 void PomAll::initPomAll()
 {
-    for (int i = 0; i < 141100; ++i) pctile_shell_tmp[i] = 0.0;//int NMAX=141072;
+    for (int i = 0; i < NMAX_PT+50; ++i) pctile_shell_tmp[i] = 0.0;//int NMAX=141072;
 }
 double PomAll::peakup(double ym,double y0,double yp)
 {
     double dx = 0.0;
     double b=(yp-ym)/2.0;
     double c=(yp+ym-(2*y0))/2.0;
+    if (c==0.0) c=0.0000001; //2.76 qDebug()<<c;
     dx=-b/(2.0*c);
     return dx;
 }
@@ -281,6 +321,30 @@ double PomAll::maxval_da_beg_to_end(double*a,int a_beg,int a_end)
 {
     double max = a[a_beg];
     for (int i = a_beg; i < a_end; ++i)
+    {
+        if (a[i]>max)
+        {
+            max = a[i];
+        }
+    }
+    return max;
+}
+double PomAll::minval_da_beg_to_end(double*a,int a_beg,int a_end)
+{
+    double min = a[a_beg];
+    for (int i = a_beg; i < a_end; ++i)
+    {
+        if (a[i]<min)
+        {
+            min = a[i];
+        }
+    }
+    return min;
+}
+int PomAll::maxval_ia_beg_to_end(int*a,int a_beg,int a_end)//2.76sf
+{
+    int max = a[a_beg];
+    for (int i = a_beg; i < a_end; i++)
     {
         if (a[i]>max)
         {
@@ -306,6 +370,34 @@ int PomAll::maxloc_da_end_to_beg(double*a,int a_beg,int a_end)
 int PomAll::maxloc_da_beg_to_end(double*a,int a_beg,int a_end)
 {
     double max = a[a_beg];
+    int loc = a_beg;
+    for (int i = a_beg; i < a_end; ++i)
+    {
+        if (a[i]>max)
+        {
+            loc = i;
+            max = a[i];
+        }
+    }
+    return loc;
+}
+int PomAll::minloc_da_beg_to_end(double*a,int a_beg,int a_end)
+{
+    double min = a[a_beg];
+    int loc = a_beg;
+    for (int i = a_beg; i < a_end; ++i)
+    {
+        if (a[i]<min)
+        {
+            loc = i;
+            min = a[i];
+        }
+    }
+    return loc;
+}
+int PomAll::maxloc_ia_beg_to_end(int*a,int a_beg,int a_end)
+{
+    int max = a[a_beg];
     int loc = a_beg;
     for (int i = a_beg; i < a_end; ++i)
     {
@@ -362,12 +454,15 @@ c41:
                 for (j = k1; j<norder; j++)
                 {//do j=k1,norder
                     //array(i,j)=array(i,j)-array(i,k)*array(k,j)/array(k,k)
-                    array_[j][i]=array_[j][i]-array_[k][i]*array_[j][k]/array_[k][k];
+                    double tarr = array_[k][k];//2.76
+                    if (tarr==0.0) tarr = 0.000001;//qDebug()<<"zero="<<array_[k][k];
+                    array_[j][i]=array_[j][i]-array_[k][i]*array_[j][k]/tarr;//array_[j][i]=array_[j][i]-array_[k][i]*array_[j][k]/array_[k][k];
                 }
             }
         }
     }
 c60:
+    //qDebug()<<determ;
     return determ;
 }
 void PomAll::polyfit(double*x,double*y,double*sigmay,int npts,int nterms,int mode,double*a,double &chisqr)
@@ -392,11 +487,18 @@ void PomAll::polyfit(double*x,double*y,double*sigmay,int npts,int nterms,int mod
         double yi=y[i];
         double weight=0.0;
         if (mode<0)
-            weight=1.0/fabs(yi);
-        else if (mode==0)
-            weight=1.0;
+        {
+            double yi0 = yi;
+            if (yi0==0.0) yi0=0.000001;//2.76
+            weight=1.0/fabs(yi0);
+        }
+        else if (mode==0) weight=1.0;
         else
-            weight=1.0/(sigmay[i]*sigmay[i]);
+        {
+            double si2 = sigmay[i]*sigmay[i];
+            if (si2==0.0) si2=0.000001;//2.76
+            weight=1.0/(si2);//weight=1./sigmay(i)**2
+        }
         //qDebug()<<"weight"<<weight<<sigmay[i];
 
         double xterm=weight;
@@ -426,8 +528,7 @@ void PomAll::polyfit(double*x,double*y,double*sigmay,int npts,int nterms,int mod
         }
     }
 
-    double delta=determ(array_,nterms);
-    //qDebug()<<"delta="<<delta;
+    double delta=determ(array_,nterms); //qDebug()<<"delta="<<delta;
     if (delta==0.0)
     {
         chisqr=0.0;
@@ -460,12 +561,10 @@ void PomAll::polyfit(double*x,double*y,double*sigmay,int npts,int nterms,int mod
             }
         }
         double free=npts-nterms; //qDebug()<<"free"<<free;
-        if (free==0.0)// no devide by zero
-            free=1.0;
+        if (free==0.0) free=1.0;// no devide by zero
         chisqr=chisq/free;
         //qDebug()<<chisq<<free;
-    }
-    //qDebug()<<"chisq"<<a[0]<<a[1]<<a[2]<<a[3]<<a[4];
+    } //qDebug()<<"chisq"<<a[0]<<a[1]<<a[2]<<a[3]<<a[4];
 }
 void PomAll::zero_double_beg_end(double*d,int begin,int end)
 {
@@ -506,18 +605,23 @@ c4:
 double PomAll::pctile_shell(double *x,int npts,int npct)
 {
     double xpct = 1.0;
-    int NMAX=141072;// 100000;//100000  32768
+    //const int NMAX=141072;// 100000;//100000  32768
     //real*4 x(npts)
     //double tmp[NMAX];// ={0.0};//real*4 tmp(NMAX)
-    //double *tmp = new double[NMAX];// ={0.0};//real*4 tmp(NMAX)    
-
+    //double *tmp = new double[NMAX];// ={0.0};//real*4 tmp(NMAX)
+    /*static int sss = 0;
+    if (npts>sss)
+    {
+    	sss=npts; 
+    	qDebug()<<sss;	
+    }*/
     int j =0; //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
     if (npts<=0)//if(npts<0 || npct<0 || npct>100)
     {
         xpct=1.0;
         goto c900;
     }
-    if (npts>NMAX) return xpct; // if(npts.gt.NMAX) stop
+    if (npts>NMAX_PT) return xpct; // if(npts.gt.NMAX) stop
 
     for (j = 0; j < npts; j++) pctile_shell_tmp[j]=x[j];  // tmp(1:npts)=x +beg
 
@@ -530,6 +634,7 @@ double PomAll::pctile_shell(double *x,int npts,int npct)
     xpct=pctile_shell_tmp[j];
 
 c900:
+    //if (xpct==0.0) xpct=0.0000001;//for the future ???
     return xpct;
 }
 void PomAll::zero_double_comp_beg_end(double complex*d,int begin,int end)
@@ -538,42 +643,66 @@ void PomAll::zero_double_comp_beg_end(double complex*d,int begin,int end)
 }
 double PomAll::ps_hv(double complex z)
 {
-    //(real(c(i))**2 + aimag(c(i))**2)
-    double d;
-    d = creal(z)*creal(z) + cimag(z)*cimag(z);
-    //d = pow(creal(z),2) + pow(cimag(z),2);
+    double d;//(real(c(i))**2 + aimag(c(i))**2)
+    d = creal(z)*creal(z) + cimag(z)*cimag(z);//d = pow(creal(z),2) + pow(cimag(z),2);
     return d;
 }
+/*double PomAll::ps_hv001(double complex z)
+{
+    double d;
+    d = (creal(z)*creal(z)*0.01) + (cimag(z)*cimag(z)*0.01);
+    return d;
+}*/
 void PomAll::cshift1(double complex *a,int cou_a,int ish)
 {
     //HV for single shift vareable
     //Left Shift 	ISHFT 	ISHFT(N,M) (M > 0) 	<< 	n<<m 	n shifted left by m bits
     //Right Shift 	ISHFT 	ISHFT(N,M) (M < 0) 	>> 	n>>m 	n shifted right by m bits
-
     //double complex t[cou_a];  //garmi hv v1.42
     //double complex t[cou_a*2+ish+50];  //garmi hv v1.43 ok
     double complex *t = new double complex[cou_a+100]; //garmi pri goliam count hv v1.43 correct ok
-    for (int i=0; i< cou_a; i++)
-        t[i]=a[i];
-
+    for (int i=0; i< cou_a; i++) t[i]=a[i];
     if (ish>0)
     {
         for (int i = 0; i <  cou_a; i++)
         {
-            if (i+ish<cou_a)
-                a[i]=t[i+ish];
-            else
-                a[i]=t[i+ish-cou_a];
+            if (i+ish<cou_a) a[i]=t[i+ish];
+            else a[i]=t[i+ish-cou_a];
         }
     }
     if (ish<0)
     {
         for (int i = 0; i <  cou_a; i++)
         {
-            if (i+ish<0)
-                a[i]=t[i+ish+cou_a];
-            else
-                a[i]=t[i+ish];
+            if (i+ish<0) a[i]=t[i+ish+cou_a];
+            else a[i]=t[i+ish];
+        }
+    }
+    delete [] t;
+}
+void PomAll::dshift1(double *a,int cou_a,int ish)
+{
+    //HV for single shift vareable
+    //Left Shift 	ISHFT 	ISHFT(N,M) (M > 0) 	<< 	n<<m 	n shifted left by m bits
+    //Right Shift 	ISHFT 	ISHFT(N,M) (M < 0) 	>> 	n>>m 	n shifted right by m bits
+    //double complex t[cou_a];  //garmi hv v1.42
+    //double complex t[cou_a*2+ish+50];  //garmi hv v1.43 ok
+    double *t = new double[cou_a+100]; //garmi pri goliam count hv v1.43 correct ok
+    for (int i=0; i< cou_a; i++) t[i]=a[i];
+    if (ish>0)
+    {
+        for (int i = 0; i <  cou_a; i++)
+        {
+            if (i+ish<cou_a) a[i]=t[i+ish];
+            else a[i]=t[i+ish-cou_a];
+        }
+    }
+    if (ish<0)
+    {
+        for (int i = 0; i <  cou_a; i++)
+        {
+            if (i+ish<0) a[i]=t[i+ish+cou_a];
+            else a[i]=t[i+ish];
         }
     }
     delete [] t;
@@ -596,7 +725,7 @@ void PomAll::indexx_msk(double *arr,int n,int *indx)
     //integer n,indx(n)
     //real arr(n)
     int i,indxt,ir,itemp,j,jstack,k,l;
-    int istack[NSTACK+5];//v1.46 +5
+    int istack[NSTACK+50];//v1.46 +5
     double a;
 
     for (j = 0; j <= n; j++)
@@ -625,7 +754,7 @@ c2:
             //if(indxt>350 || indxt<5)
             //qDebug()<<"indxt="<<indxt<<"max="<<n;
         }
-        if (jstack==-1) return;//-1-hv 0;
+        if (jstack<1) return;//2.76 if (jstack==-1) return;//-1-hv 0;
 
         ir=istack[jstack];
         l=istack[jstack-1];
@@ -669,6 +798,7 @@ c3:    //continue
 
 c4:    //continue
         j=j-1;
+        if (j<0) j=0;//2.76 qDebug()<<j;
         if (arr[indx[j]]>a) goto c4;
         if (j<i) goto c5;
         itemp=indx[i];
@@ -711,6 +841,16 @@ bool PomAll::isStandardCall(QString w)//2.61 same as  MultiAnswerModW
     rx.setCaseSensitivity(Qt::CaseInsensitive);
     bool res0 = rx.exactMatch(w); //qDebug()<<w<<res0;
     return res0;
+}
+void PomAll::smo121(double *x,int beg,int nz)
+{
+    double x0=x[beg];
+    for (int i =1; i<nz-1; i++)
+    {//do i=2,nz-1
+        double x1=x[i+beg];
+        x[i+beg]=0.5*x[i+beg] + 0.25*(x0+x[i+1+beg]);// x(i)=0.5*x(i) + 0.25*(x0+x(i+1))
+        x0=x1;
+    }
 }
 /*bool PomAll::isStandardCall(QString w)
 {
@@ -825,7 +965,21 @@ void PomFt::initPomFt()
     twopi=8.0*atan(1.0);
     pi=4.0*atan(1.0);
 }
-/*
+bool PomFt::isgrid4(QString s)
+{
+    bool res = false;
+    if (s.count()>3)
+    {
+        int c1 = (int)s.at(0).toLatin1();
+        int c2 = (int)s.at(1).toLatin1();
+        int c3 = (int)s.at(2).toLatin1();
+        int c4 = (int)s.at(3).toLatin1();
+        if (c1>=(int)'A' && c1<=(int)'R' && c2>=(int)'A' && c2<=(int)'R' &&
+                c3>=(int)'0' && c3<=(int)'9' && c4>=(int)'0' && c4<=(int)'9')// && s.mid(0,4)!="RR73"
+            res = true;
+    }
+    return res;
+}
 #include "../HvMsPlayer/libsound/boost/boost_14.hpp"
 short crc14_pomft(unsigned char const * data, int length)
 {
@@ -835,7 +989,7 @@ short PomFt::crc14(unsigned char const * data, int length)
 {
     return crc14_pomft(data,length);
 }
-*/
+
 void PomFt::nuttal_window(double *win,int n)
 {
     double a0=0.3635819;
@@ -857,31 +1011,33 @@ void PomFt::normalizebmet(double *bmet,int n)
         bmetav+=bmet[z];////bmetav=sum(bmet)/real(n)
         bmet2av+=bmet[z]*bmet[z];//bmet2av=sum(bmet*bmet)/real(n)
     }
-    //bmetav=sum(bmet)/real(n)
-    //bmet2av=sum(bmet*bmet)/real(n)
     bmetav=bmetav/(double)n;
     bmet2av=bmet2av/(double)n;
     double var=bmet2av-bmetav*bmetav;//var=bmet2av-bmetav*bmetav
     double bmetsig = 0.0;
-    if ( var > 0.0 ) //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
-        bmetsig=sqrt(var);
-    else
-        bmetsig=sqrt(bmet2av);
-
-    if (bmetsig<=0.00001)//2.68 crash no devide by zero
-        bmetsig=0.00001;
-    //if (bmetsig<=0.00001) qDebug()<<"bmetsig="<<bmetsig;
-    for (int z = 0; z < n; ++z)
-        bmet[z]=bmet[z]/bmetsig;
+    if ( var > 0.0 ) bmetsig=sqrt(var);//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+    else bmetsig=sqrt(bmet2av);
+    if (bmetsig<=0.00001) bmetsig=0.00001;//2.68 crash no devide by zero
+    for (int z = 0; z < n; ++z) bmet[z]=bmet[z]/bmetsig;
+}
+void PomFt::normalizebmetvar(double *bmet,int n)
+{
+    double bmet2av = 0.0;
+    double bmetsig = 0.0;
+    for (int z = 0; z < n; ++z) bmet2av+=bmet[z]*bmet[z];
+    bmet2av/=(double)n;
+    bmetsig=sqrt(bmet2av);
+    if (bmetsig<=0.000001) bmetsig=0.000001;
+    for (int z = 0; z < n; ++z) bmet[z]/=bmetsig;
 }
 void PomFt::twkfreq1(double complex *ca,int npts,double fsample,double *a,double complex *cb)
 {
-    //double twopi1=6.283185307;
     //! Mix the complex signal
     double complex w=1.0+1.0*I;
     //double complex wstep=1.0+1.0*I;
     int x0=0.5*(npts);//x0=0.5*(npts+1)
     double s=2.0/(double)npts;//s=2.0/npts
+    if (fsample==0.0) fsample=0.00000001;//2.76
     for (int i =0; i<npts; ++i)
     {//do i=1,npts
         double x=s*(i-x0);//x=s*(i-x0)
@@ -894,7 +1050,350 @@ void PomFt::twkfreq1(double complex *ca,int npts,double fsample,double *a,double
         cb[i]=w*ca[i];
     }
 }
-/*
+void PomFt::SetLlrFt2_4(double *llra,double *llrb,double *llrc,double *llrd,double *llre,double bitmetrics_[5][220],uint8_t to)
+{
+    const double scalefac=2.83;//0->to=ALL 3->to=C 4->to=D
+    for (int x = 0; x < 58; ++x)
+    {
+        llra[x]=bitmetrics_[0][x+8]*scalefac;
+        llra[x+58]=bitmetrics_[0][x+74]*scalefac;
+        llra[x+116]=bitmetrics_[0][x+140]*scalefac;
+        llrb[x]=bitmetrics_[1][x+8]*scalefac;
+        llrb[x+58]=bitmetrics_[1][x+74]*scalefac;
+        llrb[x+116]=bitmetrics_[1][x+140]*scalefac;
+        llrc[x]=bitmetrics_[2][x+8]*scalefac;
+        llrc[x+58]=bitmetrics_[2][x+74]*scalefac;
+        llrc[x+116]=bitmetrics_[2][x+140]*scalefac;
+        if (to==3) continue;
+        llrd[x]=bitmetrics_[3][x+8]*scalefac;
+        llrd[x+58]=bitmetrics_[3][x+74]*scalefac;
+        llrd[x+116]=bitmetrics_[3][x+140]*scalefac;
+        if (to==4) continue;
+        llre[x]=bitmetrics_[4][x+8]*scalefac;
+        llre[x+58]=bitmetrics_[4][x+74]*scalefac;
+        llre[x+116]=bitmetrics_[4][x+140]*scalefac;
+    }
+}
+int PomFt::count_eq_bits(bool *a,int b_a,const bool *b,int c)
+{
+    int ns1=0;
+    for (int x = 0; x < c; ++x)
+    {
+        if (a[x+b_a]==b[x]) ns1++;
+    }
+    return ns1;
+}
+int PomFt::SyncQualFt2_4(double *bitmetrics)
+{
+    const int ND=87;
+    const int NS=16;
+    const int NN=NS+ND;
+    const bool ms1[8] =
+        {
+            0,0,0,1,1,0,1,1
+        };
+    const bool ms2[8] =
+        {
+            0,1,0,0,1,1,1,0
+        };
+    const bool ms3[8] =
+        {
+            1,1,1,0,0,1,0,0
+        };
+    const bool ms4[8] =
+        {
+            1,0,1,1,0,0,0,1
+        };
+    int nsync_qual=0;
+    bool hbits[220];
+    for (int x = 0; x < 2*NN; ++x)
+    {
+        if (bitmetrics[x]>=0.0) hbits[x]=1;
+        else hbits[x]=0;
+    }
+    int ns1=count_eq_bits(hbits,0,  ms1,8);
+    int ns2=count_eq_bits(hbits,66, ms2,8);
+    int ns3=count_eq_bits(hbits,132,ms3,8);
+    int ns4=count_eq_bits(hbits,198,ms4,8);
+    nsync_qual=ns1+ns2+ns3+ns4;
+    return nsync_qual;
+}
+void PomFt::SetApFt2_4(double *llr,double *llr_c,bool *apmask,int *apbits,int *mcq,int *apmy_ru,int *aphis_fd,double apmag,int iaptype,int cont_type)
+{
+    // Activity Type                id	type	dec-id       dec-type	dec-cq
+    //"Standard"					0	0		0 = CQ		 0			0
+    //"EU RSQ And Serial Number"	1	NONE	1  NONE		 NONE		NONE
+    //"NA VHF Contest"				2	2		2  CQ TEST	 1			3 = CQ TEST
+    //"EU VHF Contest"				3 	3		3  CQ TEST	 2			3 = CQ TEST
+    //"ARRL Field Day"				4	4		4  CQ FD	 3			2 = CQ FD
+    //"ARRL Inter. Digital Contest"	5	2		5  CQ TEST   1 			3 = CQ TEST
+    //"WW Digi DX Contest"			6	2		6  CQ WW	 1			4 = CQ WW
+    //"FT4 DX Contest"				7	2		7  CQ WW	 1			4 = CQ WW
+    //"FT8 DX Contest"				8	2		8  CQ WW	 1			4 = CQ WW
+    //"FT Roundup Contest"			9	5		9  CQ RU	 4			1 = CQ RU
+    //"Bucuresti Digital Contest"	10 	5		10 CQ BU 	 4			5 = CQ BU
+    //"FT4 SPRINT Fast Training"	11 	5		11 CQ FT 	 4			6 = CQ FT
+    //"PRO DIGI Contest"			12  5		12 CQ PDC 	 4			7 = CQ PDC
+    //"CQ WW VHF Contest"			13	2		13 CQ TEST	 1			3 = CQ TEST
+    //"Q65 Pileup" or "Pileup"		14	2		14 CQ 		 1			0 = CQ
+    //"NCCC Sprint"					15	2		15 CQ NCCC	 1			8 = CQ NCCC
+    //"ARRL Inter. EME Contest"		16	6		16 CQ 		 0			0 = CQ
+    //"FT Challenge"				17  6       17 CQ FTC    0          9 = CQ FTC
+    const int ND=87;
+    double llr_ap[180];
+    for (int z = 0; z < 2*ND; ++z) llr_ap[z]=llr_c[z];
+    if (iaptype==1) //then  ! CQ or CQ TEST or CQ FD or CQ RU or CQ SCC
+    {
+        for (int z = 0; z < 2*ND; ++z)//2*ND=174
+        {
+            apmask[z]=0;
+            if (z<29)
+            {
+                apmask[z]=1;
+                llr_ap[z]=apmag*(double)mcq[z];
+            }
+        } //qDebug()<<iaptype;
+    }
+    if (iaptype==2) //then ! MyCall,???,???
+    {
+        for (int z = 0; z < 2*ND; ++z) apmask[z]=0;
+        if (cont_type==0 || cont_type==1)// || ncontest==5
+        {
+            for (int z = 0; z < 29; ++z)
+            {
+                apmask[z]=1;//apmask(1:29)=1
+                llr_ap[z]=apmag*(double)apbits[z];//llrd(1:29)=apmag*apsym(1:29)
+            }
+        }
+        else if (cont_type==2)
+        {
+            for (int z = 0; z < 28; ++z)
+            {
+                apmask[z]=1;//apmask(1:28)=1
+                llr_ap[z]=apmag*(double)apbits[z];//llrd(1:28)=apmag*apsym(1:28)
+            }
+        }
+        else if (cont_type==3)
+        {
+            for (int z = 0; z < 28; ++z)
+            {
+                apmask[z]=1;  //apmask(1:28)=1
+                llr_ap[z]=apmag*(double)apbits[z];//llrd(1:28)=apmag*apbits(1:28)
+            }
+        }
+        else if (cont_type==4)//RTTY UU HV-6=BU   || ncontest==6
+        {
+            for (int z = 1; z < 29; ++z)
+            {
+                apmask[z]=1;//apmask(2:29)=1
+                llr_ap[z]=apmag*(double)apmy_ru[z-1];//llrd(2:29)=apmag*apmy_ru(1:28)
+            }
+        }
+    }
+    if (iaptype==3) //then ! MyCall,DxCall,???
+    {
+        for (int z = 0; z < 2*ND; ++z) apmask[z]=0;
+        if (cont_type==0 || cont_type==1 || cont_type==2)// || ncontest==5
+        {
+            for (int z = 0; z < 58; ++z)
+            {
+                apmask[z]=1;// apmask(1:58)=1
+                llr_ap[z]=apmag*(double)apbits[z];// llrd(1:58)=apmag*apbits(1:58)
+            }
+        }
+        else if (cont_type==3) //then ! Field Day
+        {
+            for (int z = 0; z < 56; ++z)//2.36 57 or 56 ???
+            {
+                apmask[z]=1;//apmask(1:56)=1//2.36 if (z<56)//57 or 56 ???
+                if (z<28)
+                {
+                    llr_ap[z]=apmag*(double)apbits[z];//llrd(1:28)=apmag*apbits(1:28)
+                    llr_ap[z+28]=apmag*(double)aphis_fd[z];//llrd(29:56)=apmag*aphis_fd(1:28)????
+                }
+            }
+        }
+        else if (cont_type==4)//then ! RTTY RU HV 6=BU // || ncontest==6
+        {
+            for (int z = 0; z < 57; ++z)
+            {
+                if (z>0) apmask[z]=1;// apmask(2:57)=1
+                if (z<28) llr_ap[z+1]=apmag*(double)apmy_ru[z];//llrd(2:29)=apmag*apmy_ru(1:28)
+                if (z>28) llr_ap[z]=apmag*(double)apbits[z];// llrd(30:57)=apmag*apbits(30:57)
+            }
+        }
+    }
+    if (iaptype==4 || iaptype==5 || iaptype==6)
+    {
+        for (int z = 0; z < 2*ND; ++z) apmask[z]=0;//if(ncontest.le.5) then
+        if (cont_type<=4)//hv new=4
+        {
+            for (int z = 0; z < 77; ++z) apmask[z]=1; //apmask(1:77)=1   //! mycall, hiscall, RRR|73|RR73
+            if (iaptype==6)
+            {
+                for (int z = 0; z < 77; ++z) llr_ap[z]=apmag*(double)apbits[z];//llrd(1:77)=apmag*apbits(1:77)
+            }
+        }
+    }
+    for (int z = 0; z < 2*ND; ++z) llr[z]=llr_ap[z];
+}
+bool PomFt::SetAp7Msg(QString call_1,bool std_1,QString call_2,bool std_2,QString grid4,int i,QString &msg,int &count_msg)
+{
+    //const int MAXMSG=206;//= -50 to +49
+    const int MAXMSG=158;//= -26 to +49
+    msg = call_1+" "+call_2;
+    if (call_1=="CQ" && i!=4) msg = "QU1RK "+call_2;
+    if (!std_1)
+    {
+        if (i==0 || i>=5) msg = "<"+call_1+"> "+call_2;
+        if (i>=1 && i<=3) msg = call_1+" <"+call_2+">";
+    }
+    else if (!std_2)
+    {
+        if (call_1=="CQ" && i!=4) msg = "QU1RK "+call_2;//HV add
+        else
+        {
+            if (i<=3 || i==5) msg = "<"+call_1+"> "+call_2;
+            if (i>=6) msg = call_1+" <"+call_2+">";  //if (i==5) msg = "TNX 73 GL";
+        }
+    }
+    //else if (i==0) msg = msg0.trimmed();
+    if (i==1) msg.append(" RRR");
+    if (i==2) msg.append(" RR73");
+    if (i==3) msg.append(" 73");
+    if (i==4)
+    {
+        if (std_2)
+        {
+            msg = "CQ "+call_2;//+" "+hisgrid.mid(0,4);//KN23SF
+            QString call_10 = call_1+"xxxx";//2.70
+            if (call_10.mid(2,1)=="_") msg = call_1+" "+call_2;
+            if (grid4!="RR73") msg = msg.trimmed()+" "+grid4;
+        }
+        if (!std_2) msg = "CQ "+call_2;//KN23SF
+    }
+    if (i==5 && std_2) msg.append(" "+grid4.mid(0,4));
+    if (i>=6 && i<MAXMSG)
+    {
+        if (i>12 && msg.startsWith("QU1RK "))
+        {
+            //not possyble "CQ <TM22KPW> -26"
+            //not possyble "CQ LZ2HV R-26"
+            //qDebug()<<"BREAK--->"<<msg<<"msgbest="<<msgbest;
+            count_msg = i;
+            return true;//break;
+        }
+        //int isnr = -50 + (i-6)/2;// -50 to +49 MAXMSG=206
+        int isnr = -26 + (i-6)/2;  // -26 to +49 MAXMSG=158
+        if (((i+1) & 1)==1)
+        {
+            if (isnr>-1) msg.append(" +"+QString("%1").arg(abs(isnr),2,10,QChar('0')));
+            else msg.append(" -"+QString("%1").arg(abs(isnr),2,10,QChar('0')));
+        }
+        else
+        {
+            if (isnr>-1) msg.append(" R+"+QString("%1").arg(abs(isnr),2,10,QChar('0')));
+            else msg.append(" R-"+QString("%1").arg(abs(isnr),2,10,QChar('0')));
+        }
+    }
+    return false;
+}
+void PomFt::TryDecAp7(double *llra,double *llrb,double *llrc,double *llrd,bool *cw,double *dmm,int i,
+                      QString msgsent,double pow0,double &dmin,QString &msgbest,double &pbest,int &nharderrors)
+{
+    bool hdec[178];
+    bool nxor[178];
+    double da = 0.0;
+    double dbb= 0.0;
+    double dc = 0.0;
+    double dd = 0.0;
+    for (int z= 0; z < 174; ++z)
+    {
+        hdec[z] = 0;
+        if (llra[z]>=0.0) hdec[z] = 1;
+        nxor[z]=hdec[z] ^ cw[z];
+        da+=(double)nxor[z]*fabs(llra[z]);
+        hdec[z] = 0;
+        if (llrb[z]>=0.0) hdec[z] = 1;
+        nxor[z]=hdec[z] ^ cw[z];
+        dbb+=(double)nxor[z]*fabs(llrb[z]);
+        hdec[z] = 0;
+        if (llrc[z]>=0.0) hdec[z] = 1;
+        nxor[z]=hdec[z] ^ cw[z];
+        dc+=(double)nxor[z]*fabs(llrc[z]);
+        hdec[z] = 0;
+        if (llrd[z]>=0.0) hdec[z] = 1;
+        nxor[z]=hdec[z] ^ cw[z];
+        dd+=(double)nxor[z]*fabs(llrd[z]);
+    }
+    double dm = da;
+    if (dbb<dm) dm=dbb;
+    if (dc<dm)  dm=dc;
+    if (dd<dm)  dm=dd;
+    dmm[i]=dm;
+    if (dm<dmin)
+    {
+        dmin=dm;
+        msgbest=msgsent;
+        pbest=pow0;
+        nharderrors = -1;
+        if (dm==da)
+        {
+            for (int z= 0; z < 174; ++z)
+            {
+                if ((double)(2*cw[z]-1)*llra[z]<0.0) nharderrors++;
+            }
+        }
+        else if (dm==dbb)
+        {
+            for (int z= 0; z < 174; ++z)
+            {
+                if ((double)(2*cw[z]-1)*llrb[z]<0.0) nharderrors++;
+            }
+        }
+        else if (dm==dc)
+        {
+            for (int z= 0; z < 174; ++z)
+            {
+                if ((double)(2*cw[z]-1)*llrc[z]<0.0) nharderrors++;
+            }
+        }
+        else if (dm==dd)
+        {
+            for (int z= 0; z < 174; ++z)
+            {
+                if ((double)(2*cw[z]-1)*llrd[z]<0.0) nharderrors++;
+            }
+        }
+    }
+}
+/*void PomFt::twkfreq2(double complex *c3,double complex *c4,int npts,double fsample,double fshift)
+{
+    //! Adjust frequency of complex waveform
+    double twopi=6.283185307;
+    double complex w=1.0+1.0*I;
+    double dphi=fshift*twopi/fsample;
+    double complex wstep=cos(dphi)+sin(dphi)*I;
+    for (int i =0; i<npts; ++i)
+    {//do i=1,npts
+        w=w*wstep;
+        c4[i]=w*c3[i];
+    }
+}
+int PomFt::maxloc_ia_beg_to_end(int*a,int a_beg,int a_end)
+{
+    int max = a[a_beg];
+    int loc = a_beg;
+    for (int i = a_beg; i < a_end; ++i)
+    {
+        if (a[i]>max)
+        {
+            loc = i;
+            max = a[i];
+        }
+    }
+    return loc;
+}*/
 void PomFt::chkcrc14a(bool *decoded,int &nbadcrc)
 {
     unsigned char i1Dec8BitBytes[12+5];
@@ -909,20 +1408,14 @@ void PomFt::chkcrc14a(bool *decoded,int &nbadcrc)
         i1Dec8BitBytes[ibyte]=itmp;
     }
     int ncrc14=0;
-    for (int ibit = 0; ibit<14; ++ibit)
-        ncrc14=(ncrc14 << 1)+(1 & decoded[77+ibit]);
-
+    for (int ibit = 0; ibit<14; ++ibit) ncrc14=(ncrc14 << 1)+(1 & decoded[77+ibit]);
     i1Dec8BitBytes[9]=(i1Dec8BitBytes[9] & 248); //i1Dec8BitBytes(10)=iand(i1Dec8BitBytes(10),128+64+32+16+8)
     i1Dec8BitBytes[10]=0;
     i1Dec8BitBytes[11]=0;
     int icrc14=crc14(i1Dec8BitBytes,12);
-
     nbadcrc=1;  //qDebug()<<"ncrc14==icrc14"<<ncrc14<<icrc14;
-
-    if (ncrc14==icrc14)// && ncrc14!=0  sum_5687   || sum_5687==0
-        nbadcrc=0;
+    if (ncrc14==icrc14) nbadcrc=0;// && ncrc14!=0  sum_5687   || sum_5687==0
 }
-*/
 void PomFt::platanh(double x, double &y)
 {
     double isign=+1.0;
@@ -1125,31 +1618,24 @@ void PomFt::bshift1(bool *a,int cou_a,int ish)
     //HV for single shift vareable
     //Left Shift 	ISHFT 	ISHFT(N,M) (M > 0) 	<< 	n<<m 	n shifted left by m bits
     //Right Shift 	ISHFT 	ISHFT(N,M) (M < 0) 	>> 	n>>m 	n shifted right by m bits
-
     //double complex t[cou_a];  //garmi hv v1.42
     //double complex t[cou_a*2+ish+50];  //garmi hv v1.43 ok
     bool *t = new bool[cou_a+100]; //garmi pri goliam count hv v1.43 correct ok
-    for (int i=0; i< cou_a; i++)
-        t[i]=a[i];
-
+    for (int i=0; i< cou_a; i++) t[i]=a[i];
     if (ish>0)
     {
         for (int i = 0; i <  cou_a; i++)
         {
-            if (i+ish<cou_a)
-                a[i]=t[i+ish];
-            else
-                a[i]=t[i+ish-cou_a];
+            if (i+ish<cou_a) a[i]=t[i+ish];
+            else a[i]=t[i+ish-cou_a];
         }
     }
     if (ish<0)
     {
         for (int i = 0; i <  cou_a; i++)
         {
-            if (i+ish<0)
-                a[i]=t[i+ish+cou_a];
-            else
-                a[i]=t[i+ish];
+            if (i+ish<0) a[i]=t[i+ish+cou_a];
+            else a[i]=t[i+ish];
         }
     }
     delete [] t;
@@ -1160,7 +1646,11 @@ void PomFt::get_crc14(bool *mc,int len,int &ncrc)
     //! 2. To check a received CRC, mc(1:len is the received message plus CRC.
     //!    ncrc will be zero if the received message/CRC are consistent
     bool r[15+5];
-    bool p[15]={1,1,0,0,1,1,1,0,1,0,1,0,1,1,1};//=26455
+    const bool p[15]=
+        {
+            1,1,0,0,1,1,1,0,1,0,1,0,1,1,1
+        }
+        ;//=26455
     //bool p[15]={1,1,0,0,1,1,1,0,1,0,1,0,1,1,1};
 
     //! divide by polynomial
@@ -1186,19 +1676,143 @@ void PomFt::get_crc14(bool *mc,int len,int &ncrc)
     }
     //qDebug()<<ncrc;
 }
-void PomFt::decode174_91(double *llr,int maxosd,int norder,bool *apmask,bool *message91,bool *cw,int &nharderror,double &dmin)
-{//int Keff=91,
+void PomFt::bpdecode174_91var(double *llr,bool *apmask,bool *message77,bool *cw,int &nharderror)
+{
     const int N=174;
     const int K=91;
     const int M=(N-K);//83
-
-    double zsave_[3][N];//zsave(N,3)
+    double tov_[N][3];//(3,N)
+    double toc_[M][7];//(7,M)
+    double tanhtoc_[M][7];//(7,M)
+    double zn[N+5];
+    const int ncw=3;
+    bool decoded[96+5];
+    int synd[M+5];
+    for (int i = 0; i<N; ++i)
+    {
+        for (int j = 0; j<3; ++j) tov_[i][j]=0.0;//tov=0
+    }
+    //! initialize messages to checks
+    for (int j = 0; j<M; ++j)
+    {//do j=1,M
+        for (int i = 0; i<(nrw_ft8_174_91[j]); ++i)
+        {//do i=1,nrw(j)
+            toc_[j][i]=llr[Nm_ft8_174_91_[j][i]-1];//toc(i,j)=llr((Nm(i,j)))
+        }
+    }
+    int ncnt=0;
+    int nclast=0;
+    for (int iter = 0; iter<=30; ++iter)
+    {
+        for (int i = 0; i< N; ++i)
+        {//do i=1,N
+            if ( apmask[i] != 1 )
+            {
+                double sumt = 0.0;
+                for (int x = 0; x < ncw; ++x) sumt+=tov_[i][x];//zn[i]=llr[i]+sum(tov(1:ncw,i))
+                zn[i]=llr[i]+sumt;
+            }
+            else zn[i]=llr[i];
+            //! Check to see if we have a codeword (check before we do any iteration).
+            /*cw=0
+            where( zn .gt. 0. ) cw=1*/
+            if (zn[i]>0.0) cw[i]=1;//cw=0 //where( zn .gt. 0. ) cw=1
+            else cw[i]=0;
+        }
+        int ncheck=0;
+        for (int i = 0; i < M; ++i)
+        {//do i=1,M
+            // synd(i)=sum(cw(Nm(1:nrw(i),i)))
+            int sum = 0;
+            for (int x = 0; x < nrw_ft8_174_91[i]; ++x) sum += (int)cw[Nm_ft8_174_91_[i][x]-1];//hv-1
+            synd[i]= sum;
+            if ( fmod(synd[i],2) != 0 ) ncheck++;
+            //!   if( mod(synd(i),2) .ne. 0 ) write(*,*) 'check ',i,' unsatisfied'
+        }
+        if ( ncheck == 0 ) //then ! we have a codeword - if crc is good, return it
+        {
+            int nbadcrc;
+            for (int i = 0; i < K; ++i)
+            {
+                decoded[i]=cw[i];//decoded=cw(1:K)
+            }
+            chkcrc14a(decoded,nbadcrc);
+            int count = 0;
+            for (int i = 0; i < N; ++i)
+            {
+                if ((double)(2*cw[i]-1)*llr[i] < 0.0 ) count++;
+            }
+            nharderror=count;
+            if (nbadcrc==0) //then
+            {
+                for (int i = 0; i < 91; ++i) message77[i]=decoded[i];// message91=cw(1:91)
+                return;
+            }
+        }
+        if ( iter > 0 )  //! this code block implements an early stopping criterion
+        {   //if( iter.gt.10000 )
+            int nd=ncheck-nclast;
+            if ( nd < 0 ) ncnt=0;//! # of unsatisfied parity checks decreased //! reset counter
+            else ncnt++;//ncnt=ncnt+1;
+            //!    write(*,*) iter,ncheck,nd,ncnt
+            if ( ncnt >= 5 && iter >= 10 && ncheck > 15)//if( ncnt .ge. 5 .and. iter .ge. 10 .and. ncheck .gt. 15) then
+            {
+                nharderror=-1;//if (iter<5) qDebug()<<"iter FFFFF="<<iter;
+                return;//?? break;//exit return;
+            }
+        }
+        nclast=ncheck;
+        //! Send messages from bits to check nodes
+        for (int j = 0; j < M; ++j)
+        {//do j=1,M
+            for (int i = 0; i < nrw_ft8_174_91[j]; ++i)
+            {//do i=1,nrw
+                int ibj=Nm_ft8_174_91_[j][i]-1;//ibj=Nm(i,j)
+                toc_[j][i]=zn[ibj];//toc(i,j)=zn(ibj)
+                for (int kk = 0; kk < ncw; kk++)
+                {//do kk=1,ncw //! subtract off what the bit had received from the check
+                    if ( Mn_ft8_174_91_[ibj][kk]-1 == j )//hv-1 if( Mn(kk,ibj) .eq. j ) then   //! Mn(3,128)
+                        toc_[j][i]=toc_[j][i]-tov_[ibj][kk]; //hv-1 toc(i,j)=toc(i,j)-tov(kk,ibj)
+                }//tanhtoc_[j][i]=tanh(-toc_[j][i]/2.0);//tanhtoc(1:nrw,i)=tanh(-toc(1:nrw,i)/2)
+            }
+        }
+        //! send messages from check nodes to variable nodes
+        for (int i = 0; i < M; ++i)
+        {//do i=1,M
+            for (int x = 0; x < 7; ++x) tanhtoc_[i][x]=tanh(-toc_[i][x]/2.0);////tanhtoc(1:nrw,i)=tanh(-toc(1:nrw,i)/2)
+        }
+        for (int j = 0; j < N; ++j)
+        {//do j=1,N
+            for (int i = 0; i < ncw; ++i)
+            {//do i=1,ncw
+                int ichk=Mn_ft8_174_91_[j][i]-1; //ichk=Mn(i,j)  //! Mn(:,j) are the checks that include bit j
+                //Tmn=product(tanhtoc(1:nrw(ichk),ichk),mask=Nm(1:nrw(ichk),ichk).ne.j)
+                double Tmn = 1.0;//mulilay
+                for (int z = 0; z < nrw_ft8_174_91[ichk]; ++z)
+                {
+                    if (Nm_ft8_174_91_[ichk][z]-1 != j) Tmn = Tmn*tanhtoc_[ichk][z];
+                }
+                double y;
+                platanh(-Tmn,y);//call platanh(-Tmn,y)
+                //!      y=atanh(-Tmn)
+                tov_[j][i]=2.0*y;
+            }
+        }
+    }   //! bp iterations
+    nharderror=-1;
+}
+void PomFt::decode174_91(double *llr,int maxosd,int norder,bool *apmask,bool *message91,bool *cw,int &nharderror,double &dmin)
+{	//int Keff=91,
+    const int N=174;
+    const int K=91;
+    const int M=(N-K);//83
+    double zsave_[4][N];//zsave(N,3)
     double tov_[N][3];//(3,N)
     double toc_[M][7];//(7,M)
     double tanhtoc_[M][7];//(7,M)
     double zsum[N+5];
     double zn[N+5];
-    int ncw=3;
+    const int ncw=3;
     bool m96[96+5];
     bool hdec[N+2];
     bool nxor[N+2];
@@ -1477,12 +2091,10 @@ void PomFt::encode174_91_nocrc(bool *message910,bool *codeword)
     }
     // codeword(1:K)=message
     // codeword(K+1:N)=pchecks
-    for (int i = 0; i < K; ++i)//91
-        codeword[i]=message910[i];
-    for (int i = 0; i < M; ++i)//174-91=83
-        codeword[i+91]=pchecks[i];
+    for (int i = 0; i < K; ++i) codeword[i]=message910[i];//91
+    for (int i = 0; i < M; ++i) codeword[i+91]=pchecks[i];//174-91=83
 }
-void PomFt::osd174_91_1(double *llr,/*int Keff=91*/bool *apmask,int ndeep,bool *message91,bool *cw,int &nhardmin,double &dmin)
+void PomFt::osd174_91_1(double *llr,/*int Keff=91*/bool *apmask,int ndeep,bool *message91,bool *cw,int &nhardmin,double &dmin,bool var)
 {
     const int N=174;
     const int K=91;
@@ -1513,7 +2125,7 @@ void PomFt::osd174_91_1(double *llr,/*int Keff=91*/bool *apmask,int ndeep,bool *
     bool m96[96+5];
     //bool decoded[K];//91
 
-    //qDebug()<<first_osd174_91<<lastpat_ft8_2<<inext_ft8_2;
+    //qDebug()<<var;
 
     if (first_osd174_91) //then ! fill the generator matrix
     {
@@ -1557,7 +2169,7 @@ void PomFt::osd174_91_1(double *llr,/*int Keff=91*/bool *apmask,int ndeep,bool *
 
     //if (N>0)//2.12 no needed
     pomAll.indexx_msk(absrx,N-1,indx);//call indexx(absrx,N,indx)
-
+    //qDebug()<<"in -1- -1-="<<nhardmin;
     //! Re-order the columns of the generator matrix in order of decreasing reliability.
     for (int i = 0; i < N; ++i)
     {//do i=1,N
@@ -1612,6 +2224,7 @@ void PomFt::osd174_91_1(double *llr,/*int Keff=91*/bool *apmask,int ndeep,bool *
     //! Flip various combinations of bits in m0 and re-encode to generate a list of
     //! codewords. Return the member of the list that has the smallest Euclidean
     //! distance to the received word.
+
     for (int i = 0; i < N; ++i)// N
     {
         hdec2[i]=hdec[indices[i]];       //hdec=hdec(indices)
@@ -1646,7 +2259,7 @@ void PomFt::osd174_91_1(double *llr,/*int Keff=91*/bool *apmask,int ndeep,bool *
     int ntau = 0;
     int ntotal=0;
 
-    if (ndeep==0) goto c998; //! norder=0 //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+    if (ndeep==0) goto c998; //! norder=0
     if (ndeep>6) ndeep=6;
     if (ndeep==1)
     {
@@ -1662,7 +2275,8 @@ void PomFt::osd174_91_1(double *llr,/*int Keff=91*/bool *apmask,int ndeep,bool *
         npre1=1;
         npre2=0;
         nt=40;
-        ntheta=11;//2.71=11 old=12 2.2.0org=ntheta=10;   ntheta=12;
+        if (var) ntheta=12;//var
+        else  ntheta=11;//2.71=11 old=12 2.2.0org=ntheta=10;   ntheta=12;
     }
     else if (ndeep==3)
     {
@@ -1677,19 +2291,35 @@ void PomFt::osd174_91_1(double *llr,/*int Keff=91*/bool *apmask,int ndeep,bool *
     {
         nord=2;
         npre1=1;
-        npre2=1; //npre2=0;
         nt=40;
         ntheta=12;
-        ntau=17;//ntau=19;
+        if (var)//var
+        {
+            npre2=0;
+            ntau=19;
+        }
+        else
+        {
+            npre2=1; //npre2=0;
+            ntau=17;//ntau=19;
+        }
     }
     else if (ndeep==5)
     {
-        nord=3;//nord=2;
         npre1=1;
         npre2=1;
         nt=40;
         ntheta=12;
-        ntau=15;//ntau=19;
+        if (var)//var
+        {
+            nord=2;
+            ntau=19;
+        }
+        else
+        {
+            nord=3;//nord=2
+            ntau=15;//ntau=19;
+        }
     }
     else //if (ndeep==6)
     {
@@ -1921,7 +2551,502 @@ c998:
     //if(nbadcrc==1) nhardmin=-nhardmin;
     //qDebug()<<"OSD2 nhardmin================"<<nhardmin<<dmin;
 }
+/*void PomFt::decode174_91_ft2(double *llr,int maxosd,int norder,bool *apmask,bool *message91,bool *cw,int &nharderror,double &dmin)
+{	//int Keff=91,
+    const int N=174;
+    const int K=91;
+    const int M=(N-K);//83
+    double zsave_[5][N];//zsave(N,3)
+    double tov_[N][3];//(3,N)
+    double toc_[M][7];//(7,M) //double tanhtoc_[M][7];//(7,M)
+    double zsum[N+5];
+    double zn[N+5];
+    const int ncw=3;
+    bool m96[96+5];
+    bool hdec[N+2];
+    bool nxor[N+2];
+    int synd[M+5];
+    const double alpha_ms = 0.75;  //! Min-Sum normalization factor
+    double sign_prod, min_abs;
+    //bool decoded[K+20];//91 need 96 for check14a integer*1 decoded(K)
+    //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+    //int maxiterations=30;
+    //int max_iterations=40;//for FT4
+    //maxosd +=1;
+    int nosd=0;
+    if (maxosd>3) maxosd=3;
+    if (maxosd==0) //then //! osd with channel llrs
+    {
+        nosd=1;
+        for (int i = 0; i < N; ++i) zsave_[0][i]=llr[i];
+    }
+    else if (maxosd>0) nosd=maxosd;
+    else if (maxosd<0) nosd=0;
 
-
+    for (int i = 0; i<N; ++i)
+    {
+        zsum[i]=0.0;
+        for (int j = 0; j<3; ++j) tov_[i][j]=0.0;//tov=0
+    }
+    for (int j = 0; j<M; ++j)
+    {//do j=1,M
+        for (int i = 0; i<(nrw_ft8_174_91[j]); ++i)
+        {//do i=1,nrw(j)
+            toc_[j][i]=llr[Nm_ft8_174_91_[j][i]-1];//toc(i,j)=llr((Nm(i,j)))
+        }
+    }
+    int ncnt=0;
+    int nclast=0;
+    for (int iter = 0; iter<=30; ++iter)
+    {
+        //! Update bit log likelihood ratios (tov=0 in iteration 0).
+        //for (int i = 0; i<N; ++i) zsum[i]=0.0;
+        for (int i = 0; i< N; ++i)
+        {//do i=1,N
+            if ( apmask[i] != 1 )
+            {
+                double sumt = 0.0;
+                for (int x = 0; x < ncw; ++x) sumt+=tov_[i][x];//zn[i]=llr[i]+sum(tov(1:ncw,i))
+                zn[i]=llr[i]+sumt;
+            }
+            else zn[i]=llr[i];
+            if (zn[i]>0.0) cw[i]=1;//cw=0 //where( zn .gt. 0. ) cw=1
+            else cw[i]=0;
+            if (iter<maxosd) zsum[i]+=zn[i];  //zsum=zsum+zn
+        }//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+        // diff -> if(iter.gt.0 .and. iter.le.maxosd) then
+        //if (iter>0 && iter<=maxosd)
+        if (iter<maxosd)
+        {
+            for (int i = 0; i< N; ++i) zsave_[iter][i]=zsum[i]; //zsave_[iter-1][i]=zsum[i];// llr[i];
+        }
+        int ncheck=0;
+        for (int i = 0; i < M; ++i)
+        {//do i=1,M
+            int sum = 0;// synd(i)=sum(cw(Nm(1:nrw(i),i)))
+            for (int x = 0; x < nrw_ft8_174_91[i]; ++x) sum += (int)cw[Nm_ft8_174_91_[i][x]-1];//hv-1
+            synd[i]= sum;
+            if ( fmod(synd[i],2) != 0 ) ncheck++;//if( mod(synd(i),2) .ne. 0 ) ncheck=ncheck+1
+            //!   if( mod(synd(i),2) .ne. 0 ) write(*,*) 'check ',i,' unsatisfied'
+        }
+        if ( ncheck == 0 ) //then ! we have a codeword - if crc is good, return it
+        {
+            int nbadcrc;
+            for (int i = 0; i < 96; ++i)
+            {
+                m96[i]=0;
+                if (i<77) m96[i]=cw[i]; //m96(1:77)=cw(1:77)
+                if (i>81) m96[i]=cw[i-5];//m96(83:96)=cw(78:91) {m96[i]=cw[i-5]; qDebug()<<i<<i-5; }
+            }
+            get_crc14(m96,96,nbadcrc);//nharderror=count( (2*cw-1)*llr .lt. 0.0 )
+            if (nbadcrc==0) //then
+            {
+                int count = 0;
+                for (int i = 0; i < N; ++i)
+                {
+                    if ((double)(2*cw[i]-1)*llr[i] < 0.0 ) count++;
+                }
+                nharderror=count;
+                for (int i = 0; i < 91; ++i) message91[i]=cw[i];// message91=cw(1:91)
+                for (int i = 0; i < N; ++i) //where(llr .ge. 0) hdec=1 //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+                {
+                    hdec[i]=0;
+                    if (llr[i]>=0.0) hdec[i]=1;
+                    nxor[i]=hdec[i] ^ cw[i]; //nxor=ieor(hdec,cw)
+                    dmin+=(double)nxor[i]*fabs(llr[i]);	//dmin=sum(nxor*abs(llr))
+                }
+                //for (int i = 0; i < N; ++i)
+                //dmin+=nxor[i]*fabs(llr[i]);//dmin=sum(nxor*abs(llr))
+                //ntype=1
+                return;
+            }
+        }
+        if ( iter > 0 )  //! this code block implements an early stopping criterion
+        {   //if( iter.gt.10000 )
+            int nd=ncheck-nclast;
+            if ( nd < 0 ) ncnt=0; //! # of unsatisfied parity checks decreased //! reset counter
+            else ncnt++;  //ncnt=ncnt+1;
+            if ( ncnt >= 5 && iter >= 10 && ncheck > 15)//if( ncnt .ge. 5 .and. iter .ge. 10 .and. ncheck .gt. 15) then
+            {
+                nharderror=-1;
+                break;//exit return;
+            }
+        }
+        nclast=ncheck;//! Send messages from bits to check nodes
+        for (int j = 0; j < M; ++j)
+        {//do j=1,M
+            for (int i = 0; i < nrw_ft8_174_91[j]; ++i)
+            {//do i=1,nrw
+                int ibj=Nm_ft8_174_91_[j][i]-1;//ibj=Nm(i,j)
+                toc_[j][i]=zn[ibj];//toc(i,j)=zn(ibj)
+                for (int kk = 0; kk < ncw; kk++)
+                {//do kk=1,ncw //! subtract off what the bit had received from the check
+                    if ( Mn_ft8_174_91_[ibj][kk]-1 == j ) toc_[j][i]=toc_[j][i]-tov_[ibj][kk]; //hv-1 toc(i,j)=toc(i,j)-tov(kk,ibj)//hv-1 if( Mn(kk,ibj) .eq. j ) then   //! Mn(3,128)
+                } //tanhtoc_[j][i]=tanh(-toc_[j][i]/2.0);//tanhtoc(1:nrw,i)=tanh(-toc(1:nrw,i)/2)
+            }
+        }//! send messages from check nodes to variable nodes (Normalized Min-Sum)
+        for (int j = 0; j < N; ++j)
+        {//do j=1,N
+            for (int i = 0; i < ncw; ++i)
+            {
+                int ichk=Mn_ft8_174_91_[j][i]-1; //ichk=Mn(i,j)  //! Mn(:,j) are the checks that include bit j
+                sign_prod=1.0;
+                min_abs=1.0e30;
+                for (int z = 0; z < nrw_ft8_174_91[ichk]; ++z)
+                {
+                    if (Nm_ft8_174_91_[ichk][z]-1 != j)//if(Nm(kk,ichk).ne.j) then
+                    {
+                        sign_prod=sign_prod*copysign(1.0,toc_[ichk][z]);//(kk,ichk)
+                        if (fabs(toc_[ichk][z])<min_abs) min_abs=fabs(toc_[ichk][z]);
+                    }
+                }
+                tov_[j][i]=alpha_ms*sign_prod*min_abs;//tov(i,j)=alpha_ms*sign_prod*min_abs
+            }
+        }
+    }   //! bp iterations
+    for (int io = 0; io < nosd; ++io)//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+    {//do i=1,nosd
+        for (int j = 0; j < N; ++j) zn[j]=zsave_[io][j];//zn=zsave(:,i)
+        double dminosd = 0.0;
+        osd174_91_1(zn,apmask,norder,message91,cw,nharderror,dminosd);//Keff=91
+        if (nharderror>0)//then
+        {
+            for (int i = 0; i < N; ++i) //where(llr .ge. 0) hdec=1 //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+            {
+                hdec[i]=0;
+                if (llr[i]>=0.0) hdec[i]=1;
+                nxor[i]=hdec[i] ^ cw[i]; //nxor=ieor(hdec,cw)
+                dmin+=(double)nxor[i]*fabs(llr[i]);	//dmin=sum(nxor*abs(llr))
+            } //ntype=2;
+            return;
+        }
+    }
+    nharderror=-1;
+}*/
+/*#define MSHV_METHOD
+void PomFt::decode174_91_ft2a(double *llr,int maxosd,int norder,bool *apmask,bool *message91,bool *cw,int &nharderror,double &dmin)
+{	//int Keff=91,
+    const int N=174;
+    const int K=91;
+    const int M=(N-K);//83
+    double zsave_[8][N];//zsave(N,3)
+    double tov_[N][3];//(3,N)
+    double toc_[M][7];//(7,M) //double tanhtoc_[M][7];//(7,M)
+    double zsum[N+5];
+    double zn[N+5];
+    const int ncw=3;
+    bool m96[96+5];
+    bool hdec[N+2];
+    bool nxor[N+2];
+    int synd[M+5]; //const double alpha_ms = 0.75;  //! Min-Sum normalization factor
+    double sign_prod, min_abs, second_min;
+    const double LLRMAX = 20.0;//! Saturation limit (prevents runaway)
+    double llr_in[N+5];
+    double tov_prev_[N+5][3];//(3,N)//! Previous iteration tov (for SCMS + damping)
+    int perm[M+5];//! Row permutation for restart
+    int restart = 0;
+    double alpha = 0.0;
+    const double SCMS_BETA = 0.25;//! Self-correction strength
+    const double DAMP = 0.20;//! Damping factor (mix of old message)
+    int nosd=0; //maxosd=7;
+    if (maxosd>7) maxosd=7;//if (maxosd>3) maxosd=3;
+    if (maxosd==0) //then //! osd with channel llrs
+    {
+        nosd=1;
+        for (int i = 0; i < N; ++i) zsave_[0][i]=llr[i];
+    }
+    else if (maxosd>0) nosd=maxosd;
+    else if (maxosd<0) nosd=0;
+    //!  Clamp input LLRs to prevent numerical issues
+    for (int i = 0; i < N; ++i) //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+    {//do i=1,N
+        if (llr[i]> LLRMAX) llr[i]= LLRMAX;
+        if (llr[i]<-LLRMAX) llr[i]=-LLRMAX;
+    }
+    for (int i = 0; i < N; ++i) llr_in[i] = llr[i];
+    int nrestarts = 3;
+    if (maxosd<0) nrestarts = 3;//! more restarts if no OSD
+    //bool bp_converged = false;
+    for (restart=0; restart<=nrestarts; ++restart)
+    {//do restart = 0, nrestarts
+        for (int i = 0; i<M; ++i)
+        {
+            for (int j = 0; j<7; ++j) toc_[i][j]=0.0;
+        }
+        for (int i = 0; i<N; ++i)
+        {
+            llr[i] = llr_in[i];
+            zsum[i]=0.0;
+            for (int j = 0; j<3; ++j)
+            {
+                tov_[i][j]=0.0;//tov=0
+                tov_prev_[i][j]=0.0;
+            }
+        }
+        for (int j = 0; j<M; ++j)
+        {//do j=1,M
+            for (int i = 0; i<(nrw_ft8_174_91[j]); ++i)
+            {//do i=1,nrw(j)
+                toc_[j][i]=llr[Nm_ft8_174_91_[j][i]-1];//toc(i,j)=llr((Nm(i,j)))
+            }
+        }//! Build row permutation for this restart
+        for (int j = 0; j<M; ++j) perm[j] = j;
+        if (restart>0) //!    Deterministic permutation: rotate by restart*prime and reverse blocks
+        {
+            for (int j = 0; j<M; ++j)
+            {
+            	int p0 = (j+restart*31);
+            	perm[j] = (p0 % M);//fmod(j+restart*31,M);//perm(j) = mod(j-1 + restart*31, M) + 1
+           	}
+        }
+        int ncnt=0;
+        int nclast=0;
+        for (int iter = 0; iter<=30; ++iter)//for (int iter = 0; iter<=50; ++iter)
+        {	//! -- Adaptive alpha schedule -----------------------------
+            if (iter<=5) alpha=0.60;//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+            else if (iter<=15) alpha=0.60 + 0.30*(double)(iter-5)/10.0;//! 0.60>0.90 linear
+            else alpha=0.90;
+#if defined MSHV_METHOD
+			for (int i = 0; i< N; ++i)
+            {//do i=1,N
+                if (apmask[i]!=1)
+                {
+                    double sumt = 0.0;
+                    for (int x = 0; x < ncw; ++x) sumt+=tov_[i][x];//zn[i]=llr[i]+sum(tov(1:ncw,i))
+                    zn[i]=llr[i]+sumt;
+                }
+                else zn[i]=llr[i];
+                if (zn[i]>0.0) cw[i]=1;
+            	else cw[i]=0;
+            	if (iter<maxosd) zsum[i]+=zn[i];
+            }
+            if (iter>0 && restart==0 && iter<=fmin(maxosd,6))
+            {
+                for (int i = 0; i< N; ++i) zsave_[iter][i]=zsum[i];// zsave(:,iter)=zsum
+            }//! -- Check for valid codeword --
+            int ncheck=0;
+            for (int i = 0; i < M; ++i)
+            {//do i=1,M
+                int sum = 0;// synd(i)=sum(cw(Nm(1:nrw(i),i)))
+                for (int x = 0; x < nrw_ft8_174_91[i]; ++x) sum += (int)cw[Nm_ft8_174_91_[i][x]-1];//hv-1
+                synd[i]= sum;
+                if (fmod(synd[i],2) != 0) ncheck++;
+            }
+            if (ncheck==0) //then ! we have a codeword - if crc is good, return it
+            {
+                int nbadcrc;
+                for (int i = 0; i < 96; ++i)
+                {
+                    m96[i]=0;
+                    if (i<77) m96[i]=cw[i]; //m96(1:77)=cw(1:77)
+                    if (i>81) m96[i]=cw[i-5];//m96(83:96)=cw(78:91) {m96[i]=cw[i-5]; qDebug()<<i<<i-5; }
+                }
+                get_crc14(m96,96,nbadcrc);
+                if (nbadcrc==0) //then
+                {
+                    int count = 0;
+                    for (int i = 0; i < N; ++i)
+                    {
+                        if ((double)(2*cw[i]-1)*llr[i] < 0.0 ) count++;
+                    }
+                    nharderror=count;
+                    for (int i = 0; i < 91; ++i) message91[i]=cw[i];// message91=cw(1:91)
+                    for (int i = 0; i < N; ++i) //where(llr .ge. 0) hdec=1 //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+                    {
+                        hdec[i]=0;
+                        if (llr[i]>=0.0) hdec[i]=1;
+                        nxor[i]=hdec[i] ^ cw[i]; //nxor=ieor(hdec,cw)
+                        dmin+=(double)nxor[i]*fabs(llr[i]);	//dmin=sum(nxor*abs(llr))
+                    }
+                    //for (int i = 0; i < N; ++i)
+                    //dmin+=nxor[i]*fabs(llr[i]);//dmin=sum(nxor*abs(llr))
+                    //ntype=1
+                    //bp_converged = true;
+                    return;
+                }
+            }
+            if ( iter > 0 )  //! this code block implements an early stopping criterion
+            {   //if( iter.gt.10000 )
+                int nd=ncheck-nclast;
+                if ( nd < 0 ) ncnt=0; //! # of unsatisfied parity checks decreased //! reset counter
+                else ncnt++;  //ncnt=ncnt+1;
+                if ( ncnt >= 5 && iter >= 10 && ncheck > 15)
+                {
+                    nharderror=-1;
+                    break;//exit return;
+                }
+            }
+            nclast=ncheck;
+#else
+            for (int i = 0; i< N; ++i)
+            {//do i=1,N
+                if (apmask[i]!=1)
+                {
+                    double sumt = 0.0;
+                    for (int x = 0; x < ncw; ++x) sumt+=tov_[i][x];//zn[i]=llr[i]+sum(tov(1:ncw,i))
+                    zn[i]=llr[i]+sumt;
+                }
+                else zn[i]=llr[i];
+            }
+#endif
+            if (iter>0)//! Save tov for self-correction + damping comparison
+            {
+                for (int i = 0; i<N; ++i)
+                {
+                    for (int j = 0; j<3; ++j) tov_prev_[i][j] = tov_[i][j];
+                }
+            }//! -- Layered update: process check nodes in permuted order --
+            for (int jj = 0; jj<M; ++jj)
+            {//do jj=1,M
+                int j = perm[jj];//!Step A: compute variable-to-check messages for this check
+                for (int i = 0; i<nrw_ft8_174_91[j]; ++i)
+                {//do i=1,nrw(j)
+                    int ibj=Nm_ft8_174_91_[j][i]-1;//Nm(i,j)
+                    toc_[j][i]=zn[ibj];//toc(i,j)=zn(ibj)
+                    for (int kk = 0; kk<ncw; ++kk)
+                    {//do kk=1,ncw
+                        if (Mn_ft8_174_91_[ibj][kk]-1 == j) toc_[j][i]=toc_[j][i]-tov_[ibj][kk];
+                    }
+                }//!Step B: compute new check-to-variable messages (Min-Sum + SCMS + Damping)
+                for (int i = 0; i<nrw_ft8_174_91[j]; ++i)
+                {//do i=1,nrw(j)
+                    int ibj=Nm_ft8_174_91_[j][i]-1;//ibj=Nm(i,j)
+                    for (int kk = 0; kk<ncw; ++kk)
+                    {//do kk=1,ncw
+                        if (Mn_ft8_174_91_[ibj][kk]-1 == j)//if( Mn(kk,ibj) == j )
+                        {	//!Standard Normalized Min-Sum
+                            sign_prod=1.0;
+                            min_abs=1.0e30;
+                            second_min=1.0e30;
+                            for (int ll = 0; ll<nrw_ft8_174_91[j]; ++ll)
+                            {//do ll=1,nrw(j)
+                                if (ll!=i)//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+                                {
+                                    sign_prod=sign_prod*copysign(1.0,toc_[j][ll]);
+                                    if (fabs(toc_[j][ll])<min_abs)
+                                    {
+                                        second_min=min_abs;
+                                        min_abs=fabs(toc_[j][ll]);
+                                    }
+                                    else if (fabs(toc_[j][ll])<second_min) second_min=fabs(toc_[j][ll]);
+                                }
+                            }//!-- Self-Corrected Min-Sum (SCMS) ----------
+                            double correction = 0.0;
+                            if (iter>1)
+                            {
+                                if (copysign(1.0,tov_prev_[ibj][kk])!=copysign(1.0,sign_prod*min_abs))
+                                {
+                                    correction = SCMS_BETA * fmax(0.0,min_abs - 0.5*second_min);
+                                }
+                            }
+                            double tov_new = alpha * sign_prod * fmax(0.0, min_abs - correction);
+                            //!-- Damping/Momentum ---------------------
+                            //!Mix 80% new + 20% old to prevent oscillation
+                            if (iter>1) tov_[ibj][kk] = (1.0-DAMP)*tov_new + DAMP*tov_prev_[ibj][kk];
+                            else tov_[ibj][kk] = tov_new;//!Clamp to prevent saturation
+                            if (tov_[ibj][kk]> LLRMAX) tov_[ibj][kk]= LLRMAX;
+                            if (tov_[ibj][kk]<-LLRMAX) tov_[ibj][kk]=-LLRMAX;
+                        }
+                    }
+                }//!Step C: IMMEDIATELY update variable beliefs
+                for (int i = 0; i<nrw_ft8_174_91[j]; ++i)
+                {//do i=1,nrw(j)
+                    int ibj=Nm_ft8_174_91_[j][i]-1;//ibj=Nm(i,j)
+                    double sum0=0.0;
+                    if (apmask[ibj] != 1)
+                    {
+                        for (int z = 0; z<ncw; ++z) sum0+=tov_[ibj][z];//(1:ncw,ibj))
+                        zn[ibj]=llr[ibj]+sum0;
+                    }
+                }
+            }  //! j (check nodes) — end of layered sweep
+#if !defined MSHV_METHOD
+			//! -- Accumulate for OSD snapshots (7 instead of 5) --
+            for (int i = 0; i< N; ++i) zsum[i]+=zn[i]; //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+            if (iter>0 && restart==0 && iter<=fmin(maxosd,6))
+            {
+                for (int i = 0; i< N; ++i) zsave_[iter][i]=zsum[i];// zsave(:,iter)=zsum
+            }//! -- Check for valid codeword --
+            int ncheck=0;
+            for (int i = 0; i< N; ++i)
+            {
+                if (zn[i]>0.0) cw[i]=1;//cw=0 //where( zn .gt. 0. ) cw=1
+                else cw[i]=0;
+            }
+            for (int i = 0; i < M; ++i)
+            {//do i=1,M
+                int sum = 0;// synd(i)=sum(cw(Nm(1:nrw(i),i)))
+                for (int x = 0; x < nrw_ft8_174_91[i]; ++x) sum += (int)cw[Nm_ft8_174_91_[i][x]-1];//hv-1
+                synd[i]= sum;
+                if (fmod(synd[i],2) != 0) ncheck++;
+            }
+            if (ncheck==0) //then ! we have a codeword - if crc is good, return it
+            {
+                int nbadcrc;
+                for (int i = 0; i < 96; ++i)
+                {
+                    m96[i]=0;
+                    if (i<77) m96[i]=cw[i]; //m96(1:77)=cw(1:77)
+                    if (i>81) m96[i]=cw[i-5];//m96(83:96)=cw(78:91) {m96[i]=cw[i-5]; qDebug()<<i<<i-5; }
+                }
+                get_crc14(m96,96,nbadcrc);
+                if (nbadcrc==0) //then
+                {
+                    int count = 0;
+                    for (int i = 0; i < N; ++i)
+                    {
+                        if ((double)(2*cw[i]-1)*llr[i] < 0.0 ) count++;
+                    }
+                    nharderror=count;
+                    for (int i = 0; i < 91; ++i) message91[i]=cw[i];// message91=cw(1:91)
+                    for (int i = 0; i < N; ++i) //where(llr .ge. 0) hdec=1 //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+                    {
+                        hdec[i]=0;
+                        if (llr[i]>=0.0) hdec[i]=1;
+                        nxor[i]=hdec[i] ^ cw[i]; //nxor=ieor(hdec,cw)
+                        dmin+=(double)nxor[i]*fabs(llr[i]);	//dmin=sum(nxor*abs(llr))
+                    }
+                    //for (int i = 0; i < N; ++i)
+                    //dmin+=nxor[i]*fabs(llr[i]);//dmin=sum(nxor*abs(llr))
+                    //ntype=1
+                    //bp_converged = true;
+                    return;
+                }
+            }
+            if ( iter > 0 )  //! this code block implements an early stopping criterion
+            {   //if( iter.gt.10000 )
+                int nd=ncheck-nclast;
+                if ( nd < 0 ) ncnt=0; //! # of unsatisfied parity checks decreased //! reset counter
+                else ncnt++;  //ncnt=ncnt+1;
+                if ( ncnt >= 7 && iter >= 15 && ncheck > 20)//if( ncnt .ge. 5 .and. iter .ge. 10 .and. ncheck .gt. 15) then
+                {
+                    nharderror=-1;
+                    break;//exit return;
+                }
+            }
+            nclast=ncheck;
+#endif
+        }   //! bp iterations
+    }
+    for (int io = 0; io < nosd; ++io)//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+    {//do i=1,nosd
+        if (io>6) break;
+        for (int j = 0; j < N; ++j) zn[j]=zsave_[io][j];//zn=zsave(:,i)
+        double dminosd = 0.0;
+        osd174_91_1(zn,apmask,norder,message91,cw,nharderror,dminosd);//Keff=91
+        if (nharderror>0)//then
+        {
+            for (int i = 0; i < N; ++i) //where(llr .ge. 0) hdec=1 //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+            {
+                hdec[i]=0;
+                if (llr[i]>=0.0) hdec[i]=1;
+                nxor[i]=hdec[i] ^ cw[i]; //nxor=ieor(hdec,cw)
+                dmin+=(double)nxor[i]*fabs(llr[i]);	//dmin=sum(nxor*abs(llr))
+            } //ntype=2;
+            return;
+        }
+    }
+    nharderror=-1;
+}*/
 //// END POMFT ///
 

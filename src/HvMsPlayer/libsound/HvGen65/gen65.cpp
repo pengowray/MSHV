@@ -471,9 +471,7 @@ void Gen65::rs_encode(int *dgen, int *sent)
     }
 
     // Reverse data order for the Karn codec.
-    for (i=0;
-            i<12;
-            i++)
+    for (i=0; i<12; i++)
     {
         dat1[i]=dgen[11-i];
     }
@@ -481,12 +479,8 @@ void Gen65::rs_encode(int *dgen, int *sent)
     encode_rs_int(rs,dat1,b);
 
     // Move parity symbols and data into sent[] array, in reverse order.
-    for (i = 0;
-            i < 51;
-            i++) sent[50-i] = b[i];
-    for (i = 0;
-            i < 12;
-            i++) sent[i+51] = dat1[11-i];
+    for (i = 0; i < 51; i++) sent[50-i] = b[i];
+    for (i = 0; i < 12; i++) sent[i+51] = dat1[11-i];
 }
 
 void Gen65::move(int *x, int *y, int n)

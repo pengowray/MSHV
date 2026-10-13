@@ -95,8 +95,8 @@ void GenQ65::genq65itone(QString msg0,int *itone,bool unpck)
             1,9,12,13,15,22,23,26,27,33,35,38,46,50,55,60,62,66,69,74,76,85
         }
         ;//22
-    for (int i = 0; i < 100; ++i)
-        c77[i]=false;
+    for (int i = 0; i < 100; ++i) c77[i]=false;
+    
     TPackUnpackMsg77.pack77(msg0,i3,n3,c77);
     int ng15 = BinToInt32(c77,59,74);
     if (ng15 == 32373) //!Message is RR73 ??
@@ -155,6 +155,7 @@ int GenQ65::genq65(QString message_in,int *t_iwave,double GEN_SAMPLE_RATE,double
     double twopi=8.0*atan(1.0);
     QString msg0 = message_in;//format_msg(message_in,cmsg);
 
+    TPackUnpackMsg77.reset_save_hash_calls_gen();//2.76.2
     genq65itone(msg0,itone,true);
 
     ///////////////// generator wave //////////////////////////////////c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.

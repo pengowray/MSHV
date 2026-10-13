@@ -13,6 +13,8 @@
 #ifndef GENPOM_H
 #define GENPOM_H
 #include <math.h>
+#include <QByteArray>
+#include <QDateTime>
 
 double gfsk_pulse_(double b,double t);
 void gen_pulse_gfsk_(double *pulse,double k,double bt,int nsps);
@@ -22,10 +24,19 @@ class GenPomFt
 public:
     void initGenPomFt();
     void encode174_91(bool *message77,bool *codeword);
+    QString foxOTPcode(QString);//otp//
 private:
     bool first_ft_enc_174_91;
     char genft_174_91[100][95];//91 83
     short crc14(unsigned char const * data, int length);
+    //otp//
+    QByteArray generateHOTP(const QByteArray &rawSecret, quint64 counter, int length);
+    QByteArray fromBase32(const QString &input);
+    /*QString generateHOTP(const QString &secret, quint64 counter, int length);
+    QByteArray generateTOTP(const QByteArray &rawSecret, int length);
+    QString generateTOTP(const QString &secret, int length);*/
+    QString generateTOTP(const QString &secret, QDateTime dt, int length);
+    // end otp//    
 };
 
 

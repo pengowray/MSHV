@@ -30,7 +30,7 @@ HvAboutMsHv::HvAboutMsHv(QString title,QString app_name,QString path,int lid,QWi
     //<program>  Copyright (C) <year>  <name of author>
     
     //QString c = "©";0xA9
-    lab_title->setText(app_name+" Copyright "+QChar(0xA9)+" 2015-2023 Hrisimir Hristov - LZ2HV<br><a href=\"mailto:lz2hv@abv.bg\">lz2hv@abv.bg</a>"+" & "+"<a href=\"http://lz2hv.org/mshv\">MSHV Web Site</a>");
+    lab_title->setText(app_name+" Copyright "+QChar(0xA9)+" 2015-2025 Hrisimir Hristov - LZ2HV<br><a href=\"mailto:lz2hv@abv.bg\">lz2hv@abv.bg</a>"+" & "+"<a href=\"http://lz2hv.org/mshv\">MSHV Web Site</a>");
     lab_title->setAlignment(Qt::AlignHCenter);
     layout_v->addWidget(lab_title);
 

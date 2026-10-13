@@ -118,6 +118,21 @@ private:
 	bool f_sb_mtp;
 //protected:
 };
+class HvSpinBoxSlots : public QSpinBox//2.76
+{
+    Q_OBJECT
+public:
+    HvSpinBoxSlots(QWidget *parent = 0);
+    virtual ~HvSpinBoxSlots(); 
+    void SetMsfS5(bool);
+    int valueS();
+    int maximumS();
+//signals:
+//public slots:
+private:
+	bool s_msf;
+//protected:
+};
 
 #define MAXSL 6 //2.71 old=5
 class MultiAnswerModW : public QTabWidget
@@ -166,14 +181,14 @@ public:
     	if (LsQueue->s_order_1==Qt::AscendingOrder) i1=0;
     	if (LsQueue->s_order_3==Qt::AscendingOrder) i3=0;
         out.append(QString("%1").arg(i1)+"#"+QString("%1").arg(i3)); 
-        //out.append("#");
-        //out.append(QString("%1").arg(cb_tx_sm_std->isChecked()));        
+        out.append("#");
+        out.append(QString("%1").arg(cb_otp_mamd_key->isChecked()));//2.76sf        
         out.append("##"); //2.71 2.70 reserved            
         return out;
     }
     void SetFont(QFont f);
-    bool isStandardCall(QString w);
-    void isStandardCalls(QString c1,QString c2,bool &fc1,bool &fc2,bool &noQSO);
+    bool isStandardCall(QString w);//,bool nobc = false
+    void isStandardCalls(QString c1,QString c2,bool &fc1,bool &fc2,uint8_t &noQSO);
     void SetTextMark(bool b,bool m);
     void SetInfoDupeQso(bool f);
     bool DialogIsCallDupeInLog(QString hisCall_inmsg);
@@ -197,6 +212,7 @@ public:
 	void setHfBand(bool f);
 	QString DetectCQTypeFromMacros(QString);
 	void SetMaManAdding(bool);
+	void SetMsfS5SMsg(uint8_t);//2.76	
 
 signals:
     void MamEmitMessage(QString,bool,bool,bool);
@@ -211,6 +227,7 @@ signals:
     void EmitQSOProgressMAM(int,bool);//2.51
     void EmitDoQRG(QString,QString);
     void EmitMAFirstTX(bool);
+    void EmitSFMATxAll(QString);//2.76
     
 public slots:
 	void SetHisCallChanged(QString); 
@@ -227,9 +244,14 @@ private slots:
     void LeFreeCQtextChanged(QString);
     void UseFreeCq();
     void CbTxCqOnFreeSlotChanged(bool);
+    void cb_otp_mamd_key_toggled();//2.76sf  
 
 private:
     //PomAll pomAll;
+    uint8_t id_mshf;
+    bool s_msf_ftmsg;//2.76
+    uint8_t c_sf_rpt;
+    uint8_t c_sf_r73;
 	bool dsty;
 	QString s_qrg;
 	QString s_last_bccall_tolog_excp;
@@ -258,17 +280,20 @@ private:
     ListA *LsQueue;
     ListA *LsNow;
     QSpinBox *SBqueueLimit;
-    QSpinBox *SBslots;
+    //QSpinBox *SBslots;
+    HvSpinBoxSlots *SBslots;
     
     float period_time_sec;
     HvSpinBoxMTP *SBmaxTP;
     
     QComboBox *Cbcqtype;
+    QComboBox *CbcqtypeSF;
     HvLeWithSpace *LeFreeCQ;
     //QCheckBox *cb_no_dupes;
     //QString filt_txt;
     QComboBox *Cb_dupes;
     QCheckBox *cb_tx_sm;//2.10 tx/notx special msg
+    QCheckBox *cb_otp_mamd_key;//2.76sf
     //QCheckBox *cb_tx_sm_std;//2.71
     //QCheckBox *cb_a_sort;//2.13 sort
     QComboBox *Cb_sort;
@@ -279,6 +304,7 @@ private:
     bool is_pfx(QString s);
     bool is_sfx(QString s);
 	bool g_block_stop_auto;//2.52
+	QString MakeSMsg(QString,QString,QString,QString);
     QString DecodeMacros(int row,QString id);
 
     bool f_auto_on;
@@ -305,6 +331,7 @@ private:
     bool is_LastTxRptCq;//2.66
     int s_dist_points;//2.66
     bool s_man_adding;
+    void SetSFMATxAll();//2.76
 
 protected:
 

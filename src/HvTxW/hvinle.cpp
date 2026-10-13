@@ -374,7 +374,7 @@ void HvRptLe::SetSpinCtrl(bool f)
 QString HvRptLe::format_rpt_tx(QString s)
 {
     QString ss;
-    if ((s_mode == 0 || s_mode == 11 || s_mode == 13 || allq65) && !s_sh_rpt)//msk144 ft8 ft4
+    if ((s_mode == 0 || s_mode == 11 || s_mode == 13 || s_mode == 18 || allq65) && !s_sh_rpt)//msk144 ft8 ft4
     {
         if (s_cont_type==3)//52-59 for Contest v2
             ss=s;
@@ -394,7 +394,7 @@ QString HvRptLe::format_rpt_tx(QString s)
     }
     else
     {
-        if (s_mode == 0 || s_mode == 11 || s_mode == 13 || allq65)//msk144 ft8 ft4
+        if (s_mode == 0 || s_mode == 11 || s_mode == 13 || s_mode == 18 || allq65)//msk144 ft8 ft4
         {
             if (s_cont_type==3)//52-59 for Contest v2
                 ss=s;
@@ -441,7 +441,7 @@ QString HvRptLe::format_rpt_tx(QString s)
 QString HvRptLe::format_rpt(QString s)
 {
     QString ss;
-    if ((s_mode == 0 || s_mode == 11 || s_mode == 13 || allq65) && !s_sh_rpt)//msk144 ft8 ft4
+    if ((s_mode == 0 || s_mode == 11 || s_mode == 13 || s_mode == 18 || allq65) && !s_sh_rpt)//msk144 ft8 ft4
     {
         if (s_cont_type==3)////52-59 for Contest v2
             ss=s;
@@ -461,7 +461,7 @@ QString HvRptLe::format_rpt(QString s)
     }
     else
     {
-        if (s_mode == 0 || s_mode == 11 || s_mode == 13 || allq65)//msk144 ft8 ft4
+        if (s_mode == 0 || s_mode == 11 || s_mode == 13 || s_mode == 18 || allq65)//msk144 ft8 ft4
         {
             if (s_cont_type==3)////52-59 for Contest v2
                 ss=s;
@@ -542,7 +542,7 @@ void HvRptLe::SetRptRsqSettings(QString title, int mode, bool rpt_rsq, bool sh_r
                 SetSpinCtrl(true);
             }
         }
-        if (s_mode == 11 || s_mode == 13 || allq65)//ft8 ft4 q65
+        if (s_mode == 11 || s_mode == 13 || s_mode == 18 || allq65)//ft8 ft4 q65
         {
             if (s_cont_type==3)//for Contest v2
                 le_in->setText("59");
@@ -643,14 +643,14 @@ void HvRptLe::IncreaseRpt(int i)
         le_in->setText(rpt_ms_p[s_rep_pos]);
     }
     //ISCAT-A ISCAT-B jt65abc pi4 ft8 ft4
-    if (s_mode == 4 || s_mode == 5 || s_mode == 7 || s_mode == 8 || s_mode == 9 || s_mode == 10 || s_mode == 11 || s_mode == 13 || allq65)
+    if (s_mode == 4 || s_mode == 5 || s_mode == 7 || s_mode == 8 || s_mode == 9 || s_mode == 10 || s_mode == 11 || s_mode == 13 || s_mode == 18 || allq65)
     {
-        if ((s_mode == 11 || s_mode == 13 || allq65) && s_cont_type==3)//for Contest v2 ft8 ft4
+        if ((s_mode == 11 || s_mode == 13 || s_mode == 18 || allq65) && s_cont_type==3)//for Contest v2 ft8 ft4
         {
             s_rep_pos = le_in->text().toInt() + i; //52-59
             le_in->setText(format_rpt(QString("%1").arg(s_rep_pos)));
         }
-        else if ((s_mode == 11 || s_mode == 13 || allq65) && s_cont_type==5)//529-599  ft8 ft4
+        else if ((s_mode == 11 || s_mode == 13 || s_mode == 18 || allq65) && s_cont_type==5)//529-599  ft8 ft4
         {
             s_rep_pos = le_in->text().toInt() + i*10;
             le_in->setText(format_rpt(QString("%1").arg(s_rep_pos)));
@@ -808,7 +808,7 @@ void HvRptLe::SndCheck_s(QString s)
             if ( s.toInt() > 49 )
                 le_in->setText("49");
         }
-        if (s_mode == 11 || s_mode == 13 || allq65)//ft8 ft4
+        if (s_mode == 11 || s_mode == 13 || s_mode == 18 || allq65)//ft8 ft4
         {
             if (s_cont_type==3)//for Contest v2
             {

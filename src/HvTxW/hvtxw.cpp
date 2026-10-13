@@ -27,6 +27,7 @@ HvLabAutoSeq::HvLabAutoSeq(bool f,QWidget * parent )
     s_autoseq[15] = true; //q65b  default
     s_autoseq[16] = true; //q65c  default
     s_autoseq[17] = true; //q65d  default
+    s_autoseq[18] = true; //ft2   default
 
     s_mode = 2;//fsk441
 
@@ -216,7 +217,7 @@ void HvTxIn::b_released()
 TWDialog::TWDialog(QWidget *m,QWidget *n,QWidget *r,QWidget * parent)
         : QDialog(parent)
 {
-    setMinimumWidth(510);//480
+    setMinimumWidth(520);//510 480 
     //setSizePolicy(QSizePolicy::Minimum,QSizePolicy::Minimum);
     setWindowTitle("MSHV");
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
@@ -260,6 +261,7 @@ HvTxW::HvTxW(QString inst,QString path,int lid,bool f,int x,int y,QWidget * pare
     dsty = f;
     AppPath = path;
     l_mam_hiscals_.clear();
+    id_mshf = 10;//2.76
 
     THvMakros = new HvMakros(AppPath,dsty,this);
     connect(THvMakros,SIGNAL(EmitRptRsq(bool)),this,SLOT(SetRptRsq(bool)));
@@ -269,11 +271,19 @@ HvTxW::HvTxW(QString inst,QString path,int lid,bool f,int x,int y,QWidget * pare
     TRadioAndNetW = new RadioAndNetW(inst,AppPath,dsty,x,y,this);
     connect(TRadioAndNetW,SIGNAL(FindLocFromDB(QString)),this,SLOT(ExternalFindLocFromDB(QString)));
     connect(TRadioAndNetW,SIGNAL(EmitUdpCmdDl(QStringList)),this,SIGNAL(EmitUdpCmdDl(QStringList)));
+    connect(TRadioAndNetW,SIGNAL(EmitUdpConfigure(int)),this,SIGNAL(EmitUdpConfigure(int)));
     connect(TRadioAndNetW,SIGNAL(EmitUdpCmdStop(bool)),this,SIGNAL(EmitUdpCmdStop(bool)));
     connect(TRadioAndNetW,SIGNAL(EmitOpenRadNetWToRecon()),this,SLOT(NetW_exec()));
+    connect(TRadioAndNetW,SIGNAL(EmitOtpTxKey(QString)),this,SIGNAL(EmitOtpTxKey(QString)));//2.76sf
+    connect(TRadioAndNetW,SIGNAL(EmitOtpRxMsg(bool)),this,SIGNAL(EmitOtpRxMsg(bool)));//2.76sf
+    connect(TRadioAndNetW,SIGNAL(EmitOtpVerif(QString,uint8_t)),this,SIGNAL(EmitOtpVerif(QString,uint8_t)));//2.76sf
 
     TWD = new TWDialog(THvMakros,TRadioAndNetW,TRadioAndNetW->GetRadListW(),this);
     connect(TWD,SIGNAL(EmitClose()),THvMakros,SLOT(SetClose()));
+
+	flex_panel = new FlexPanel(dsty,this);
+	flex_panel->hide();
+	connect(flex_panel,SIGNAL(EmitUpdateFlexMeter(bool,bool,double,double,bool)),this,SLOT(UpdateFlexMeter(bool,bool,double,double,bool)));
 
     slid = lid;
     allq65 = false;
@@ -327,8 +337,9 @@ HvTxW::HvTxW(QString inst,QString path,int lid,bool f,int x,int y,QWidget * pare
     connect(THvAstroDataW, SIGNAL(EmitAstroWIsClosed()), this, SIGNAL(EmitAstroWIsClosed()));
     connect(THvAstroDataW, SIGNAL(EmitAstroData(double,double,int,double)),this,SLOT(SetAstroData(double,double,int,double)));
 
-    g_no_block_tx = 101;//101=noblock 100=blockall 6=blocktx7
+    g_no_block_tx = 101;//101=noblock 100=blockall 6=blocktx7 1=blocktx2
     g_ub_m_k = false;
+    prev_frest_ = false;
     //s_msk144_contest_mode = false;
     TRadioAndNetW->GetFtFr(_ftfr_);
     s_cont_type = 0; // default
@@ -355,8 +366,7 @@ HvTxW::HvTxW(QString inst,QString path,int lid,bool f,int x,int y,QWidget * pare
     f_cntest_only_sdtc = false;
     f_two_no_sdtc = false;
 
-    for (int i = 0; i < TEX_MARK_C; i++)
-        s_txt_mark[i]=true;// inportet default all is marked HV 1.26 here and in hvtxtcolor.cpp
+    for (int i = 0; i < TEX_MARK_C; i++) s_txt_mark[i]=true;// inportet default all is marked HV 1.26 here and in hvtxtcolor.cpp
 
     block_mon_call1 = true;
     block_mon_call2 = true;
@@ -481,15 +491,16 @@ HvTxW::HvTxW(QString inst,QString path,int lid,bool f,int x,int y,QWidget * pare
     MultiAnswerMod->setHidden(true);//by default
     V_l->addWidget(MultiAnswerMod);
     V_l->setAlignment(MultiAnswerMod, Qt::AlignBottom);
-    connect(MultiAnswerMod, SIGNAL(MamEmitMessage(QString,bool,bool,bool)),this,SLOT(SetEmitMessage(QString,bool,bool,bool)));
-    connect(MultiAnswerMod, SIGNAL(EmitMAMCalls(QStringList)), this, SIGNAL(EmitMAMCalls(QStringList)));
-    connect(MultiAnswerMod, SIGNAL(EmitHisCalls(QStringList)), this, SLOT(SetHisCalls(QStringList)));//2.71
-    connect(MultiAnswerMod, SIGNAL(EmitDxParm(QString,QString,QString)), this, SLOT(SetDxParm(QString,QString,QString)));
-    connect(MultiAnswerMod, SIGNAL(EmitGBlockListExp(bool)), this, SIGNAL(EmitGBlockListExp(bool)));
-    connect(MultiAnswerMod, SIGNAL(EmitStopAuto()), this, SLOT(StopAuto()));//,Qt::DirectConnection
-    connect(MultiAnswerMod, SIGNAL(EmitQSOProgressMAM(int,bool)), this, SLOT(SetQSOProgressAll(int,bool)));//2.51
-    connect(MultiAnswerMod, SIGNAL(EmitDoQRG(QString,QString)),this,SLOT(SetDoQRG(QString,QString)));//2.71
-    connect(MultiAnswerMod, SIGNAL(EmitMAFirstTX(bool)),this,SLOT(SetMAFirstTX(bool)));//2.71
+    connect(MultiAnswerMod,SIGNAL(MamEmitMessage(QString,bool,bool,bool)),this,SLOT(SetEmitMessage(QString,bool,bool,bool)));
+    connect(MultiAnswerMod,SIGNAL(EmitMAMCalls(QStringList)), this, SIGNAL(EmitMAMCalls(QStringList)));
+    connect(MultiAnswerMod,SIGNAL(EmitHisCalls(QStringList)), this, SLOT(SetHisCalls(QStringList)));//2.71
+    connect(MultiAnswerMod,SIGNAL(EmitDxParm(QString,QString,QString)), this, SLOT(SetDxParm(QString,QString,QString)));
+    connect(MultiAnswerMod,SIGNAL(EmitGBlockListExp(bool)), this, SIGNAL(EmitGBlockListExp(bool)));
+    connect(MultiAnswerMod,SIGNAL(EmitStopAuto()), this, SLOT(StopAuto()));//,Qt::DirectConnection
+    connect(MultiAnswerMod,SIGNAL(EmitQSOProgressMAM(int,bool)), this, SLOT(SetQSOProgressAll(int,bool)));//2.51
+    connect(MultiAnswerMod,SIGNAL(EmitDoQRG(QString,QString)),this,SLOT(SetDoQRG(QString,QString)));//2.71
+    connect(MultiAnswerMod,SIGNAL(EmitMAFirstTX(bool)),this,SLOT(SetMAFirstTX(bool)));//2.71
+    connect(MultiAnswerMod,SIGNAL(EmitSFMATxAll(QString)),this,SIGNAL(EmitSFMATxAll(QString)));//2.76sf
 
     QHBoxLayout *H_tx = new QHBoxLayout();
     H_tx->setContentsMargins ( 0, 0, 0, 0);
@@ -566,13 +577,29 @@ HvTxW::HvTxW(QString inst,QString path,int lid,bool f,int x,int y,QWidget * pare
     //cb_zap->setFixedWidth(48);//42 stop v 1.24 hv hide end zap for w10
     connect(cb_zap, SIGNAL(toggled(bool)), this, SIGNAL(EmitZap(bool)));
     cb_zap->setChecked(false);
+
+    //cb_msh = new QCheckBox("MSHxxxxxxx");//2.76
+    cb_msh = new QCheckBox(tr("Super Hound"));//2.76
+    cb_msh->setChecked(false);
+    cb_msh->setHidden(true);
+    //cb_msf = new QCheckBox("MSFxxxxx");
+    cb_msf = new QCheckBox(tr("Super Fox"));
+    cb_msf->setChecked(false);
+    cb_msf->setHidden(true);
+    cb_msf->setEnabled(false);
+    connect(cb_msh,SIGNAL(toggled(bool)),this,SLOT(MshfChanget(bool)));
+    connect(cb_msf,SIGNAL(toggled(bool)),this,SLOT(MshfChanget(bool)));
+    
     QHBoxLayout *H_lsz = new QHBoxLayout();
     H_lsz->setContentsMargins(0,0,0,0);
     H_lsz->setSpacing(1);
     H_lsz->addWidget(SB_MinSigdB);
     H_lsz->addWidget(TQueuedCall);
-    H_lsz->addWidget(sb_txsn_v2);
-
+    H_lsz->addWidget(sb_txsn_v2);        
+    H_lsz->addWidget(cb_msh);
+    H_lsz->addWidget(cb_msf);    
+    //f_vsf_ = false;//2.76sf for remove
+    
     H_lsz->addWidget(cb_zap);
     //H_lsz->setAlignment(cb_zap, Qt::AlignRight);
 
@@ -656,12 +683,13 @@ HvTxW::HvTxW(QString inst,QString path,int lid,bool f,int x,int y,QWidget * pare
     s_list_mark_myc.clear();
     s_calls_mark = "";
 
-    QPushButton *b_add_to_log = new QPushButton(tr("ADD TO LOG"));//ADD TO LOG
+    b_add_to_log = new HvButtonLeftRightClick(tr("ADD TO LOG"));//2.75
     b_add_to_log->setFixedHeight(21);
-    //b_add_to_log->setMinimumWidth(10);
-    //b_add_to_log->setFixedWidth(60);
-    //connect(b_add_to_log, SIGNAL(released()), this, SLOT(AddToLog()));
-    connect(b_add_to_log, SIGNAL(clicked(bool)), this, SLOT(AddToLogButton()));
+    b_add_to_log->setStyleSheet("QPushButton{background-color:palette(Button);}");
+    b_add_to_log->setToolTip(tr("Left Click, ADD TO LOG")+"\n"+tr("Right Click, Logging Settings"));
+    connect(b_add_to_log,SIGNAL(lclicked()),this,SLOT(AddToLogButton()));
+    connect(b_add_to_log,SIGNAL(rclicked()),this,SLOT(SetAutoLogInfo()));
+    connect(THvLogW,SIGNAL(EmitCBEnableAliChanged(bool)),this,SLOT(CBEnableAliChanged(bool)));
 
     le_his_call = new HvInLe("call", tr("TO RADIO")+":",dsty);
     //le_his_call->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
@@ -817,17 +845,22 @@ HvTxW::HvTxW(QString inst,QString path,int lid,bool f,int x,int y,QWidget * pare
     //l_dey->setFont(f_t);
     l_dey->setContentsMargins(0,0,0,0);
     //l_dey->setFixedWidth(85);//110 stop v 1.24 hv hide end dey for w10
+    sb_dt = new HvSpinBoxDt(dsty);
+    connect(sb_dt,SIGNAL(EmitValueChanged(int)),this,SIGNAL(EmitOffsetDt(int)));
 
     QHBoxLayout *H_detm = new QHBoxLayout();
-    H_detm->setContentsMargins ( 1, 1, 1, 1);
+    H_detm->setContentsMargins (1,1,1,1);
     H_detm->setSpacing(10);// v1.24 hv no hide time and dey w10
     H_detm->addWidget(l_dey);
     H_detm->setAlignment(l_dey, Qt::AlignVCenter);
     H_detm->addWidget(l_time);
+    H_detm->setAlignment(l_time,Qt::AlignCenter);
+    H_detm->addWidget(sb_dt);
     H_detm->setAlignment(Qt::AlignCenter);
+    sb_dt->SetHidden(true);
 
     QVBoxLayout *V_dt = new QVBoxLayout();
-    V_dt->setContentsMargins ( 1, 1, 1, 1);
+    V_dt->setContentsMargins (1,1,1,1);
     V_dt->setSpacing(3);
     QSpacerItem *item = new QSpacerItem(1,1, QSizePolicy::Expanding, QSizePolicy::Fixed);
     V_dt->addSpacerItem(item);
@@ -835,7 +868,7 @@ HvTxW::HvTxW(QString inst,QString path,int lid,bool f,int x,int y,QWidget * pare
     l_mycall_loc = new QLabel();
     //l_mycall_loc->setFont(f_t);
     s_band = "70 MHz";
-    s_iband = 16;//70 MHz
+    s_iband = 17;//2.76.5 17 default HV 70 MHz 
 
     rig_cat_active_and_read = false;  //no read rig
 
@@ -1055,9 +1088,13 @@ HvTxW::~HvTxW()
     //TMsDb->SaveDb();  2.35 stop close error no needed
     //THvLogW->SaveAllExternal(); 2.35 stop close error no needed qDebug()<<"DELETE HvTxW";
 }
+void HvTxW::RefreshOtpKeyMsg()
+{
+	TRadioAndNetW->RefreshOtpKeyMsg();
+}
 void HvTxW::SetMaManAdding(bool f)
 {
-	MultiAnswerMod->SetMaManAdding(f);
+    MultiAnswerMod->SetMaManAdding(f);
 }
 void HvTxW::Macros_exec()
 {
@@ -1095,10 +1132,10 @@ void HvTxW::SetQrgInfoFromCat(QString s)
 {
     le_qrg->SetQrgInfoFromCat(s);
 }
-void HvTxW::SetFtDf1500(bool f)
+/*void HvTxW::SetFtDf1500(bool f)
 {
     SB_DfTolerance1->SetFtDf1500(f);
-}
+}*/
 void HvTxW::SetAResetQsoAtEnd(bool f)//2.49
 {
     f_areset_qso = f;
@@ -1138,6 +1175,7 @@ void HvTxW::SetFont(QFont f)
     l_time->setFont(f_t);
     f_t.setPointSize(f.pointSize()+3);//f_t.setPointSize(12);
     l_dey->setFont(f_t);
+    sb_dt->setFont(f);
     l_mycall_loc->setFont(f_t);
 
     //QFont f_tl = font();
@@ -1198,6 +1236,10 @@ void HvTxW::SetFont(QFont f)
     TQueuedCall->SetFont(f);
     le_qrg->SetFont(f);
     THvMakros->SetFont(f);
+    b_add_to_log->setFont(f);//2.75
+    cb_msh->setFont(f);//2.76
+    cb_msf->setFont(f);
+    //flex_panel->setFont(f);// ???
 }
 void HvTxW::SetUdpDecClr()
 {
@@ -1399,7 +1441,7 @@ void HvTxW::Swl_Changet(bool f)
 void HvTxW::SetVhfUhfFeatures(bool f)//1.60= def
 {
     s_bvhf_jt65 = f;
-    if (s_mode == 7 || s_mode == 8 || s_mode == 9)//only for jt65
+    if (s_mode==7 || s_mode==8 || s_mode==9)//only for jt65
     {
         if (!f)
         {
@@ -1415,7 +1457,7 @@ void HvTxW::SetVhfUhfFeatures(bool f)//1.60= def
 }
 void HvTxW::Sh_Rpt_Changet(bool f)
 {
-    if (s_mode == 7 || s_mode == 8 || s_mode == 9)
+    if (s_mode==7 || s_mode==8 || s_mode==9)
     {
         if (s_bvhf_jt65)
         {
@@ -1492,7 +1534,7 @@ void HvTxW::MarkTextChanged(bool f_b4qso)//bool false  norefresh b4 qso
     //qDebug()<<" LIST="<<l_mam_hiscals_<<"MAM="<<f_multi_answer_mod<<"Mode="<<s_mode;
     QStringList ls;
     QStringList ls_hsah;
-    ls_hsah<<""<<""<<""<<""<<"";
+    ls_hsah<<""<<""<<""<<""<<""<<"";
     ls.clear();
 
     QString smycall = list_macros.at(0);//1.60=
@@ -1529,7 +1571,7 @@ void HvTxW::MarkTextChanged(bool f_b4qso)//bool false  norefresh b4 qso
 
     s_mark_hisc_pos = ls.count();//2.63
     QStringList l_hiscals_;
-    if (f_multi_answer_mod && (s_mode==11 || s_mode==13 || allq65))//2.71
+    if (f_multi_answer_mod && (s_mode==11 || s_mode==13 || s_mode==18 || allq65))//2.71
     {
         if (s_txt_mark[2] && l_mam_hiscals_.count()>0) ls.append(l_mam_hiscals_);
         for (int i = 0; i<l_mam_hiscals_.count(); ++i)
@@ -1556,6 +1598,7 @@ void HvTxW::MarkTextChanged(bool f_b4qso)//bool false  norefresh b4 qso
         if (s_txt_mark[14]) ls<<DetectSufix(le_his_call->getText(),true);
         if (s_txt_mark[2] ) ls<<le_his_call->getText();
         ls_hsah.replace(1,le_his_call->getText());//2.72 stop set down, error in 2.71
+        ls_hsah.replace(5,MultiAnswerMod->FindBaseFullCallRemAllSlash(le_his_call->getText()));//2.76.5
     }
     //if (!block_call) ls_hsah.replace(1,le_his_call->getText());//2.72
 
@@ -1576,7 +1619,7 @@ void HvTxW::MarkTextChanged(bool f_b4qso)//bool false  norefresh b4 qso
     //2.65 END need to be last, exception for my call in log
 
     if (!block_loc) ls_hsah.replace(4,LeHisLoc->getText());//2.53 for jt65 q65
-
+    	
     emit EmitListHashCalls(ls_hsah);//ls_hsah[4]   for ft8 his locator
 
     if (f_b4qso)//bool false  norefresh b4 qso
@@ -1631,9 +1674,9 @@ void HvTxW::RefreshBackupDB()
 }
 void HvTxW::ResetQSO_p(bool full_rst)//2.43
 {
-    if (s_cont_type>1 && (s_mode==0 || s_mode==11  || s_mode==13 || allq65))//ft4
+    if (s_cont_type>1 && (s_mode==0 || s_mode==11  || s_mode==13 || s_mode==18 || allq65))//ft4
     {
-        if (TrySetQueuedCall(true)) return;//2.59 true = on the flay if on TX reset, old=no flag            
+        if (TrySetQueuedCall(true)) return;//2.59 true = on the flay if on TX reset, old=no flag
         else TQueuedCall->ClrQueuedCall(false);
     }
 
@@ -1654,7 +1697,7 @@ void HvTxW::ResetQSO_p(bool full_rst)//2.43
     //if (sb_txsn->isEnabled())//2.01 stoped napomnia da smeni6 nomera v staria wariant
     //sb_txsn->SetText("");
 
-    if (s_mode==0 || s_mode == 11 || s_mode == 12 || s_mode == 13 || alljt65 || allq65)//ft8 ft4 msk144 mskms 2.51 + jt65
+    if (s_mode==0 || s_mode==11 || s_mode==12 || s_mode==13 || s_mode==18 || alljt65 || allq65)//ft8 ft4 msk144 mskms 2.51 + jt65
     {
         //if (s_mode==0 || s_mode==2 || s_mode==3 || s_mode==12) qrg modes
         if (le_qrg->GetQrgActive()==2) SetTxRaportToRB(6,false);//2.60= goto CQ QRG
@@ -1711,6 +1754,19 @@ void HvTxW::SetLogQsoStartDtEqEndDt(bool f)
 {
     log_qso_startdt_eq_enddt = f; //qDebug()<<"log_qso_startdt_eq_enddt="<<log_qso_startdt_eq_enddt;
 }
+void HvTxW::SetAutoLogInfo()//2.75
+{
+    THvLogW->SetAutoLogInfo();
+}
+void HvTxW::CBEnableAliChanged(bool f)//2.75
+{
+    if (f)
+    {
+        if (dsty) b_add_to_log->setStyleSheet("QPushButton{background-color:rgb(155,90,90);}");
+        else b_add_to_log->setStyleSheet("QPushButton{background-color:rgb(255,190,190);}");
+    }
+    else b_add_to_log->setStyleSheet("QPushButton{background-color:palette(Button);}");
+}
 void HvTxW::AddToLogButton()
 {
     AddToLog_p(false);
@@ -1718,6 +1774,7 @@ void HvTxW::AddToLogButton()
 void HvTxW::SetLogAutoComm(bool f)
 {
     f_off_auto_comm = f;
+    THvLogW->SetLogAutoComm(f);
 }
 void HvTxW::AddToLog_p(bool direct_save_to_log)//false direct save to log off;  true direct save to log on
 {
@@ -1725,11 +1782,9 @@ void HvTxW::AddToLog_p(bool direct_save_to_log)//false direct save to log off;  
     if (block_call && !direct_save_to_log)
     {
         QString text = tr("Please set valid call sign");
-        QMessageBox::critical(this, "MSHV", text, QMessageBox::Ok);
-        //le_call->SetFocus();//za da otiva fokusa na call
+        QMessageBox::critical(this, "MSHV", text, QMessageBox::Ok);//le_call->SetFocus();//za da otiva fokusa na call       
         return;
     }
-
     if (le_his_call->getText().isEmpty()) return;//2.50 protection call 100% need
 
     QString his_loc_t = LeHisLoc->getText();
@@ -1758,8 +1813,7 @@ void HvTxW::AddToLog_p(bool direct_save_to_log)//false direct save to log off;  
         double round0 = tfrq.toDouble();//2.74
         double roundi = round0/10.0;
         roundi = round(roundi);
-        tfrq = QString("%1").arg((int)roundi);
-        //2^32 =4294967296
+        tfrq = QString("%1").arg((int)roundi); //2^32 =4294967296
     }
 
     QString comm = "";//2.01 Standard
@@ -1769,7 +1823,7 @@ void HvTxW::AddToLog_p(bool direct_save_to_log)//false direct save to log off;  
     QString rxex = "";
     int show_cont_id = 0;//0=no, 1=sn, 2=exch 3=sn+exch
     QString cont_id = "0";
-    if (s_cont_type>1 && (s_mode == 0 || s_mode == 11 || s_mode == 13 || allq65 || (alljt65 && s_cont_id==16)))//ft4 !f_multi_answer_mod &&
+    if (s_cont_type>1 && (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65 || (alljt65 && s_cont_id==16)))//ft4 !f_multi_answer_mod &&
     {
         //All=2 and up
         comm = s_cont_name[s_cont_id];
@@ -1813,10 +1867,22 @@ void HvTxW::AddToLog_p(bool direct_save_to_log)//false direct save to log off;  
         cont_id = "1";
     }
 
-    if (direct_save_to_log && (s_mode == 0 || s_mode == 11 || s_mode == 12 || s_mode == 13 || allq65) && s_cont_type==0)
-        comm = "Auto login";//log Automatically
+    if (direct_save_to_log && (s_mode==0 || s_mode==11 || s_mode==12 || s_mode==13 || s_mode==18 || allq65) && s_cont_type==0) comm = "Auto login";//log Automatically        
     //qDebug()<<direct_save_to_log<<s_mode<<s_id_contest_mode<<comm;
 
+    if (s_mode==11 && id_mshf>0)//2.76fs
+    {    	
+    	if (id_mshf==1) 
+    	{
+    		if (!comm.isEmpty()) comm.append(" ");
+    		comm.append("SH");    		
+   		}
+        if (id_mshf==2)
+        {
+        	if (!comm.isEmpty()) comm.append(" ");
+        	comm.append("SF");        	
+       	}	
+   	}
     if (f_off_auto_comm) comm = "";
 
     if (log_qso_startdt_eq_enddt)
@@ -1841,7 +1907,7 @@ void HvTxW::AddToLog_p(bool direct_save_to_log)//false direct save to log off;  
         show_add_dialog = false;
     }
 
-    if (THvLogW->Insert(lst,true,show_add_dialog,show_cont_id,true))//show_cont_id 0=no, 1=sn, 2=exch 3=sn+exch
+    if (THvLogW->Insert(lst,true,show_add_dialog,show_cont_id,true,true))//show_cont_id 0=no, 1=sn, 2=exch 3=sn+exch
     {
         s_last_call_for_BDB = le_his_call->getText();
         MultiAnswerMod->SetBackupDB(le_his_call->getText(),//call
@@ -1855,7 +1921,7 @@ void HvTxW::AddToLog_p(bool direct_save_to_log)//false direct save to log off;  
         s_last_bccall_tolog_excp = MultiAnswerMod->FindBaseFullCallRemAllSlash(lst.at(4));//2.02 from Queued exception
         MultiAnswerMod->SetLastBcCallToLog(s_last_bccall_tolog_excp);
 
-        if ((s_cont_type==3 || f_cont5_ru_dx) && (s_mode==0 || s_mode==11 || s_mode==13 || allq65))//ft4 f_cont5_ru_dx
+        if ((s_cont_type==3 || f_cont5_ru_dx) && (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65))//ft4 f_cont5_ru_dx
         {
             int sn = sb_txsn_v2->Value();
             sb_txsn_v2->SetValue(sn+1);
@@ -1903,20 +1969,18 @@ void HvTxW::AddToLogMultiAnswerQSO(QStringList l)
         if (l.at(7).isEmpty()) l.replace(7,bce);
     }
 
-    if (his_loc_t.isEmpty()) // 1.73 if no loc try to find from DB
-        his_loc_t = TMsDb->CheckBD(l.at(1));
+    if (his_loc_t.isEmpty()) his_loc_t = TMsDb->CheckBD(l.at(1));// 1.73 if no loc try to find from DB        
 
     QStringList lst;
     QString tfrq = FREQ_GLOBAL.mid(0,FREQ_GLOBAL.size()-2);
     double round0 = tfrq.toDouble();//2.74
     double roundi = round0/10.0;
     roundi = round(roundi);
-    tfrq = QString("%1").arg((int)roundi);
-    //2^32 =4294967296
+    tfrq = QString("%1").arg((int)roundi); //2^32 =4294967296
 
     QString txsn = "";
     QString txex = "";
-    if (f_multi_answer_mod_std && s_cont_type>1 && (s_mode == 0 || s_mode == 11 || s_mode == 13 || allq65))//ft4 !f_multi_answer_mod &&
+    if (f_multi_answer_mod_std && s_cont_type>1 && (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65))//ft4 !f_multi_answer_mod &&
     {
         if (s_cont_type==3) txsn = QString("%1").arg(sb_txsn_v2->Value());
         else if (s_cont_type==4) txex = s_my_contest_exch;
@@ -1928,6 +1992,11 @@ void HvTxW::AddToLogMultiAnswerQSO(QStringList l)
     }
 
     QString comm = l.at(5);
+    if (s_mode==11 && id_mshf>0)//2.76fs
+    {
+    	if (id_mshf==1) comm.append(" SH");
+        if (id_mshf==2) comm.append(" SF");	
+   	}
     if (f_off_auto_comm) comm = "";
     //QString rstrxx = l.at(4); //s_cont_type=2,4 no rx rpt
     //if (rstrxx.isEmpty() && (s_cont_type==2 || s_cont_type==4)) rstrxx = "+00";
@@ -1947,7 +2016,7 @@ void HvTxW::AddToLogMultiAnswerQSO(QStringList l)
         <<s_band<<tfrq<<""<<comm<<""<<txsn<<l.at(6)<<txex<<l.at(7)<<l.at(8)<<s_trmN<<""<<""<<""<<""<<"";
     }
 
-    if (THvLogW->Insert(lst,true,false,0,true))//0=show_cont_id 0=no, 1=sn, 2=exch 3=sn+exch
+    if (THvLogW->Insert(lst,true,false,0,true,true))//0=show_cont_id 0=no, 1=sn, 2=exch 3=sn+exch
     {
         MultiAnswerMod->SetBackupDB(l.at(1),//call
                                     l.at(3),//txr
@@ -1962,7 +2031,7 @@ void HvTxW::AddToLogMultiAnswerQSO(QStringList l)
         MultiAnswerMod->SetLastBcCallToLog(s_last_bccall_tolog_excp);
 
         //																		  s_mode==0 || <- not exist
-        if (f_multi_answer_mod_std && (s_cont_type==3 || f_cont5_ru_dx) && (s_mode==11 || s_mode==13 || allq65))
+        if (f_multi_answer_mod_std && (s_cont_type==3 || f_cont5_ru_dx) && (s_mode==11 || s_mode==13 || s_mode==18 || allq65))
         {
             int sn = sb_txsn_v2->Value();
             sb_txsn_v2->SetValue(sn+1);
@@ -1976,18 +2045,26 @@ void HvTxW::AddToLogMultiAnswerQSO(QStringList l)
 }
 bool HvTxW::SetTimePeriod_p(QString time_1,int msg_pos)//1.56=,QString str
 {
-    //for MSK144,JT65,FT8  msg_pos if 0<-v obratnia period 1,2...100<-normal logic
-    bool f_fs_se;
-    int period_time_msec = (int)(SB_PeriodTime->get_period_time()*10.0);
+    bool f_fs_se;//for MSK144,JT65,FT8  msg_pos if 0<-v obratnia period 1,2...100<-normal logic
+    int period_time_msec = (int)(SB_PeriodTime->get_period_time()*100.0);
     int time_ss =  time_1.midRef(4,2).toInt();//get seconds 120023
     int time_mm =  time_1.midRef(2,2).toInt();//get min 120023
     int time_ms = 0;
     if (s_mode==13)//ft4
     {
-        if (time_ss == 7 || time_ss == 22 || time_ss == 37 || time_ss == 52) time_ms = 5;
+        if (time_ss == 7 || time_ss == 22 || time_ss == 37 || time_ss == 52) time_ms = 50;
+        //if (time_ss % 15 == 7)  time_ms = 50;
     }
-    int time_pos_2period = (time_mm*600)+(time_ss*10)+time_ms;
-    //qDebug()<<time_mm<<time_ss<<time_pos_2period<<period_time_msec;
+    if (s_mode==18)//ft2
+    {
+    	if      (time_ss == 3 || time_ss == 18 || time_ss == 33 || time_ss == 48) time_ms = 75;
+    	else if (time_ss == 7 || time_ss == 22 || time_ss == 37 || time_ss == 52) time_ms = 50;
+    	else if (time_ss ==11 || time_ss == 26 || time_ss == 41 || time_ss == 56) time_ms = 25;
+    	/*if      (time_ss % 15 == 3)  time_ms = 75; // 0.75s -> 3 units
+		else if (time_ss % 15 == 7)  time_ms = 50; // 0.50s -> 2 units
+		else if (time_ss % 15 == 11) time_ms = 25; // 0.25s -> 1 unit*/               
+    }
+    int time_pos_2period = (time_mm*6000)+(time_ss*100)+time_ms; //qDebug()<<time_mm<<time_ss<<time_pos_2period<<period_time_msec;
 
     //time_pos_2period = time_pos_2period % (period_time_msec*2);// not work correct
     while (time_pos_2period>=period_time_msec*2) time_pos_2period-=period_time_msec*2;
@@ -2045,7 +2122,7 @@ void HvTxW::Set2ClickDecListAutoOn(bool f)
 }
 void HvTxW::SetDoubleClickFromAllAutoOn()//2.45
 {
-    if ((s_mode==0 || s_mode==11 || s_mode==12 || s_mode==13 || alljt65 || allq65) &&
+    if ((s_mode==0 || s_mode==11 || s_mode==12 || s_mode==13 || s_mode==18 || alljt65 || allq65) &&
             !f_auto_on && s_2click_list_autu_on)//2.51 msk144, ft8, mskms, ft4 +jt65
         auto_on();
 }
@@ -2070,7 +2147,6 @@ void HvTxW::SetButClrQueuedCall()
 }
 void HvTxW::DlDetectTextInMsg(QString str ,QString &hisCall_inmsg)
 {
-    //QString hisCall_inmsg = "";
     QString hisLoc_inmsg  = "";
     QString myCall_inmsg  = "";
     QString rpt_inmsg  = "";
@@ -2099,7 +2175,7 @@ void HvTxW::SetDoQRG(QString s,QString all_txt)//2.71
 void HvTxW::DecListTextAll(QString all_txt,QString str,QString tp,QString tx_rpt,QString freq)
 {
     //qDebug()<<all_txt<<str<<tp<<tx_rpt<<freq;
-    if ((s_mode==11 || s_mode==13 || allq65) && f_multi_answer_mod)//ft8 ft4 q65
+    if ((s_mode==11 || s_mode==13 || s_mode==18 || allq65) && f_multi_answer_mod)//ft8 ft4 q65
     {
         if (!f_auto_on && !str.isEmpty() && f_recognize_tp2)// && !f_ma_first_tx
         {
@@ -2131,14 +2207,16 @@ void HvTxW::DecListTextAll(QString all_txt,QString str,QString tp,QString tx_rpt
 
         if (!hisCall_inmsg_for_ap.isEmpty())//1.73
         {
-            bool fc1,fc2,noQSO;
+            bool fc1,fc2; uint8_t noQSO;
             MultiAnswerMod->isStandardCalls(list_macros.at(0),hisCall_inmsg_for_ap,fc1,fc2,noQSO);
-            if (noQSO)
+            if (noQSO==100)
             {
                 emit EmitGBlockListExp(true);//2.15
                 setFocus(Qt::MouseFocusReason);
                 b_gen_msg->setFocus();
-                QString text = tr("There were two non-standard callsigns,")+"\n"+
+                QString tex0 = tr("There were two non-standard callsigns,");//2.76.2
+                if (id_mshf==2) tex0 = tr("There were non-standard callsign,");
+                QString text = tex0+"\n"+
                                tr("My Call")+": "+list_macros.at(0)+"\n"+
                                tr("His Call")+": "+hisCall_inmsg_for_ap+"\n"+
                                tr("so this QSO is not possible in this protocol");
@@ -2173,10 +2251,10 @@ void HvTxW::DecListTextAll(QString all_txt,QString str,QString tp,QString tx_rpt
     }
 
     //bool f_have_changes = false;
-    //if (s_mode==0 || s_mode==7 || s_mode==8 || s_mode==9 || s_mode==11 || s_mode==12 || s_mode==13)//msk144, jt65, ft8 ft4
+    //if (s_mode==0 || s_mode==7 || s_mode==8 || s_mode==9 || s_mode==11 || s_mode==12 || s_mode==13|| s_mode==18)//msk144, jt65, ft8 ft4
     //bool f_jt65 = false;
     //if (s_mode==7 || s_mode==8 || s_mode==9) f_jt65 = true;//2.51 jt65
-    if (s_mode==0 || alljt65 || s_mode==11 || s_mode==12 || s_mode==13 || allq65)//msk144, jt65, ft8, mskms, ft4
+    if (s_mode==0 || alljt65 || s_mode==11 || s_mode==12 || s_mode==13 || s_mode==18 || allq65)//msk144, jt65, ft8, mskms, ft4
     {
         QString hisCall_inmsg = "";
         QString hisLoc_inmsg  = "";
@@ -2197,7 +2275,9 @@ void HvTxW::DecListTextAll(QString all_txt,QString str,QString tp,QString tx_rpt
         "rpt="<<rpt_inmsg<<"cont_r_inmsg="<<cont_r_inmsg<<"rr73="<<rr73_inmsg<<"sn_inmsg="<<sn_inmsg<<
         "arrl_exch_imsg="<<arrl_exch_imsg;*/
 
-        int no0_find1_ooo2 = 1;//2.51  0=no, find rpt=1, ooo_jt65=2
+        if ((s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65) && hisCall_inmsg.isEmpty()) return;//2.75 for <...>
+
+        int no0_find1_ooo2 = 1;//2.51 0=no, find rpt=1, ooo_jt65=2
         if (alljt65)//2.51 MSGs -> RO, RRR, 73, LZ2HV SP9HWY JO90 OOO
         {
             QStringList ljt65 = str.split(" ");
@@ -2213,14 +2293,16 @@ void HvTxW::DecListTextAll(QString all_txt,QString str,QString tp,QString tx_rpt
 
         if (!hisCall_inmsg.isEmpty())
         {
-            bool fc1,fc2,noQSO;
+            bool fc1,fc2; uint8_t noQSO;
             MultiAnswerMod->isStandardCalls(list_macros.at(0),hisCall_inmsg,fc1,fc2,noQSO);
-            if (f_two_no_sdtc && noQSO)//if (f_two_no_sdtc)
+            if (f_two_no_sdtc && noQSO==100)//if (f_two_no_sdtc)
             {
                 emit EmitGBlockListExp(true);//2.15
                 setFocus(Qt::MouseFocusReason);
                 b_gen_msg->setFocus();
-                QString text = tr("There were two non-standard callsigns,")+"\n"+
+                QString tex0 = tr("There were two non-standard callsigns,");//2.76.2
+                if (id_mshf==1) tex0 = tr("There were non-standard callsign,");
+                QString text = tex0+"\n"+
                                tr("My Call")+": "+list_macros.at(0)+"\n"+
                                tr("His Call")+": "+hisCall_inmsg+"\n"+
                                tr("so this QSO is not possible in this protocol");
@@ -2248,12 +2330,11 @@ void HvTxW::DecListTextAll(QString all_txt,QString str,QString tp,QString tx_rpt
 
             if (info_dupe_qso)
             {
-                if (MultiAnswerMod->DialogIsCallDupeInLog(hisCall_inmsg))
-                    return;
+                if (MultiAnswerMod->DialogIsCallDupeInLog(hisCall_inmsg)) return;
             }
 
             //qDebug()<<"hisCall="<<hisCall_inmsg<<myCall_inmsg<<rpt_inmsg<<s_id_contest_mode;
-            if (TQueuedCall->isUseQueueCont() && s_cont_type>1 && (s_mode==0 || s_mode==11 || s_mode==13 || allq65))//2.02 Queued ft4
+            if (TQueuedCall->isUseQueueCont() && s_cont_type>1 && (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65))//2.02 Queued ft4
             {
                 if (TQueuedCall->haveQueuedCall())
                 {
@@ -2286,7 +2367,7 @@ void HvTxW::DecListTextAll(QString all_txt,QString str,QString tp,QString tx_rpt
             }
 
             ////////// ORG_QSY only for MSK, FT8/4 and not for contests and MA ///////////////
-            if (s_cont_type==0 && (s_mode==0 || s_mode==12 || s_mode==11 || s_mode==13))// || allq65=?
+            if (s_cont_type==0 && (s_mode==0 || s_mode==12 || s_mode==11 || s_mode==13 || s_mode==18))// || allq65=?
             {
                 QStringList lstr = str.split(" ");
                 if (lstr.count() > 2) //CQ 236 LZ2HV
@@ -2321,7 +2402,7 @@ void HvTxW::DecListTextAll(QString all_txt,QString str,QString tp,QString tx_rpt
             if (TQueuedCall->isLastFromQueued()) TQueuedCall->ClrQueuedCall(false);//2.59
             gen_msg();  //emit EmitFreqTxW(freq.toDouble());
 
-            //if (s_mode==0 || s_mode==11 || s_mode==12 || s_mode==13)//ft8 ft4
+            //if (s_mode==0 || s_mode==11 || s_mode==12 || s_mode==13|| s_mode==18)//ft8 ft4
             if (no0_find1_ooo2>0)//2.51 msk ft8 ft4 +jt65    0=no, find rpt=1, ooo_jt65=2
             {
                 //qDebug()<<"hisCall="<<hisCall_inmsg<<myCall_inmsg;
@@ -2409,8 +2490,7 @@ void HvTxW::DecListTextAll(QString all_txt,QString str,QString tp,QString tx_rpt
                         SetTxRaportToRB(1,true);//2.59 remove old start new on the flay, old=false
                         one_addtolog_auto_seq = false;//2.31 start from TX2 and TX4=RR73 exception
                     }
-                    else
-                        SetTxRaportToRB(0,true);//2.59 remove old start new on the flay, old=false
+                    else SetTxRaportToRB(0,true);//2.59 remove old start new on the flay, old=false
                 }
             }
 
@@ -2421,21 +2501,15 @@ void HvTxW::DecListTextAll(QString all_txt,QString str,QString tp,QString tx_rpt
             }
             //f_have_changes = true;
         }
-        if (!hisLoc_inmsg.isEmpty())
-            LeHisLoc->SetText(hisLoc_inmsg);
-
+        if (!hisLoc_inmsg.isEmpty()) LeHisLoc->SetText(hisLoc_inmsg);
         //if (f_have_changes)
         //gen_msg();
-
         if (no0_find1_ooo2>0) SetDoubleClickFromAllAutoOn();//2.51 0=no, find rpt=1, ooo_jt65=2
     }
     else //jtms, fsk, iscats, jt6m, pi4
     {
-        if (str.contains(' '))//1.56= no need bit for any case
-            return;
-
-        if (THvQthLoc.isValidLocator(str))
-            LeHisLoc->SetText(str);
+        if (str.contains(' ')) return;//1.56= no need bit for any case
+        if (THvQthLoc.isValidLocator(str)) LeHisLoc->SetText(str);
         else if (THvQthLoc.isValidCallsign(str))
         {
             if (info_dupe_qso)
@@ -2446,15 +2520,14 @@ void HvTxW::DecListTextAll(QString all_txt,QString str,QString tp,QString tx_rpt
 
             le_his_call->SetText(str);
 
-            if (s_mode==0 || s_mode==11 || s_mode==12 || s_mode==13 || allq65)//ft8 ft4 no need but for any case
+            if (s_mode==0 || s_mode==11 || s_mode==12 || s_mode==13 || s_mode==18 || allq65)//ft8 ft4 no need but for any case
             {
                 if (s_start_qso_from_tx2 && s_cont_type!=3)//2.31 no in eu vhf
                 {
                     SetTxRaportToRB(1,false);
                     one_addtolog_auto_seq = false;//2.31 start from TX2 and TX4=RR73 exception
                 }
-                else
-                    SetTxRaportToRB(0,false);
+                else SetTxRaportToRB(0,false);
             }
 
             if (s_mode!=10 && f_recognize_tp1)//tp no need in PI4
@@ -2465,19 +2538,17 @@ void HvTxW::DecListTextAll(QString all_txt,QString str,QString tp,QString tx_rpt
             //f_have_changes = true;
             gen_msg();
         }
-
         //if (f_have_changes)
         //gen_msg();
     }
     //if (!f_have_changes)//1.57= only if call change
     //return;
-
     //qDebug()<<"gen_msg();"<<str;
     //gen_msg();
 }
 void HvTxW::DecListTextRpt(QString str)//RX RPT
 {
-    if (s_cont_type>1 && (s_mode == 0 || s_mode == 11 || s_mode == 13 || allq65) && TQueuedCall->haveQueuedCall())//ft4 !f_multi_answer_mod &&
+    if (s_cont_type>1 && (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65) && TQueuedCall->haveQueuedCall())//ft4 !f_multi_answer_mod &&
         return;
     str = MultiAnswerMod->TryFormatRPTtoRST(str);//2.59
     QString s = le_rst_tx->format_rpt_tx(str);  //qDebug()<<"msg=1 +00"<<s<<str;
@@ -2529,20 +2600,19 @@ void HvTxW::DfSdbChanged(int)
     emit EmitDfSdbChanged(SB_MinSigdB->value(),SB_DfTolerance1->value());
 
     //all vertikal displais onlyyyyy jt65abc pi4 ft8
-    if (alljt65  || s_mode==10 || s_mode==11 || s_mode == 13 || allq65)//all vertikal displais only jt65abc pi4 ft8 ft4
+    if (alljt65  || s_mode==10 || s_mode==11 || s_mode==13 || s_mode==18 || allq65)//all vertikal displais only jt65abc pi4 ft8 ft4
         emit EmitDfChanged(SB_DfTolerance1->value(),s_mode);
 
     if (!f_nosave)
     {
         s_minsigndb[s_mode] = SB_MinSigdB->value();
         //s_dftolerance[s_mode] = SB_DfTolerance1->value();
-    }
-    //qDebug()<<s_dftolerance[0]<<s_dftolerance[1]<<s_dftolerance[2];
+    } //qDebug()<<s_dftolerance[0]<<s_dftolerance[1]<<s_dftolerance[2];
 }
 void HvTxW::StartStopZap()
 {
     // no zap in msk ft8 jt65abc pi4 ft4 q65
-    //if (s_mode==0 || s_mode==7 || s_mode==8 || s_mode==9  || s_mode==10 || s_mode==11 || s_mode==12 || s_mode == 13 || allq65)
+    //if (s_mode==0 || s_mode==7 || s_mode==8 || s_mode==9  || s_mode==10 || s_mode==11 || s_mode==12 || s_mode==13 || s_mode==18 || allq65)
     //return;
     if (s_mode==0 || s_mode>6) return; //2.65
 
@@ -2578,9 +2648,8 @@ void HvTxW::SetDftolerance(QString s)
     SB_DfTolerance1->SetDfAllModes(s);
 }
 void HvTxW::SetRptRsqSettings()
-{
-    //qDebug()<<"SetRptRsqSettings()"<<le_rst_tx->getText();
-    QSizePolicy spol_w = sizePolicy();
+{    
+    QSizePolicy spol_w = sizePolicy();//qDebug()<<"SetRptRsqSettings()"<<le_rst_tx->getText();
     //setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Ignored);
     setSizePolicy(QSizePolicy::Ignored,spol_w.verticalPolicy());//2.51 only horizontal, vertical move list scroller
     //cb_zap->setSizePolicy(QSizePolicy::Minimum,QSizePolicy::Minimum);//Ignored
@@ -2589,76 +2658,127 @@ void HvTxW::SetRptRsqSettings()
     le_rst_rx->SetRptRsqSettings("RX",s_mode,s_f_rpt_rsq,cb_sh_rpt->isChecked(),s_cont_type);
     cb_sh_rpt->setText("Sh");//1.49
 
-    if (!s_f_rpt_rsq)//for new tx=rx v1.43 JTMS FSK441 no RSQ    || s_mode == 0 || s_mode == 1
+    if (s_mode==11 || s_mode==13 || s_mode==18 || allq65) //ft8 ft4 no rsq
     {
-        if (s_mode == 11 || s_mode == 13 || allq65) //ft8 ft4 no rsq
+        if (s_cont_type==3 || f_cont5_ru_dx)
+        {            
+            if (f_multi_answer_mod && !f_multi_answer_mod_std) 
+            {
+            	sb_txsn_v2->SetHidden(true);
+            	if (s_mode==11) cb_zap->setHidden(true);
+            	else cb_zap->setHidden(false);
+           	}
+            else 
+            {
+            	cb_zap->setHidden(true);
+            	sb_txsn_v2->SetHidden(false);            	
+           	}
+        }
+        else
         {
-            if (s_cont_type==3 || f_cont5_ru_dx)//EU VHF Contest SB_MinSigdB->setHidden(false);
+            sb_txsn_v2->SetHidden(true);
+			if      (s_mode==11 && f_multi_answer_mod && !f_multi_answer_mod_std) cb_zap->setHidden(true);//2.76
+			else if (s_mode==11 && s_cont_type==0) cb_zap->setHidden(true);
+			else cb_zap->setHidden(false);
+        }
+        if (s_cont_type>1)
+        {           
+            if (s_mode==11 && f_multi_answer_mod && !f_multi_answer_mod_std)
             {
-                cb_zap->setHidden(true);
-                sb_txsn_v2->SetHidden(false);
+            	SB_MinSigdB->setHidden(true);//2.76sf for remove only ->if (f_vsf_)
+            	//else SB_MinSigdB->setHidden(false);//2.76sf for remove all
+            	TQueuedCall->setHidden(true);
+            	//if (f_vsf_)//2.76sf for remove only ->if (f_vsf_)
+            	//{
+            	cb_msh->setHidden(false);
+            	cb_msf->setHidden(false);            		
+           		//} 
+           	}
+            else
+            {
+            	cb_msh->setHidden(true);
+            	cb_msf->setHidden(true);
+            	if (f_multi_answer_mod && !f_multi_answer_mod_std)//2.76
+            	{
+            		TQueuedCall->setHidden(true);
+            		SB_MinSigdB->setHidden(false);
+           		}
+           		else
+           		{
+           			SB_MinSigdB->setHidden(true);
+           			TQueuedCall->setHidden(false);
+          		}            	            	
+           	}
+        }
+        else
+        {
+            TQueuedCall->setHidden(true);
+            if (s_mode==11)
+            {
+            	SB_MinSigdB->setHidden(true);//2.76sf for remove only ->if (f_vsf_)
+                //else SB_MinSigdB->setHidden(false);//2.76sf for remove all
+                //if (f_vsf_)//2.76sf for remove only ->if (f_vsf_)
+            	//{
+                cb_msh->setHidden(false);
+                cb_msf->setHidden(false);
+                //}
             }
             else
             {
-                sb_txsn_v2->SetHidden(true);
-                cb_zap->setHidden(false);
-            }
-            if (s_cont_type>1)//ru quined
-            {
-                SB_MinSigdB->setHidden(true);
-                TQueuedCall->setHidden(false);
-            }
-            else
-            {
-                TQueuedCall->setHidden(true);
+                cb_msh->setHidden(true);
+                cb_msf->setHidden(true);
                 SB_MinSigdB->setHidden(false);
             }
-
-            sb_txsn->SetHidden(true);
-            cb_swl->setHidden(true);
-            cb_sh_rpt->setHidden(true);
-            pb_tx_to_rx->setHidden(false);
-            pb_rx_to_tx->setHidden(false);
-            cb_lock_txrx->setHidden(false);
         }
-        else if (s_mode == 7 || s_mode == 8 || s_mode == 9) //1.49 jt65abc
+        sb_txsn->SetHidden(true);
+        cb_swl->setHidden(true);
+        cb_sh_rpt->setHidden(true);
+        pb_tx_to_rx->setHidden(false);
+        pb_rx_to_tx->setHidden(false);
+        cb_lock_txrx->setHidden(false);
+    }
+    else if (alljt65) //1.49 jt65abc
+    {
+        sb_txsn_v2->SetHidden(true);
+        cb_zap->setHidden(false);
+        TQueuedCall->setHidden(true);//ru quined
+        cb_msh->setHidden(true);
+        cb_msf->setHidden(true);
+        SB_MinSigdB->setHidden(false);//ru quined
+        pb_tx_to_rx->setHidden(true);
+        pb_rx_to_tx->setHidden(true);
+        cb_lock_txrx->setHidden(true);
+        sb_txsn->SetHidden(true);
+        cb_sh_rpt->setHidden(false);
+        cb_swl->setHidden(true);
+        cb_sh_rpt->setText("Sh HF/VHF");
+    }
+    else
+    {
+        if (s_mode==0 && (s_cont_type==3 || f_cont5_ru_dx))
+        {
+            cb_zap->setHidden(true);
+            sb_txsn_v2->SetHidden(false);
+        }
+        else
         {
             sb_txsn_v2->SetHidden(true);
             cb_zap->setHidden(false);
-            TQueuedCall->setHidden(true);//ru quined
-            SB_MinSigdB->setHidden(false);//ru quined
-
-            pb_tx_to_rx->setHidden(true);
-            pb_rx_to_tx->setHidden(true);
-            cb_lock_txrx->setHidden(true);
-            sb_txsn->SetHidden(true);
-            cb_sh_rpt->setHidden(false);
-            cb_swl->setHidden(true);
-            cb_sh_rpt->setText("Sh HF/VHF");
-        }
-        else //no rsq
+        }    
+        cb_msh->setHidden(true);
+        cb_msf->setHidden(true);    
+        if (s_mode==0 && s_cont_type>1)
         {
-            if (s_mode == 0 && (s_cont_type==3 || f_cont5_ru_dx))//EU VHF Contest SB_MinSigdB->setHidden(false);
-            {
-                cb_zap->setHidden(true);
-                sb_txsn_v2->SetHidden(false);
-            }
-            else
-            {
-                sb_txsn_v2->SetHidden(true);
-                cb_zap->setHidden(false);
-            }
-            if (s_mode == 0 && s_cont_type>1)//ru quined
-            {
-                SB_MinSigdB->setHidden(true);
-                TQueuedCall->setHidden(false);
-            }
-            else
-            {
-                TQueuedCall->setHidden(true);
-                SB_MinSigdB->setHidden(false);
-            }
-
+            SB_MinSigdB->setHidden(true);
+            TQueuedCall->setHidden(false);
+        }
+        else
+        {
+            TQueuedCall->setHidden(true);
+            SB_MinSigdB->setHidden(false);
+        }        
+        if (!s_f_rpt_rsq)
+        {
             pb_tx_to_rx->setHidden(true);
             pb_rx_to_tx->setHidden(true);
             cb_lock_txrx->setHidden(true);
@@ -2666,93 +2786,21 @@ void HvTxW::SetRptRsqSettings()
             cb_sh_rpt->setHidden(false);
             cb_swl->setHidden(false);
         }
-    }
-    else // have rsq
-    {
-        if (s_mode == 11 || s_mode == 13 || allq65) // ft8 ft4
-        {
-            if (s_cont_type==3  || f_cont5_ru_dx)//EU VHF Contest SB_MinSigdB->setHidden(false);
-            {
-                cb_zap->setHidden(true);
-                sb_txsn_v2->SetHidden(false);
-            }
-            else
-            {
-                sb_txsn_v2->SetHidden(true);
-                cb_zap->setHidden(false);
-            }
-            if (s_cont_type>1)//ru quined
-            {
-                SB_MinSigdB->setHidden(true);
-                TQueuedCall->setHidden(false);
-            }
-            else
-            {
-                TQueuedCall->setHidden(true);
-                SB_MinSigdB->setHidden(false);
-            }
-
-            sb_txsn->SetHidden(true); // no rsq in ft8
-            cb_swl->setHidden(true);
-            cb_sh_rpt->setHidden(true);
-            pb_tx_to_rx->setHidden(false);
-            pb_rx_to_tx->setHidden(false);
-            cb_lock_txrx->setHidden(false);
-        }
-        else if (s_mode == 7 || s_mode == 8 || s_mode == 9) //1.49 jt65abc
-        {
-            sb_txsn_v2->SetHidden(true);
-            cb_zap->setHidden(false);
-            TQueuedCall->setHidden(true);//ru quined
-            SB_MinSigdB->setHidden(false);//ru quined
-
-            pb_tx_to_rx->setHidden(true);
-            pb_rx_to_tx->setHidden(true);
-            cb_lock_txrx->setHidden(true);
-            sb_txsn->SetHidden(true);
-            cb_sh_rpt->setHidden(false);
-            cb_swl->setHidden(true);
-            cb_sh_rpt->setText("Sh HF/VHF");
-        }
         else
         {
-            if (s_mode == 0 && (s_cont_type==3 || f_cont5_ru_dx))//EU VHF Contest SB_MinSigdB->setHidden(false);
-            {
-                cb_zap->setHidden(true);
-                sb_txsn_v2->SetHidden(false);
-            }
-            else
-            {
-                sb_txsn_v2->SetHidden(true);
-                cb_zap->setHidden(false);
-            }
-            if (s_mode == 0 && s_cont_type>1)//ru quined
-            {
-                SB_MinSigdB->setHidden(true);
-                TQueuedCall->setHidden(false);
-            }
-            else
-            {
-                TQueuedCall->setHidden(true);
-                SB_MinSigdB->setHidden(false);
-            }
-
             pb_tx_to_rx->setHidden(true);
             pb_rx_to_tx->setHidden(true);
             cb_lock_txrx->setHidden(true);
             cb_sh_rpt->setHidden(true);
             cb_swl->setHidden(true);
             sb_txsn->SetHidden(false);
-        }
-    }
-    //qDebug()<<spol_w.horizontalPolicy()<<spol_w.verticalPolicy();
-    //default is -> QSizePolicy::MinimumExpanding      GrowFlag | ExpandFlag
-    setSizePolicy(spol_w);
-    //cb_zap->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
+        }        
+    } //default is -> QSizePolicy::MinimumExpanding      GrowFlag | ExpandFlag
+    setSizePolicy(spol_w); //cb_zap->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
 }
 void HvTxW::SetEnabledRbBtTx(bool f)
 {
-    if (f) g_no_block_tx = 101;//101=noblock 100=blockall 6=blocktx7
+    if (f) g_no_block_tx = 101;//101=noblock 100=blockall 6=blocktx7 1=blocktx2
     else   g_no_block_tx = 100;
     for (int i = 0; i<count_tx_widget; i++)
     {
@@ -2764,7 +2812,7 @@ void HvTxW::SetEnabledBtTx(bool f)
 {
     int b_str = 0;
     int b_end = count_tx_widget;
-    if (f) g_no_block_tx = 101;//101=noblock 100=blockall 6=blocktx7
+    if (f) g_no_block_tx = 101;//101=noblock 100=blockall 6=blocktx7 1=blocktx2
     else
     {
         int b_activ = -1;
@@ -2779,12 +2827,12 @@ void HvTxW::SetEnabledBtTx(bool f)
         }
         if (b_activ!=-1)
         {
-            if (b_activ==6) g_no_block_tx = 100;//101=noblock 100=blockall 6=blocktx7//QRG raport
+            if (b_activ==6) g_no_block_tx = 100;//101=noblock 100=blockall 6=blocktx7 1=blocktx2//QRG raport
             else
             {
                 b_str = 6;
                 b_end = 7;
-                g_no_block_tx = 6;//101=noblock 100=blockall 6=blocktx7
+                g_no_block_tx = 6;//101=noblock 100=blockall 6=blocktx7 1=blocktx2
             }
         }
     }
@@ -2810,7 +2858,7 @@ bool HvTxW::FindRigBandFromFreq(QString f)
 {
     /*
     "135 kHz","472 kHz","501 kHz",
-    "1.8 MHz","3.5 MHz","5 MHz","7 MHz","10 MHz","14 MHz","18 MHz","21 MHz","24 MHz","28 MHz","40 MHz","50 MHz","60 MHz",
+    "1.8 MHz","3.5 MHz","5 MHz","7 MHz","10 MHz","14 MHz","18 MHz","21 MHz","24 MHz","27 MHz","28 MHz","40 MHz","50 MHz","60 MHz",
      "70 MHz","144 MHz","222 MHz","432 MHz","902 MHz","1296 MHz","2320 MHz","3.4 GHz","5.65 GHz","10 GHz",
      "24 GHz","47 GHz","76 GHz","120 GHz","144 GHz","248 GHz"
     */
@@ -2859,8 +2907,7 @@ void HvTxW::SetGUbMK(bool f)
 }
 void HvTxW::RefreshLRestrict()
 {
-    static QString prev_mfrq_  = "2";
-    static bool prev_frest_ = false;
+    static QString prev_mfrq_  = "2"; //static bool prev_frest_ = false;
     static bool prev_hf_ = false;
     if (prev_mfrq_ == FREQ_GLOBAL) return;
     prev_mfrq_ = FREQ_GLOBAL;
@@ -2868,23 +2915,37 @@ void HvTxW::RefreshLRestrict()
     bool hf = false;
     if (mfrq<0x213C4D1) hf = true;//213C4D1 34.850.001 midle  29702000+39998000=69700000/2=34850000
     if (hf != prev_hf_) MultiAnswerMod->setHfBand(hf);
-    prev_hf_ = hf;
+    prev_hf_ = hf; 
+    flex_panel->FlexTrackFreq(FREQ_GLOBAL);
+    emit EmitFreqGlobalToDec(FREQ_GLOBAL);//2.76.5
     if (g_ub_m_k) return;
-    if (s_mode != 11 && s_mode != 13 && !allq65) return;
+    if (s_mode!=11 && s_mode!=13 && s_mode!=18 && !allq65) return; 
     if (mfrq<1000000) return;
     bool frest = false;
-    for (int i = 0; i < 17; ++i)
+    for (int i = 0; i < 27; ++i)//all=27 +FT2=36
     {
         long long int Hzd = 0;
         Hzd = mfrq - _ftfr_[i];
-        if (qAbs(Hzd) < 3000) //2.70 new = 3000Hz
+        if (i<17)//all=17 +FT2=26
         {
-            frest = true;
-            break;
+        	if (qAbs(Hzd) < 3000)
+			{
+				frest = true;
+				break;        		
+			}
         }
+        else//wspr
+        {
+        	if(Hzd > -3500 && Hzd < 300) 
+        	{
+            	frest = true;
+            	break;
+        	} 
+       	}
     }
     if (prev_frest_ == frest) return;
     prev_frest_ = frest;
+    MshfChanget(false);//2.76
     MultiAnswerMod->RefreshLRestrict_pub(frest);
 }
 static bool _freq_from_app_rig_ = false;
@@ -2910,14 +2971,16 @@ void HvTxW::SetBlockEmitFreqToRig(bool f)
     f_block_emit_freq_to_rig = f; //2.69 set to true, no show MA freq restrict QMessageBox at close (DestroyPort())
     if (!f) QTimer::singleShot(4000, this, SLOT(RefreshLRestrict()));//first time refresh
 }
-void HvTxW::SetRigCatActiveAndRead(bool f)//2.53
+void HvTxW::SetRigCatActiveAndRead(bool f,QString s)//2.53
 {
-    rig_cat_active_and_read = f;
+    rig_cat_active_and_read = f; //qDebug()<<"IN="<<s;
     if (!f && !f_block_emit_freq_to_rig) SetDefFreqGlobal(0,"default");//2.74 0=mybe frq,no mod, 1=mybe frq,mod, 2=frq,mod, 3=frq,no mod
+    if (f) TRadioAndNetW->SetFullRigInfo(s);//2.76.1 for pskreporter
+    else TRadioAndNetW->SetFullRigInfo("None");//2.76.1	for pskreporter
 }
 void HvTxW::SetDefFreqGlobal(int id,QString user_frq)
 {
-    QString tfrq = user_frq; //qDebug()<<"SetDefFreqGlobal="<<f<<user_frq<<f_block_emit_freq_to_rig;
+    QString tfrq = user_frq; //qDebug()<<"SetDefFreqGlobal="<<id<<user_frq<<f_block_emit_freq_to_rig;
     if (tfrq=="default") TRadioAndNetW->FindFreqRadList(0,tfrq);//0 to hz
     else FindRigBandFromFreq(tfrq);  //if user_frq
     _freq_from_app_rig_ = false;//2.68
@@ -2932,16 +2995,38 @@ void HvTxW::SetDefFreqGlobal(int id,QString user_frq)
     if (!f_block_emit_freq_to_rig)
     {
         emit EmitFreqGlobalToRig(tfrq,id);//da go setva dori da ne go 4ete
-        RefreshLRestrict();
-    }
+        RefreshLRestrict(); //emit EmitFreqGlobalToDec(tfrq);
+    } 
 }
+
+// Native Flex VITA-49 backend (network.cpp): live TX metering off the radio.
+void HvTxW::UpdateFlexMeter(bool up,bool is_meter,double fwd,double swr,bool fpp)
+{   //qDebug()<<"UpdateFlexMeter="<<"flex_push_pending="<<fpp;
+    if (fpp) 
+    { 
+    	if (rig_cat_active_and_read)
+    	{
+    		flex_panel->StopFlexPushPending(); //qDebug()<<"Flex Set FREQ----->"<<flex_panel->GetFlexLastFreq();
+    		SetDefFreqGlobal(2,flex_panel->GetFlexLastFreq());
+   		}
+    }
+    emit EmitUpdateFlexMeter(up,is_meter,fwd,swr);
+}
+void HvTxW::ShowFlexPanel()
+{
+	flex_panel->show();
+    flex_panel->raise();
+    flex_panel->activateWindow();
+}
+// end Native Flex VITA-49 backend (network.cpp): live TX metering off the radio.
+
 ////////END RIG CONTROL/////////////////////////////////
 void HvTxW::RefreshCntestOnlySdtc()//2.15
 {
     // EU VHF CONTEST, ARRL FIELD DAY, ARRL-RTTY
     //if ((s_id_contest_mode==3 || s_id_contest_mode==4 || s_id_contest_mode==5) &&  //2.39 old EU VHF
     if ((s_cont_type==4 || s_cont_type==5) &&  //2.39 for new EU VHF
-            (s_mode==0 || s_mode==11 || s_mode == 13 || allq65))//msk144 ft8 ft4
+            (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65))//msk144 ft8 ft4
         f_cntest_only_sdtc = true;
     else
         f_cntest_only_sdtc = false;
@@ -2955,7 +3040,7 @@ void HvTxW::SetModSetFrqToRig(bool f)
 }
 void HvTxW::RefreshCfm73()
 {
-    if ((s_mode == 11 || s_mode == 13 || allq65) && !sf_cfm73) f_cfm73 = false;
+    if ((s_mode==11 || s_mode==13 || s_mode==18 || allq65) && !sf_cfm73) f_cfm73 = false;
     else f_cfm73 = true;
     MultiAnswerMod->SetCfm73(f_cfm73); //qDebug()<<"RefreshCfm73()"<<f_cfm73;
 }
@@ -2989,6 +3074,7 @@ void HvTxW::ModeChanget(int mode,bool f)
     AutoSeqLab->setHidden(true);
     TQueuedCall->ClrQueuedCall(false);//2.02 Queued
     f_two_no_sdtc = false;
+    sb_dt->SetHidden(true);
 
     if (mode == 0)
     {//Default values for MSK144
@@ -3073,7 +3159,7 @@ void HvTxW::ModeChanget(int mode,bool f)
             SetEnabledRbBtTx(true);
         }
     }
-    if (mode == 11 || mode == 13)
+    if (mode == 11 || mode == 13 || mode == 18)
     {//Default values for ft8 ft4
         pb_tx_to_rx->setHidden(true);
         pb_rx_to_tx->setHidden(true);
@@ -3091,6 +3177,7 @@ void HvTxW::ModeChanget(int mode,bool f)
         SetShowMoni12MoonD(true);
         AutoSeqLab->setHidden(false);
         f_two_no_sdtc = true;
+        sb_dt->SetHidden(false);
     }
     if (mode == 12)
     {//Default values for MSKMS
@@ -3129,6 +3216,7 @@ void HvTxW::ModeChanget(int mode,bool f)
         f_two_no_sdtc = true;
     }
 
+	sb_dt->SetMode(s_mode);
     TRadioAndNetW->SetModeForFreqFromMode(s_mode);
     SB_DfTolerance1->SetMode(mode);
 
@@ -3141,7 +3229,7 @@ void HvTxW::ModeChanget(int mode,bool f)
 
     if (!s_bvhf_jt65 && (mode == 7 || mode == 8 || mode == 9)) cb_sh_rpt->setChecked(false);
     else cb_sh_rpt->setChecked(sh_op_all[s_mode]);
- 
+
     //qDebug()<<"SB_PeriodTime->SetMode"<<mode;
     SB_PeriodTime->SetMode(mode);
 
@@ -3152,7 +3240,7 @@ void HvTxW::ModeChanget(int mode,bool f)
         //qDebug()<<"Mode SET  100"<<s_band;
         SetDefFreqGlobal(1,"default");//2.74 0=mybe frq,no mod, 1=mybe frq,mod, 2=frq,mod, 3=frq,no mod
     }
- 
+
     if (s_txt_mark[19] || s_txt_mark[22])
     {
         THvLogW->SetMarkTextAllRuleChanged(s_txt_mark,s_mode,s_band);
@@ -3169,7 +3257,7 @@ void HvTxW::SetBand(QString s,int id)
     if (s_band==s) return;//only once because is radio buttons
 
     s_band = s;
-    if (s_mode==11 || s_mode==13 || allq65) fpsk_restrict = true; //only ft8 ft4  || allq65
+    if (s_mode==11 || s_mode==13 || s_mode==18 || allq65) fpsk_restrict = true; //only ft8 ft4  || allq65
 
     //l_mycall_loc->setText(list_macros.at(0)+" "+list_macros.at(1)+"   Band "+s_band);
     QString loc4 = list_macros.at(1);
@@ -3194,7 +3282,7 @@ void HvTxW::SetBand(QString s,int id)
     }
     MultiAnswerMod->SetBand();//for reset
 
-    s_iband = 16;//70 MHz 2.54
+    s_iband = 17;//2.76.5 17 default HV 70 MHz 
     for (int i = 0; i<COUNT_BANDS; ++i)
     {
         if (lst_bands[i]==s_band)
@@ -3233,6 +3321,7 @@ void HvTxW::SetMacros(QStringList list,int id_c0,QString cont_exch,QString trmN)
     //"Q65 Pileup" or "Pileup"		14	2		14 CQ 		 1			0 = CQ
     //"NCCC Sprint"					15	2		15 CQ NCCC	 1			8 = CQ NCCC
     //"ARRL Inter. EME Contest"		16	6		16 CQ 		 0			0 = CQ
+    //"FT Challenge Contest"		17  6       17 CQ FTC    0          9 = CQ FTC
 
     s_trmN = trmN;//2.61
     QString trmN_stdC = trmN;
@@ -3306,13 +3395,18 @@ void HvTxW::SetMacros(QStringList list,int id_c0,QString cont_exch,QString trmN)
         decode_type = 0;
         //typ0as_cont = true;
         //decoder_cq  = 0; //CQ
+        break;
+    case 17: // 17 = FT Challenge Contest
+        s_cont_type = 6;
+        decode_type = 0;
+        //decoder_cq  = 0; //CQ FTC
         break;        
     default:
         s_cont_type = 0;
         decode_type = 0;
         //decoder_cq  = 0; //CQ
         break;
-    }    
+    }
     s_cont_id = id_c0;
     //qDebug()<<s_cont_name[s_cont_id]<<"ID="<<s_cont_id<<"TXtype="<<s_cont_type<<"DECtype="<<decode_type<<"typ0as_cont="<<typ0as_cont;
 
@@ -3372,6 +3466,7 @@ void HvTxW::SetMacros(QStringList list,int id_c0,QString cont_exch,QString trmN)
     //emit EmitMyGridMsk144ContM(list_macros.at(1),msk144contm);
     THvAstroDataW->SetMyLocHisLocBand(list_macros.at(1),LeHisLoc->getText(),s_band);
     //qDebug()<<"TX RX ====="<<s_my_base_call;
+    MshfChanget(false);//2.76
 }
 bool HvTxW::DetectCallSufix(QString &call, bool f_sep_n)
 {
@@ -3530,6 +3625,9 @@ void HvTxW::SaveSettings()
     out << "def_cabrillo_log_set=" << THvLogW->GetSettings() << "\n";
     out << "def_use_adif_save=" << THvLogW->GetUseAdifSave() << "\n";
     out << "log_qsos_limit_gt9999_lt500001=" << THvLogW->GetMaxLogQsoCount() << "\n";//500001
+    out << "add_to_log_prop_all=" << THvLogW->GetPropSettings() << "\n";//2.75
+    out << "mam_shf="<<QString("%1").arg(cb_msh->isChecked())<<"#"<<QString("%1").arg(cb_msf->isChecked())<<"\n";//2.76
+    out << "flex_native_last_all=" << flex_panel->GetFlexLastAll() << "\n";//frequency#rxant#txant
 
     //out << "auto_seq_all=" << AutoSeqLab->getautoseq_all() << "\n";
     //out << "lock_txrx_all=" << get_lock_txrx_all() << "\n";
@@ -3550,13 +3648,12 @@ bool HvTxW::isFindId(QString id,QString line,QString &res)
 }
 void HvTxW::ReadSettings()
 {
-    const int c_st_id = 12;
-    //dopalva se tuk v kraia
-    QString st_id[c_st_id]=
+    const int c_st_id = 15;//dopalva se tuk v kraia    
+    const QString st_id[c_st_id]=
         {
             "his_call_tx","my_qrg_tx","tx_fi","mon_call1","mon_call2","def_radec","def_multi_answer",
             "cont_v1_txsn","cont_v2_txsn","def_cabrillo_log_set","def_use_adif_save",
-            "log_qsos_limit_gt9999_lt500001"
+            "log_qsos_limit_gt9999_lt500001","add_to_log_prop_all","mam_shf","flex_native_last_all"
         };
     QString st_res[c_st_id];
     for (int i = 0; i < c_st_id; ++i) st_res[i]="";
@@ -3573,7 +3670,6 @@ void HvTxW::ReadSettings()
     //QTime ttt;
     //ttt.start();
     QTextStream in(&file);
-
     while (!in.atEnd())
     {
         QString line = in.readLine();
@@ -3585,13 +3681,12 @@ void HvTxW::ReadSettings()
                 line = in.readLine();
                 //qDebug()<<i<<"idfind="<<st_id[i]<<"id="<<st_res[i];
             }
-            //else
-            //qDebug()<<i<<"FALSE READ --------------------------------  idfind="<<st_id[i];
-        }
-        //qDebug()<<"ffffffffffffffff===============";
+            //else qDebug()<<i<<"FALSE READ --------------------------------  idfind="<<st_id[i];
+        } //qDebug()<<"ffffffffffffffff===============";
     }
     file.close();
     //qDebug()<<"2Time="<<ttt.elapsed();
+    
     if (!st_res[6].isEmpty()) MultiAnswerMod->SetSettings(st_res[6]);
     if (!st_res[0].isEmpty()) le_his_call->SetText(st_res[0]);
     if (!st_res[1].isEmpty()) le_qrg->setText(st_res[1]);
@@ -3608,6 +3703,17 @@ void HvTxW::ReadSettings()
     if (!st_res[9].isEmpty()) THvLogW->SetSettings(st_res[9]);
     if (!st_res[10].isEmpty()) THvLogW->SetUseAdifSave(st_res[10]);
     if (!st_res[11].isEmpty()) THvLogW->SetMaxLogQsoCount(st_res[11]);
+    if (!st_res[12].isEmpty()) THvLogW->SetPropSettings(st_res[12]);//2.75
+    if (!st_res[13].isEmpty())//2.76
+    {
+    	QStringList l = st_res[13].split("#");
+    	if (l.count()>1)
+    	{
+    		if (l.at(0)=="1") cb_msh->setChecked(true);
+    		if (l.at(1)=="1") cb_msf->setChecked(true);
+   		}
+   	}
+   	if (!st_res[14].isEmpty()) flex_panel->SetFlexLastAll(st_res[14].trimmed());//frequency#rxant#txant
 }
 void HvTxW::SetTxTextsHiden(bool f)
 {
@@ -3619,7 +3725,7 @@ void HvTxW::SetTxTextsHiden(bool f)
 }
 void HvTxW::RefreshMultiAnswerModAndASeq()
 {
-    if ((s_mode==11 || s_mode==13 || allq65) && f_multi_answer_mod)
+    if ((s_mode==11 || s_mode==13 || s_mode==18 || allq65) && f_multi_answer_mod)
     {
         AutoSeqLab->SetAutoSeqMode(s_mode,false);
         SetTxTextsHiden(true);
@@ -3635,6 +3741,78 @@ void HvTxW::RefreshMultiAnswerModAndASeq()
     }
     RfreshDxParm();//2.66  from mode and MAM flag=f_multi_answer_mod
 }
+void HvTxW::MshfChanget(bool)//2.76
+{    	
+    uint8_t mshf = 0;//static uint8_t id_mshf = 10; //0=0,0 1=1,0 2=0,1
+    if (s_cont_type<2 && (f_multi_answer_mod_std || !f_multi_answer_mod) && cb_msh->isChecked()) mshf = 1;
+    if (f_multi_answer_mod && !f_multi_answer_mod_std && cb_msf->isChecked() && !prev_frest_) mshf = 2; //rb_tx_fi->isChecked() &&
+    
+    if (f_multi_answer_mod && !f_multi_answer_mod_std)
+    {
+    	cb_msh->setEnabled(false);
+    	if (!prev_frest_) cb_msf->setEnabled(true); 
+    	else cb_msf->setEnabled(false); //qDebug()<<prev_frest_<<f_tx_rx<<cb_msf->isEnabled();   	
+   	}
+    else 
+    {
+    	cb_msh->setEnabled(true);
+    	cb_msf->setEnabled(false);
+   	} 
+   	
+   	//2.76 need to be here  printf("mode=%d id_mshf=%d\n",s_mode,mshf);
+   	if (mshf == 1 && s_mode==11) rb_tx_se->setChecked(true);   	
+    MultiAnswerMod->SetMsfS5SMsg(mshf);
+
+    if (mshf == 1 && s_mode==11)
+    {
+    	rb_tx_fi->setEnabled(false);
+    	HvTxIn *TempHvTxIn = (HvTxIn*)V_l->itemAt(1)->widget();//2.76.2
+    	TempHvTxIn->SetEnabledRbBtTx(false);
+    	g_no_block_tx = 1;//101=noblock 100=blockall 6=blocktx7 1=blocktx2
+    	if (TempHvTxIn->rb_tx->isChecked()) SetTxRaportToRB(0,false);
+   	}
+    else
+    {
+    	rb_tx_fi->setEnabled(true);
+    	if (g_no_block_tx!=100)//2.76.2 or s_mode!=10
+    	{
+    		HvTxIn *TempHvTxIn = (HvTxIn*)V_l->itemAt(1)->widget();
+    		TempHvTxIn->SetEnabledRbBtTx(true);
+    		g_no_block_tx = 101;//101=noblock 100=blockall 6=blocktx7 1=blocktx2
+   		}	
+   	} //printf("g_no_block_tx=%d\n",g_no_block_tx);
+
+    if (id_mshf == mshf) return;
+    id_mshf = mshf;  
+    
+    if (mshf == 0 || mshf == 2) MultiAnswerMod->SetBand();//for reset ???
+    if (mshf == 0)
+    {
+    	cb_msh->setStyleSheet("");//"QCheckBox{font-weight:normal;color:palette(WindowText);}"  
+    	cb_msf->setStyleSheet("");  	
+   	}
+    else if (mshf == 1) 
+    {
+    	if (dsty) cb_msh->setStyleSheet("QCheckBox{font-weight:bold;color:rgb(0,220,0);}");
+    	else      cb_msh->setStyleSheet("QCheckBox{font-weight:bold;color:rgb(0,120,0);}");
+    	cb_msf->setStyleSheet("");    	
+   	} 
+   	else if (mshf == 2) 
+    {
+    	cb_msh->setStyleSheet("");
+    	if (dsty) cb_msf->setStyleSheet("QCheckBox{font-weight:bold;color:rgb(0,220,0);}");
+    	else      cb_msf->setStyleSheet("QCheckBox{font-weight:bold;color:rgb(0,120,0);}");
+   	}               
+    /*if 		(mshf==0) qDebug()<<"RX="<<false<<"TX="<<false;
+    else if (mshf==1) qDebug()<<"RX="<<true<<" TX="<<false;
+    else if (mshf==2) qDebug()<<"RX="<<false<<"TX="<<true;
+    else 			  qDebug()<<"ERROR--------------------";*/
+    emit EmitMshfChanget(id_mshf); //printf("HvTxW id_mshf=%d\n",id_mshf);
+}
+void HvTxW::SendIdMshf()
+{
+	emit EmitMshfChanget(id_mshf);
+}
 void HvTxW::SetMultiAnswerMod(bool fmadx, bool fmastd)
 {
     if (fmadx || fmastd) f_multi_answer_mod = true;
@@ -3643,14 +3821,17 @@ void HvTxW::SetMultiAnswerMod(bool fmadx, bool fmastd)
     MultiAnswerMod->SetMAStd(fmastd);
     RefreshBackupDB();
     RefreshMultiAnswerModAndASeq();
+    
+    MshfChanget(false);//2.76sf use MultiAnswerMod->isHidden() for sending OTP key, in MADX mod only, to msplayer
+    SetRptRsqSettings();
 }
 void HvTxW::SetEmitMessage(QString msg,bool immediately,bool iftximid,bool id_mam)
 {
-    if ((s_mode==11 || s_mode==13 || allq65) && f_multi_answer_mod && !id_mam)//only ft8  ft4
+    if ((s_mode==11 || s_mode==13 || s_mode==18 || allq65) && f_multi_answer_mod && !id_mam)//only ft8  ft4
     {
         return;
     }
-    if ((s_mode==11 || s_mode==13 || allq65) && f_multi_answer_mod && id_mam)//only ft8  ft4
+    if ((s_mode==11 || s_mode==13 || s_mode==18 || allq65) && f_multi_answer_mod && id_mam)//only ft8  ft4
     {
         emit EmitMessageS(msg,immediately,iftximid);
         ResetTxWatchdog(msg,immediately,iftximid);//qDebug()<<"MultiAnswerMod"<<msg;
@@ -3664,7 +3845,7 @@ void HvTxW::SetEmitMessage(QString msg,bool immediately,bool iftximid,bool id_ma
 void HvTxW::GetCurrentMsg()
 {
     //qDebug()<<"GetCurrentMsg()";
-    if ((s_mode==11 || s_mode==13 || allq65) && f_multi_answer_mod)
+    if ((s_mode==11 || s_mode==13 || s_mode==18 || allq65) && f_multi_answer_mod)
     {
         MultiAnswerMod->GetCurrentMsg();
     }
@@ -3718,13 +3899,11 @@ void HvTxW::GenTestTones()
     {
         HvTxIn *TempHvTxIn = (HvTxIn*)V_l->itemAt(i)->widget();
         TempHvTxIn->line_txt->setText(lst.at(i));
-        if (i!=s_b_identif)
-            TempHvTxIn->rb_tx->setChecked(false);
-        else
-            SetEmitMessage(TempHvTxIn->line_txt->text(),false,false,false);
+        if (i!=s_b_identif) TempHvTxIn->rb_tx->setChecked(false);
+        else SetEmitMessage(TempHvTxIn->line_txt->text(),false,false,false);
     }
 }
-QString HvTxW::DecodeMacros(QString str,bool f_sh,int tx_id,bool my_call_is_std,bool his_call_is_std,bool noQSO)
+QString HvTxW::DecodeMacros(QString str,bool f_sh,int tx_id,bool my_call_is_std,bool his_call_is_std,uint8_t noQSO)
 {
     QString str_out = str;
     QString his_call = le_his_call->getText();
@@ -3778,20 +3957,17 @@ QString HvTxW::DecodeMacros(QString str,bool f_sh,int tx_id,bool my_call_is_std,
         } //qDebug()<<"1111_V"<<ModeStr(s_mode);
     }
 
-    if (s_mode==0 || s_mode==11 || s_mode==13 || allq65)//ft4
-    {
+    if (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65)//ft4
+    { 	//qDebug()<<noQSO;
         if (tx_id==0)//2.02
         {
             /*if (!his_call_is_std)
                 his_call = "<"+his_call+">";
             else if (!my_call_is_std)
                 str_out ="<"+his_call+"> "+my_call;*/
-            if (!his_call_is_std && !my_call_is_std && !noQSO)
-                str_out ="<"+his_call+"> "+my_call;
-            else if (!his_call_is_std)
-                his_call = "<"+his_call+">";
-            else if (!my_call_is_std)
-                str_out ="<"+his_call+"> "+my_call;
+            if (!his_call_is_std && !my_call_is_std && noQSO!=100) str_out ="<"+his_call+"> "+my_call;
+            else if (!his_call_is_std) his_call = "<"+his_call+">";
+            else if (!my_call_is_std) str_out ="<"+his_call+"> "+my_call;
         }
         else if (tx_id==1 || tx_id==2)
         {
@@ -3808,15 +3984,25 @@ QString HvTxW::DecodeMacros(QString str,bool f_sh,int tx_id,bool my_call_is_std,
                 my_call  = "<"+my_call+">";
             }
             else if (!his_call_is_std && !my_call_is_std)
-            {
-                his_call = "<"+his_call+">";
-                if (!noQSO)
-                    my_call = s_my_base_call;
+            {              
+                if (noQSO==0 || noQSO==1 || noQSO==2 || noQSO==6) 
+                {
+                	his_call = "<"+his_call+">";
+                	my_call = s_my_base_call;                	
+               	}
+            	if (noQSO==3 || noQSO==4 || noQSO==5) 
+                {
+                	his_call = MultiAnswerMod->FindBaseFullCallRemAllSlash(his_call);
+                	my_call = "<"+my_call+">";                	
+               	}
+                if (noQSO==7) 
+                {
+                	his_call = "<"+his_call+">";
+                	my_call  = "<"+my_call+">";                	
+               	}
             }
-            else if (!his_call_is_std && my_call_is_std)
-                his_call = "<"+his_call+">";
-            else if (his_call_is_std && !my_call_is_std)
-                my_call  = "<"+my_call+">";
+            else if (!his_call_is_std && my_call_is_std) his_call = "<"+his_call+">";
+            else if (his_call_is_std && !my_call_is_std) my_call  = "<"+my_call+">";
         }
         else if (tx_id==3 || tx_id==4)//rrr, 73
         {
@@ -3831,18 +4017,16 @@ QString HvTxW::DecodeMacros(QString str,bool f_sh,int tx_id,bool my_call_is_std,
                 his_call  = "<"+his_call+">";*/
             if (!his_call_is_std && !my_call_is_std)
             {
-                if (!noQSO)
-                    my_call  = "<"+my_call+">";
+                if (noQSO==0 || noQSO==1 || noQSO==2 || noQSO==5 || noQSO==6 || noQSO==7) my_call  = "<"+my_call+">";
+                else if (noQSO==3 || noQSO==4) his_call = "<"+his_call+">";
                 else
                 {
                     his_call = MultiAnswerMod->FindBaseFullCallRemAllSlash(his_call);
                     my_call = s_my_base_call;
                 }
             }
-            else if (!his_call_is_std && my_call_is_std)
-                my_call  = "<"+my_call+">";
-            else if (his_call_is_std && !my_call_is_std)
-                his_call  = "<"+his_call+">";
+            else if (!his_call_is_std && my_call_is_std) my_call  = "<"+my_call+">";
+            else if (his_call_is_std && !my_call_is_std) his_call  = "<"+his_call+">";
         }
         else if (tx_id==5)//cq
         {
@@ -3858,17 +4042,14 @@ QString HvTxW::DecodeMacros(QString str,bool f_sh,int tx_id,bool my_call_is_std,
         {
             if (TQueuedCall->haveQueuedCall())// RU Queued
             {
-                if (tx_id==3)
-                    str_out.replace(" RRR"," RR73");
+                if (tx_id==3) str_out.replace(" RRR"," RR73");
                 //else if (tx_id==4)
                 //str_out.replace(" 73"," RR73");
             }
             if (TQueuedCall->isLastFromQueued())
             {
-                if (tx_id==2 && s_cont_type==5)//else if(s_id_contest_mode>1)
-                    str_out = "TU; "+str_out;
-                else if (tx_id==3)
-                    str_out.replace(" RRR"," RR73");
+                if (tx_id==2 && s_cont_type==5) str_out = "TU; "+str_out;//else if(s_id_contest_mode>1)                    
+                else if (tx_id==3) str_out.replace(" RRR"," RR73");                    
                 //else if (tx_id==4)
                 //str_out.replace(" 73"," RR73");
             }
@@ -3922,16 +4103,16 @@ QString HvTxW::DecodeMacros(QString str,bool f_sh,int tx_id,bool my_call_is_std,
 
     //msk144 jt65abc mskms ft8 no %G6 only %G4  1.74
     //qDebug()<<s_id_contest_mode;
-    if ((tx_id==1 || tx_id==2) && (s_mode==0 || s_mode==11 || s_mode==13 || allq65) && s_cont_type==3)//ft4 HV 2.00 for contest need to update
+    if ((tx_id==1 || tx_id==2) && (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65) && s_cont_type==3)//ft4 HV 2.00 for contest need to update
         str_out.replace(QString("%G6"), list_macros.at(1));
-    else if (s_mode==0 || s_mode==11 || alljt65 || s_mode==10 || s_mode==12 || s_mode==13 || allq65)//ft4
+    else if (s_mode==0 || s_mode==11 || alljt65 || s_mode==10 || s_mode==12 || s_mode==13 || s_mode==18 || allq65)//ft4
         str_out.replace(QString("%G6"), list_macros.at(1).mid(0,4));
     else
         str_out.replace(QString("%G6"), list_macros.at(1));
 
     int sn = 0;
     QString qrgg = le_qrg->text();
-    if (s_mode==0 || s_mode==11 || s_mode==13 || allq65)//msk144 ft8 ft4
+    if (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65)//msk144 ft8 ft4
     {
         if (qrgg.isEmpty() || qrgg.at(0).isLetter() || qrgg.at(1).isLetter() || qrgg.at(2).isLetter())
             str_out.replace(QString("%QRG"), qrgg);
@@ -3974,9 +4155,9 @@ void HvTxW::SetDxParm(QString dc,QString re,QString dxg)//2.66
 }
 void HvTxW::RfreshDxParm() //2.66
 {
-    if (f_multi_answer_mod && (s_mode==11 || s_mode==13 || allq65)) return;//MAM and MAM Modes
+    if (f_multi_answer_mod && (s_mode==11 || s_mode==13 || s_mode==18 || allq65)) return;//MAM and MAM Modes
     SetDxParm(le_his_call->getText(),le_rst_tx->getText(),LeHisLoc->getText());
-    /*if (!f_multi_answer_mod || (s_mode!=11 && s_mode!=13 && !allq65))//MAM Modes
+    /*if (!f_multi_answer_mod || (s_mode!=11 && s_mode!=13 && s_mode!=18 && !allq65))//MAM Modes
     {	
     	QString dc = le_his_call->getText();
     	QString re = le_rst_tx->getText();
@@ -3997,15 +4178,15 @@ void HvTxW::gen_msg()
     le_rst_tx->SetText(le_rst_tx->format_rpt(le_rst_tx->getText()),false);
     bool c1std = true;
     bool c2std = true;
-    bool noQSO = false;
-    if (s_mode==0 || s_mode==11 || s_mode==13 || allq65) MultiAnswerMod->isStandardCalls(list_macros.at(0),le_his_call->getText(),c1std,c2std,noQSO);
+    uint8_t noQSO = 0;
+    if (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65) MultiAnswerMod->isStandardCalls(list_macros.at(0),le_his_call->getText(),c1std,c2std,noQSO);
     for (int i = 0; i<count_tx_widget; i++)
     {
         HvTxIn *TempHvTxIn = (HvTxIn*)V_l->itemAt(i)->widget();
 
-        if ((s_mode==0 || s_mode==11 || s_mode==13 || allq65) && cb_sh_rpt->isChecked() && (i>=2 && i<=4) && s_cont_type==0)//ft4 && !s_msk144_contest_mode msk144 ft8 v1.42
+        if ((s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65) && cb_sh_rpt->isChecked() && (i>=2 && i<=4) && s_cont_type==0)//ft4 && !s_msk144_contest_mode msk144 ft8 v1.42
             TempHvTxIn->line_txt->setText(DecodeMacros(list_macros.at(i+2),true,i,c1std,c2std,noQSO));
-        else if ((s_mode==0 || s_mode==11 || s_mode==13 || allq65) && cb_sh_rpt->isChecked() && s_cont_type>1 && (i>=3 && i<=4))
+        else if ((s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65) && cb_sh_rpt->isChecked() && s_cont_type>1 && (i>=3 && i<=4))
             TempHvTxIn->line_txt->setText(DecodeMacros(list_macros.at(i+2),true,i,c1std,c2std,noQSO));
         //////////////////Correct "JT65ABC + SH" from makros-> msk144 + SH/////////////////////////
         else if ((alljt65 || s_mode==10) && cb_sh_rpt->isChecked() && (i>=0 && i<=4))
@@ -4043,7 +4224,7 @@ void HvTxW::SetQSOProgressAll(int idd,bool from_mam)//2.51 imoprtent form MultiA
 {
     static int prew_idd = -1;//or 5 default
     int idd_out = idd;
-    if (from_mam && (!f_multi_answer_mod || (s_mode!=11 && s_mode!=13 && !allq65)))//MAM modes here ft8,ft4  || allq65
+    if (from_mam && (!f_multi_answer_mod || (s_mode!=11 && s_mode!=13 && s_mode!=18 && !allq65)))//MAM modes here ft8,ft4  || allq65
     {
         for (int i = 0; i<count_tx_widget; i++)
         {
@@ -4076,7 +4257,7 @@ void HvTxW::SetQSOProgressAll(int idd,bool from_mam)//2.51 imoprtent form MultiA
             }*/
         }
     }
-    if (from_mam && f_multi_answer_mod && idd==5 && (s_mode==11 || s_mode==13 || allq65))//2.66 5=CQ MAM modes
+    if (from_mam && f_multi_answer_mod && idd==5 && (s_mode==11 || s_mode==13 || s_mode==18 || allq65))//2.66 5=CQ MAM modes
     {
         //QString rpt = MultiAnswerMod->format_rpt_ma("+00");
         QString rpt = "+00";
@@ -4125,9 +4306,8 @@ void HvTxW::BReleased(int identif,QString str)
     }
 }
 void HvTxW::SetTxMessage(int identif)
-{
-    //101=noblock 100=blockall 6=blocktx7
-    if (g_no_block_tx!=100)
+{   
+    if (g_no_block_tx!=100)//101=noblock 100=blockall 6=blocktx7 1=blocktx2
     {
         if (g_no_block_tx!=identif)
         {
@@ -4137,12 +4317,10 @@ void HvTxW::SetTxMessage(int identif)
     }
 }
 void HvTxW::Check(QString s_type)
-{
-    //qDebug()<<s_type;
+{	//qDebug()<<s_type;
     if (s_type == "call")
     {
-        //if (le_his_call->getText().count()>1)
-        //qDebug()<<"e="<<le_his_call->getText();
+        //if (le_his_call->getText().count()>1) //qDebug()<<"e="<<le_his_call->getText();
         if (THvQthLoc.isValidCallsign(le_his_call->getText()))
         {
             le_his_call->setError(false);
@@ -4340,8 +4518,8 @@ void HvTxW::CalcDistance()
 void HvTxW::SetDecodeInProgresPskRep(bool f)
 {
     //only JTMS FSK441 FSK315 ISCAT-A ISCAT-B JT6M JT65ABC PI4
-    if (s_mode == 1 || s_mode == 2 || s_mode == 3 || s_mode == 4 || s_mode == 5 || s_mode == 6 ||
-            s_mode == 7 || s_mode == 8 || s_mode == 9 || s_mode == 10)
+    if (s_mode==1 || s_mode==2 || s_mode==3 || s_mode==4 || s_mode==5 || s_mode==6 ||
+            s_mode==7 || s_mode==8 || s_mode==9 || s_mode==10)
     {
         if (f)
         {
@@ -4368,10 +4546,8 @@ void HvTxW::SetDecodeInProgresPskRep(bool f)
             if (!hisCall_pskrep.isEmpty() && s_mode==10)// pi4
             {
                 int freq_offset = 0;//fictive
-                //emit EmitRemoteStation(hisCall_pskrep,hisLoc_pskrep,0,ModeStr(s_mode),max_snr_psk_rep,0);//id 0->to psk reporter 1->to dx clusters spot
-                TRadioAndNetW->AddRemoteStation(hisCall_pskrep,hisLoc_pskrep,freq_offset,ModeStr(s_mode),max_snr_psk_rep,0,"NA");//id 0->to psk reporter 1->to dx clusters spot
+                TRadioAndNetW->AddRemoteStation(hisCall_pskrep,hisLoc_pskrep,freq_offset,ModeStr(s_mode),max_snr_psk_rep,0,"NA","NA#15");//id 0->to psk reporter 1->to dx clusters spot
                 //qDebug()<<"ACUMULATED="<<"hisCall_pskrep="<<hisCall_pskrep<<"hisLoc_pskrep="<<hisLoc_pskrep<<"Mode="<<ModeStr(s_mode)<<"MaxSNR="<<max_snr_psk_rep;
-
                 max_snr_psk_rep = -200;
                 hisCall_pskrep = "";
                 hisLoc_pskrep = "";
@@ -4380,10 +4556,8 @@ void HvTxW::SetDecodeInProgresPskRep(bool f)
             else if (!hisCall_pskrep.isEmpty() && !hisLoc_pskrep.isEmpty())
             {
                 int freq_offset = 0;//fictive
-                //emit EmitRemoteStation(hisCall_pskrep,hisLoc_pskrep,0,ModeStr(s_mode),max_snr_psk_rep,0);//id 0->to psk reporter 1->to dx clusters spot
-                TRadioAndNetW->AddRemoteStation(hisCall_pskrep,hisLoc_pskrep,freq_offset,ModeStr(s_mode),max_snr_psk_rep,0,"NA");
+                TRadioAndNetW->AddRemoteStation(hisCall_pskrep,hisLoc_pskrep,freq_offset,ModeStr(s_mode),max_snr_psk_rep,0,"NA","NA#15");
                 //qDebug()<<"ACUMULATED="<<"hisCall_pskrep="<<hisCall_pskrep<<"hisLoc_pskrep="<<hisLoc_pskrep<<"Mode="<<ModeStr(s_mode)<<"MaxSNR="<<max_snr_psk_rep;
-
                 max_snr_psk_rep = -200;
                 hisCall_pskrep = "";
                 hisLoc_pskrep = "";
@@ -4421,7 +4595,7 @@ void HvTxW::TryFindCallLocForSpot(QString in,QString &call,QString &loc)
         }
     }
 }
-void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)//id 0->to psk reporter 1->to dx clusters spot,  bool emitudpdectxt
+void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt,uint8_t id_voms)//id 0->to psk reporter 1->to dx clusters spot,  bool emitudpdectxt
 {
     if (!list_in.isEmpty())
     {
@@ -4433,8 +4607,8 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
         QString smsg  = "";
         static QString psk_restrict_t = "_";
         bool fpsk_block = false;
-
-        if (s_mode==11 || s_mode==13 || allq65) //only ft8  ft4  || allq65
+        
+        if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)//only ft8 ft4 allq65
         {
             if (fpsk_restrict)
             {
@@ -4450,29 +4624,33 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
                 fpsk_block = false;
                 psk_restrict_t = "_";
             }
-        }
+        }//qDebug()<<"list_in.at(0)="<<list_in.at(0)<<fpsk_block;
         //2.73 Dist Country
-        if (((s_mode == 0 || s_mode == 12) && list_in.count()>6) || ((s_mode == 11 || s_mode==13 || allq65) && list_in.count()>9))//MSK144 MSK40 FT8 ft4 have column 4
+        if (((s_mode==0 || s_mode==12) && list_in.count()>6) || ((s_mode==11 || s_mode==13 || s_mode==18 || allq65) && list_in.count()>9))//MSK144 MSK40 FT8 ft4 have column 4
         {
             hisCall_pskrep = "";
             hisLoc_pskrep  = "";
 
             QStringList ls_text;
             QString strt;
-            if (s_mode == 0 || s_mode == 12) strt = list_in.at(6);// MSK144  MSK144msk
-            if (s_mode == 11 || s_mode==13 || allq65) strt = list_in.at(4);// ft8 ft4
+            if (s_mode==0 || s_mode==12) strt = list_in.at(6);// MSK144  MSK144msk
+            if (s_mode==11 || s_mode==13 || s_mode==18 || allq65) strt = list_in.at(4);// ft8 ft4
 
             smsg = strt;
             //for ft8+fox and msk144+sh
-            QString strt0 = strt+"xxxx";
+            QString strt0 = strt+"xxxx"; //qDebug()<<strt;
             if (strt0.mid(0,4)=="TU; ") strt.remove("TU; ");
-            strt.remove("<");
+            int cst0 = strt0.count();
+            if (cst0>6) 
+            {
+            	if (strt0.mid(cst0-7,3)==" TU") strt.remove(cst0-7,3);//2.76.5 strt.remove(" TU");
+           	}
+            strt.remove("<"); //qDebug()<<strt;
             strt.remove(">");
             strt.remove(";");
 
             int pos_loc_call_as_grig = 100;//2.13 exeprion call_as_grig PA70, PA70X, PA70XX
             ls_text = strt.split(" ");
-
             //"TA2NC RR73 SP9HWY <...> +00"
             //<...> LZ33MM +00              v2 exception
             //LZ33MM <...> +00              v2 exception
@@ -4483,13 +4661,13 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
             for (int i = ls_text.count()-1; i >=0 ; i--)
             {
                 //ft8 ft4 + fox exeption for call no exist 1.69
-                if ((s_mode==11 || s_mode==0 || s_mode==13 || allq65) && i>0 && ls_text.at(i)=="...")//2.20
+                if ((s_mode==11 || s_mode==0 || s_mode==13 || s_mode==18 || allq65) && i>0 && ls_text.at(i)=="...")//2.20
                 {
                     hisCall_pskrep="...";
                     hisCall_spot="...";
                 }
-
-                if (hisLoc_pskrep.isEmpty() && THvQthLoc.isValidLocator(ls_text.at(i)))
+                if (ls_text.at(i)=="RR73") continue;//{}//2.75
+                else if (i!=0 && i!=1 && hisLoc_pskrep.isEmpty() && THvQthLoc.isValidLocator(ls_text.at(i)))//2.75 (i!=0 && i!=1)
                 {
                     hisLoc_pskrep = ls_text.at(i);
                     hisLoc_spot =   ls_text.at(i);
@@ -4519,14 +4697,10 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
                         }
                     }
                     ////////////////////end new MSK144MS //////////////////
-                }
-
-                if (hisCall_pskrep == list_macros.at(0) && id == 0) // no emit if is my call / 1.41 for spot no problem if my call
-                    return;
+                }//if (hisCall_pskrep == list_macros.at(0) && id == 0) return;//2.75 move down for SMsg no emit if is my call
             }
-
             //2.13 exeprion call_as_grig PA70, PA70X, PA70XX
-            if (pos_loc_call_as_grig==1)//2.14 exeption fox to me as 1 call msg
+            /*if (pos_loc_call_as_grig==1)//2.14 exeption fox to me as 1 call msg
             {
                 if (hisLoc_pskrep!="RR73")
                 {
@@ -4545,15 +4719,59 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
                     hisLoc_pskrep = "";
                     hisLoc_spot = "";
                 }
-            }
-            //2.13 END exeprion call_as_grig PA70, PA70X, PA70XX
-
-            if (hisLoc_pskrep=="RR73")//1.54=RR73
-            {
+            }*/
+            if (pos_loc_call_as_grig==3 && ls_text.count()==5)//2.75
+            {   //SMsg->"KK2HV RR73; LZ2HV <RP79GD> +06", LZ2HV <...> R 589 NY", <...> LZ2HV R 589 0001", WA9XYZ KA1ABC R 16A EMA
+                //<RP9DD> <RP79GD> R 590057 KN23SF, <RP9DD> <RP79GD> 590057 KN23SF
+                /*if (FindBaseFullCallRemAllSlash(hisCall_inmsg)==s_my_base_call)
+                {
+                    myCall_inmsg = hisCall_inmsg;//pos->hisCall_inmsg>0, pos myCall_inmsg is >0, no need->"&& i>0"
+                    if (s_mode==11 || s_mode==13 || s_mode==18|| allq65) is_fox_msg_for_me_as2call_ft8 = true;
+                }*/
+                hisCall_pskrep = hisLoc_pskrep;
+                hisCall_spot = hisLoc_spot;
                 hisLoc_pskrep = "";
                 hisLoc_spot = "";
             }
-            if (s_mode==11 || s_mode==13 || allq65)//ft8 ft4 + fox big exeption for fox msg 1.69
+            //2.75 "LZ2HV/B KN23" "W0A/B KN23"
+            if (ls_text.count() == 2/*&& THvQthLoc.isValidCallsign(ls_text.at(0))*/)
+            {
+                int idx = ls_text.at(0).indexOf("/B");
+                if (idx>2 && THvQthLoc.isValidLocator(hisCall_pskrep))
+                {
+                    hisLoc_pskrep = hisCall_pskrep;
+                    hisLoc_spot = hisCall_spot;
+                    hisCall_pskrep = ls_text.at(0);
+                    hisCall_spot = ls_text.at(0);
+                }
+            } //qDebug()<<hisCall_pskrep<<hisLoc_pskrep<<hisCall_spot<<hisLoc_spot;
+            //2.13 END exeprion call_as_grig PA70, PA70X, PA70XX
+            
+            bool fpsk_block2 = false;//2.76sf           
+            if (s_mode==11)
+        	{   //id_voms -> 0=normal msg, 1=$VERIFY$, 2=C0ALL.123456, 3=verified & invalid //4=invalid
+                if (id_voms==2) 
+                {
+        			QTime t = QTime::fromString(list_in.at(0),"hhmmss");
+        			if (t.isValid()) 
+        			{
+        				QString st0 = strt;
+        				st0.replace("."," ");
+        				TRadioAndNetW->SendOtpCheck(list_in.at(0)+" $VERIFY$ "+st0+" "+list_in.at(9));
+       				}
+        			fpsk_block2 = true;                	
+               	}
+        		if (id_voms==1 && id_mshf>0)
+        		{
+        			QTime t = QTime::fromString(list_in.at(0),"hhmmss");
+        			if (t.isValid()) TRadioAndNetW->SendOtpCheck(list_in.at(0)+" "+strt+" "+list_in.at(9));
+        			fpsk_block2 = true;        			
+       			}
+       			if (id_voms>2) fpsk_block2 = true;
+       		}//qDebug()<<"sfoxvfy="<<sfoxvfy;
+       		                        
+            if (hisCall_pskrep == list_macros.at(0) && id == 0) fpsk_block2 = true;//2.76 no -> return;//2.75 no emit if is my call
+            if (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65)//ft8 ft4 + fox big exeption for fox msg 1.69
             {
                 if (hisCall_pskrep=="...")//big exeption for fox msg 1.69
                 {
@@ -4561,7 +4779,6 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
                     hisCall_spot = "";
                 }
             }
-
             if (hisCall_pskrep==le_his_call->getText())// only shure they my partner
             {
                 if (LeHisLoc->getText().contains(hisLoc_pskrep))//if shure to full locator
@@ -4575,7 +4792,7 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
                     hisLoc_spot =   LeHisLoc->getText();
                 }
             }
-            if (s_mode == 0 || s_mode == 12)  // MSK144 MSK40 msk144ms
+            if (s_mode==0 || s_mode==12)//MSK144 MSK40 msk144ms
             {
                 /*if (cb_rpt_db_msk->isChecked())
                 {
@@ -4587,60 +4804,56 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
                 else*/
                 snr_spot = list_in.at(3).toInt();//vinagi db za spot i pska reporter
                 //freq_offset = 0;//list_in.at(11).toInt();
-                sdt = list_in.at(1);
-                //qDebug()<<"ALL="<<list_in<<list_in.at(10);
+                sdt = list_in.at(1); //qDebug()<<"ALL="<<list_in<<list_in.at(10);
             }
-            if (s_mode == 11 || s_mode==13 || allq65) // FT8 ft4
+            if (s_mode==11 || s_mode==13 || s_mode==18 || allq65) // FT8 ft4
             {
                 snr_spot = list_in.at(1).toInt();
                 freq_offset = list_in.at(9).toInt();//only for ft8 //2.73 Dist Country
                 sdt = list_in.at(2);
             }
-            // to here no my partner but have loc emit
-            // if no my partner no loc no emit
-            //qDebug()<<"MSK144"<<"hisCall_pskrep="<<hisCall_pskrep<<"hisLoc_pskrep="<<hisLoc_pskrep<<"Mode="<<ModeStr(s_mode)<<"MaxSNR="<<snr_spot;
-            //qDebug()<<"ALL="<<hisCall_pskrep<<hisLoc_pskrep;
-            if (!hisCall_pskrep.isEmpty() && !hisLoc_pskrep.isEmpty() && id==0 && !fpsk_block)//v1.41 id 0->to psk reporter 1->to dx clusters
+            //to here no my partner but have loc emit
+            //if no my partner no loc no emit
+            //qDebug()<<"hisCall="<<hisCall_pskrep<<"hisLoc="<<hisLoc_pskrep<<"pos_loc="<<pos_loc_call_as_grig<<"Ls_count="<<ls_text.count();
+            //qDebug()<<"hisCall="<<hisCall_pskrep<<"hisLoc="<<hisLoc_pskrep<<"Mode="<<ModeStr(s_mode)<<"MaxSNR="<<snr_spot<<fpsk_block;
+            if (!hisCall_pskrep.isEmpty() && !hisLoc_pskrep.isEmpty() && id==0 && !fpsk_block && !fpsk_block2)//v1.41 id 0->to psk reporter 1->to dx clusters
             {
-                //qDebug()<<"2CCCChisCall="<<hisCall_pskrep<<hisLoc_pskrep;
-                //emit EmitRemoteStation(hisCall_pskrep,hisLoc_pskrep,0,ModeStr(s_mode),snr_spot,id);//id 0->to psk reporter 1->to dx clusters spot
-                TRadioAndNetW->AddRemoteStation(hisCall_pskrep,hisLoc_pskrep,freq_offset,ModeStr(s_mode),snr_spot,id,"NA");
-                //qDebug()<<"hisCall_pskrep="<<hisCall_pskrep<<"hisLoc_pskrep="<<hisLoc_pskrep<<"Mode="<<ModeStr(s_mode)<<"MaxSNR="<<snr_spot;
+            	QString hhmmsspt = "NA#15";//2.76.4
+            	if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)
+            	{
+            		hhmmsspt = list_in.at(0);
+            		hhmmsspt.append("#"+QString("%1").arg(SB_PeriodTime->get_period_time(),0,'f',1));            		
+           		}
+                TRadioAndNetW->AddRemoteStation(hisCall_pskrep,hisLoc_pskrep,freq_offset,ModeStr(s_mode),snr_spot,id,"NA",hhmmsspt);
+                //qDebug()<<"hisCall="<<hisCall_pskrep<<"hisLoc="<<hisLoc_pskrep<<"Mode="<<ModeStr(s_mode)<<"MaxSNR="<<snr_spot;
             }
         }
-        else if ((s_mode == 1 || s_mode == 2 || s_mode == 3) && list_in.count()>6)//JTMS FSK441 FSK315  have column 6
+        else if ((s_mode==1 || s_mode==2 || s_mode==3) && list_in.count()>6)//JTMS FSK441 FSK315  have column 6
         {
             if (list_in.at(6).contains(le_his_call->getText()))
             {
                 hisCall_pskrep = le_his_call->getText();
                 hisLoc_pskrep =  LeHisLoc->getText();
-
                 hisCall_spot =   le_his_call->getText();
                 hisLoc_spot =    LeHisLoc->getText();
-
-                if (list_in.at(3).toInt()>max_snr_psk_rep)
-                    max_snr_psk_rep = list_in.at(3).toInt();
+                if (list_in.at(3).toInt()>max_snr_psk_rep) max_snr_psk_rep = list_in.at(3).toInt();
                 //qDebug()<<"snr1="<<list.at(3).toInt();
             }
-
             TryFindCallLocForSpot(list_in.at(6),hisCall_spot,hisLoc_spot);
             snr_spot = list_in.at(3).toInt();
             //freq_offset = 0;
             smsg = list_in.at(6);
             sdt = list_in.at(1);
         }
-        else if ((s_mode == 4 || s_mode == 5) && list_in.count()>6)//ISCAT-A ISCAT-B
+        else if ((s_mode==4 || s_mode==5) && list_in.count()>6)//ISCAT-A ISCAT-B
         {
             if (list_in.at(6).contains(le_his_call->getText()))
             {
                 hisCall_pskrep = le_his_call->getText();
                 hisLoc_pskrep =  LeHisLoc->getText();
-
                 hisCall_spot =   le_his_call->getText();
                 hisLoc_spot =    LeHisLoc->getText();
-
-                if (list_in.at(2).toInt()>max_snr_psk_rep)
-                    max_snr_psk_rep = list_in.at(2).toInt();
+                if (list_in.at(2).toInt()>max_snr_psk_rep) max_snr_psk_rep = list_in.at(2).toInt();
                 //qDebug()<<"snr2="<<list.at(2).toInt();
             }
             TryFindCallLocForSpot(list_in.at(6),hisCall_spot,hisLoc_spot);
@@ -4649,18 +4862,15 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
             smsg = list_in.at(6);
             sdt = list_in.at(3);
         }
-        else if (s_mode == 6 && list_in.count()>5)//JT6M
+        else if (s_mode==6 && list_in.count()>5)//JT6M
         {
             if (list_in.at(5).contains(le_his_call->getText()))
             {
                 hisCall_pskrep = le_his_call->getText();
                 hisLoc_pskrep =  LeHisLoc->getText();
-
                 hisCall_spot =   le_his_call->getText();
                 hisLoc_spot =    LeHisLoc->getText();
-
-                if (list_in.at(3).toInt()>max_snr_psk_rep)
-                    max_snr_psk_rep = list_in.at(3).toInt();
+                if (list_in.at(3).toInt()>max_snr_psk_rep) max_snr_psk_rep = list_in.at(3).toInt();
                 //qDebug()<<"snr3="<<list.at(3).toInt();
             }
             TryFindCallLocForSpot(list_in.at(5),hisCall_spot,hisLoc_spot);
@@ -4669,40 +4879,32 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
             smsg = list_in.at(5);
             sdt = list_in.at(1);
         }
-        else if ((s_mode == 7 || s_mode == 8 || s_mode == 9) && list_in.count()>6)//jt65abc
+        else if ((s_mode==7 || s_mode==8 || s_mode==9) && list_in.count()>6)//jt65abc
         {
             if (list_in.at(6).contains(le_his_call->getText()))
             {
                 hisCall_pskrep = le_his_call->getText();
                 hisLoc_pskrep =  LeHisLoc->getText();
-
                 hisCall_spot =   le_his_call->getText();
                 hisLoc_spot =    LeHisLoc->getText();
-
-                if (list_in.at(2).toInt()>max_snr_psk_rep)
-                    max_snr_psk_rep = list_in.at(2).toInt();
+                if (list_in.at(2).toInt()>max_snr_psk_rep) max_snr_psk_rep = list_in.at(2).toInt();
                 //qDebug()<<"snr2="<<list.at(2).toInt();
             }
-
             TryFindCallLocForSpot(list_in.at(6),hisCall_spot,hisLoc_spot);
             snr_spot = list_in.at(2).toInt();
             //freq_offset = 0;
             smsg = list_in.at(6);
             sdt = list_in.at(3);
         }
-        else if (s_mode == 10 && list_in.count()>6)//pi4
+        else if (s_mode==10 && list_in.count()>6)//pi4
         {
             if (THvQthLoc.isValidCallsign(list_in.at(6)))
             {
                 hisCall_pskrep = list_in.at(6);
                 hisLoc_pskrep = "";
-
                 hisCall_spot =   list_in.at(6);
                 hisLoc_spot =   "";
-
-                if (list_in.at(2).toInt()>max_snr_psk_rep)
-                    max_snr_psk_rep = list_in.at(2).toInt();
-
+                if (list_in.at(2).toInt()>max_snr_psk_rep) max_snr_psk_rep = list_in.at(2).toInt();
                 snr_spot = list_in.at(2).toInt();
                 //freq_offset = 0;
                 smsg = list_in.at(6);
@@ -4713,9 +4915,7 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
         if (id==1)//v1.41 id 0->to psk reporter 1->to dx clusters
         {
             QString pwidth = "NA";
-            if (s_mode == 1 || s_mode == 2 || s_mode == 3 || s_mode == 12)//all JTMS FSK441/315 and MSK144MS
-                pwidth = list_in.at(2);
-
+            if (s_mode==1 || s_mode==2 || s_mode==3 || s_mode==12) pwidth = list_in.at(2);//all JTMS FSK441/315 and MSK144MS
             bool spot_res = true;
             QString c1 = MultiAnswerMod->FindBaseFullCallRemAllSlash(hisCall_spot);//0 full
             QString c2 = MultiAnswerMod->FindBaseFullCallRemAllSlash(list_macros.at(0));//0 full
@@ -4723,7 +4923,6 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
             {
                 QString text = "<p align='center'>"+tr("Are you sure you want to spot your call")+" "+hisCall_spot+" ?</p>";
                 int ret = QMessageBox::warning(this, "MSHV", text, QMessageBox::Ok | QMessageBox::Cancel);
-
                 switch (ret)
                 {
                 case QMessageBox::Cancel:
@@ -4737,10 +4936,9 @@ void HvTxW::ValidateStationInfo(QStringList list_in, int id, bool emitudpdectxt)
                     break;
                 }
             }
-            if (spot_res)
-                TRadioAndNetW->AddRemoteStation(hisCall_spot,hisLoc_spot,freq_offset,ModeStr(s_mode),snr_spot,id,pwidth);
+            if (spot_res) TRadioAndNetW->AddRemoteStation(hisCall_spot,hisLoc_spot,freq_offset,ModeStr(s_mode),snr_spot,id,pwidth,"NA#15");
         }
-        //qDebug()<<"Status start";
+        //qDebug()<<"Status start"<<smsg;
         //2.43  && id==0 no emit if to DX Cluster  //v1.41 id 0->to psk reporter 1->to dx clusters ,  bool emitudpdectxt
         if (TRadioAndNetW->GetUdpBroadDecod() && id==0 && emitudpdectxt && !fpsk_block)
         {
@@ -4803,7 +5001,7 @@ void HvTxW::CountTx73_p(bool svlog)
 {
     int c_cfm73 = 0;
     int max_c = 1+c_cfm73;
-    if (s_mode == 0 || s_mode == 12) //for msk144 2-times=73
+    if (s_mode==0 || s_mode==12) //for msk144 2-times=73
     {
         max_c = 1+2; //1+2;
         c_cfm73 = 1;
@@ -4814,7 +5012,7 @@ void HvTxW::CountTx73_p(bool svlog)
         if (count_73_auto_seq>=max_c)
         {
             count_73_auto_seq = 0;
-            if (s_cont_type>1 && (s_mode == 0 || s_mode == 11 || s_mode==13 || allq65) && TrySetQueuedCall(false))
+            if (s_cont_type>1 && (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65) && TrySetQueuedCall(false))
                 return;// nill
             else
             {
@@ -4829,10 +5027,10 @@ void HvTxW::CountTx73_p(bool svlog)
                     if (direct_log_qso) AddToLog_p(true);
                     else if (prompt_log_qso) AddToLog_p(false);//false direct save to log off
                 }
-                //stop 2.43 if (!f_multi_answer_mod && s_id_contest_mode>1 && (s_mode == 0 || s_mode == 11 || s_mode==13))//ft4
+                //stop 2.43 if (!f_multi_answer_mod && s_id_contest_mode>1 && (s_mode == 0 || s_mode == 11 || s_mode==13 || s_mode==18))//ft4
                 bool farst = false;
                 if (f_areset_qso && s_cont_type==0) farst = true;
-                if (!f_multi_answer_mod && (farst || s_cont_type>1) && (s_mode == 0 || s_mode == 11 || s_mode==13 || allq65))//2.43
+                if (!f_multi_answer_mod && (farst || s_cont_type>1) && (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65))//2.43
                     ResetQSO_p(false);//2.43
             }
         }
@@ -4842,8 +5040,7 @@ void HvTxW::CountTx73_p(bool svlog)
 void HvTxW::SetTxRxCountAutoSeq(bool f)
 {
     f_tx_rx = f;
-    if ((s_mode==11 || s_mode==13 || allq65) && f_multi_answer_mod)//eventual ft4
-        MultiAnswerMod->SetTxRxMsg(f);
+    if ((s_mode==11 || s_mode==13 || s_mode==18 || allq65) && f_multi_answer_mod) MultiAnswerMod->SetTxRxMsg(f);//eventual ft4
 
     TRadioAndNetW->SetTx(f);
     THvAstroDataW->SetTx(f);
@@ -4929,7 +5126,7 @@ void HvTxW::SetTxRaportToRB(int identif,bool immediately)
         {
             SetQSOProgressAll(identif,false);//2.51
             TempHvTxIn->rb_tx->setChecked(true);
-            if ((s_mode==11 || s_mode==13 || allq65) && f_auto_on && immediately)//2.59 +ft44 f_tx_rx &&
+            if ((s_mode==11 || s_mode==13 || s_mode==18 || allq65) && f_auto_on && immediately)//2.59 +ft44 f_tx_rx &&
                 SetEmitMessage(TempHvTxIn->line_txt->text(),false,true,false);//iftximid
             else SetEmitMessage(TempHvTxIn->line_txt->text(),false,false,false);
             //qDebug()<<"msg="<<s_b_identif<<TempHvTxIn->line_txt->text();
@@ -4954,9 +5151,8 @@ void HvTxW::SetQrgActiveId(int i)//2.60
     else if (i!=2 && b_activ==6) SetTxRaportToRB(5,false);
 }
 void HvTxW::SetDPLogQso(bool f1,bool f2)
-{
-    //qDebug()<<f1<<f2;
-    direct_log_qso = f1;
+{    
+    direct_log_qso = f1; //qDebug()<<f1<<f2;
     prompt_log_qso = f2;
     one_addtolog_auto_seq = false; // reset one add to log
 }
@@ -4966,11 +5162,9 @@ void HvTxW::AutoSeqLabPress()
 }
 void HvTxW::SetFreqTxW(double f)
 {
-    if ((s_mode==11 || s_mode==13 || allq65) && f_multi_answer_mod) return;
+    if ((s_mode==11 || s_mode==13 || s_mode==18 || allq65) && f_multi_answer_mod) return;
     // no change freq if    haveQueuedCall //eventual ft4 if (s_id_contest_mode>1 && (s_mode == 0 || s_mode == 11) && TQueuedCall->haveQueuedCall())
-    if (s_cont_type>1 && (s_mode == 0 || s_mode == 11 || s_mode==13 || allq65) && TQueuedCall->haveQueuedCall())//ft4
-        return;
-
+    if (s_cont_type>1 && (s_mode==0 || s_mode==11 || s_mode==13 || s_mode==18 || allq65) && TQueuedCall->haveQueuedCall()) return;//ft4        
     emit EmitFreqTxW(f);
 }
 void HvTxW::SetTxRstASeq(QString s)//2.59
@@ -4994,16 +5188,22 @@ void HvTxW::SetUseASeqMaxDist(bool f)
     f_aseqmaxdist = f; //qDebug()<<"SetUseASeqMaxDist="<<f;
     MultiAnswerMod->SetUseASeqMaxDist(f);
 }
+bool HvTxW::isAddToLog(QString hisBaseCall_inmsg)//2.76.1
+{
+	bool f = false;
+	if ((!f_add_to_log_started && !one_addtolog_auto_seq) || (!f_add_to_log_started && hisBaseCall_inmsg != s_last_bccall_tolog_excp)) f = true;
+	return f;
+}
 void HvTxW::SetTextForAutoSeq(QStringList list_in)
 {
-    if ((s_mode==11 || s_mode==13 || allq65) && f_multi_answer_mod)//ft8 only  eventual ft4
+    if ((s_mode==11 || s_mode==13 || s_mode==18 || allq65) && f_multi_answer_mod)//ft8 only  eventual ft4
     {
         //if (f_auto_on && AutoSeqLab->GetAutoSeq())
         if (f_auto_on) MultiAnswerMod->SetTextForAutoSeq(list_in);
         return;
     }
-	//2.73 Dist Country
-    if (!list_in.isEmpty() && (s_mode==0 || s_mode==11 || s_mode==12 || s_mode==13 || allq65) && list_in.count()>9 && f_auto_on)//FT8 ft4 have column 7 for freq msk144 have column 8 for freq
+    //2.73 Dist Country
+    if (!list_in.isEmpty() && (s_mode==0 || s_mode==11 || s_mode==12 || s_mode==13 || s_mode==18 || allq65) && list_in.count()>9 && f_auto_on)//FT8 ft4 have column 7 for freq msk144 have column 8 for freq
     {
         if (direct_log_qso || prompt_log_qso || AutoSeqLab->GetAutoSeq())
         {
@@ -5015,15 +5215,16 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
             QString rr73_inmsg  = ""; ////1.54=RR73 msk144 ft8 rr73
             QString text_msg;
 
-            if (s_mode == 0 || s_mode == 12)
-                text_msg = list_in.at(6);//msk144 and msk144ms
-            else
-                text_msg = list_in.at(4);//ft8 ft4
+            if (s_mode==0 || s_mode==12) text_msg = list_in.at(6);//msk144 and msk144ms
+            else text_msg = list_in.at(4);//ft8 ft4
+            
             //QString hisCallFromLe = le_his_call->getText();  hisCallFromLe,
             int row_queue = -2;// -1=ident find mam   -2=no find mam
             int row_now = -2;  // -1=ident find mam   -2=no find mam
             QString sn_inmsg = "";//v.2.0
-            QString arrl_exch_imsg = "";//v.2.01
+            QString arrl_exch_imsg = "";//v.2.01            
+            //bool tu0=false;
+            //if (text_msg.endsWith(" TU")) tu0=true;
             MultiAnswerMod->DetectTextInMsg(text_msg,hisCall_inmsg,hisLoc_inmsg,myCall_inmsg,rpt_inmsg,
                                             cont_r_inmsg,rr73_inmsg,row_queue,row_now,sn_inmsg,arrl_exch_imsg);
             //qDebug()<<"hisCall="<<hisCall_inmsg<<"hisLoc="<<hisLoc_inmsg<<"myCall="<<myCall_inmsg<<
@@ -5031,10 +5232,9 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
 
             bool fc1 = true;
             bool fc2 = true;
-            bool noQSO = false;
-            if (!hisCall_inmsg.isEmpty())
-                MultiAnswerMod->isStandardCalls(list_macros.at(0),hisCall_inmsg,fc1,fc2,noQSO);
-            if (f_two_no_sdtc && noQSO)//if (f_two_no_sdtc)
+            uint8_t noQSO = 0;
+            if (!hisCall_inmsg.isEmpty()) MultiAnswerMod->isStandardCalls(list_macros.at(0),hisCall_inmsg,fc1,fc2,noQSO);
+            if (f_two_no_sdtc && noQSO==100)//if (f_two_no_sdtc)
             {
                 return;
             }
@@ -5045,7 +5245,7 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
                     return;
                 }
             }
-			//if (s_man_adding && le_his_call->getText()=="") return;
+            //if (s_man_adding && le_his_call->getText()=="") return;
 
             QString le_his_base_call = MultiAnswerMod->FindBaseFullCallRemAllSlash(le_his_call->getText());//1.73
             QString hisBaseCall_inmsg = "_NONE_";//1.73
@@ -5094,16 +5294,16 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
                     }
 
                     QString my_tx_rpt;
-                    if (s_mode == 0)//msk144
+                    if (s_mode==0)//msk144
                         my_tx_rpt = list_in.at(3);
-                    if (s_mode == 12)
+                    if (s_mode==12)
                     {
                         if (list_in.at(4).isEmpty())// vavno moze i da e prazno
                             my_tx_rpt = "26";
                         else
                             my_tx_rpt = list_in.at(4);
                     }
-                    if (s_mode == 11 || s_mode == 13 || allq65)//ft8 ft4
+                    if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)//ft8 ft4
                     {
                         my_tx_rpt = list_in.at(1);
                         double his_freq = (double)list_in.at(9).toInt();//2.73 Dist Country
@@ -5177,16 +5377,12 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
                         count_73_auto_seq = 0;//importent
                         //one_addtolog_auto_seq = false; //2.31 stopped
 
-                        if (!hisLoc_inmsg.isEmpty())        //2.01 update EU C LOC
-                            LeHisLoc->SetText(hisLoc_inmsg);
-                        if (!sn_inmsg.isEmpty())
-                            s_his_contest_sn = sn_inmsg;
-                        if (!arrl_exch_imsg.isEmpty())
-                            s_his_contest_exch = arrl_exch_imsg;
+                        if (!hisLoc_inmsg.isEmpty()) LeHisLoc->SetText(hisLoc_inmsg);//2.01 update EU C LOC                            
+                        if (!sn_inmsg.isEmpty()) s_his_contest_sn = sn_inmsg;
+                        if (!arrl_exch_imsg.isEmpty()) s_his_contest_exch = arrl_exch_imsg;
 
                         //2.31 importent
-                        if ((!f_add_to_log_started && !one_addtolog_auto_seq) ||
-                                (!f_add_to_log_started && hisBaseCall_inmsg != s_last_bccall_tolog_excp))
+                        if (isAddToLog(hisBaseCall_inmsg))//2.76.1
                         {
                             one_addtolog_auto_seq = true;//importent
                             if (s_cont_type>1 && s_mode != 12) AddToLog_p(true);//true direct save to log on
@@ -5200,9 +5396,7 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
                     {//msg=3 RRR
                         SetTxRaportToRB(4,true);
                         count_73_auto_seq = 1;//importent no 73 only RRR no stop TX from SetTxCountAutoSeq()
-
-                        if ((!f_add_to_log_started && !one_addtolog_auto_seq) ||
-                                (!f_add_to_log_started && hisBaseCall_inmsg != s_last_bccall_tolog_excp))
+                        if (isAddToLog(hisBaseCall_inmsg))//2.76.1       
                         {
                             //qDebug()<<"msg3 000= LOG UP --------- RRR R ---------->";
                             one_addtolog_auto_seq = true;//importent
@@ -5219,8 +5413,7 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
 
                         if (s_cont_type>1 && s_mode != 12)//2.02  2.59 or->if (((!f_cfm73 && f_areset_qso) || s_cont_type>1) && s_mode != 12)
                         {
-                            if ((!f_add_to_log_started && !one_addtolog_auto_seq) ||
-                                    (!f_add_to_log_started && hisBaseCall_inmsg != s_last_bccall_tolog_excp))
+                            if (isAddToLog(hisBaseCall_inmsg))//2.76.1        
                             {
                                 //qDebug()<<"msg4 DIRECT QueuedCall= LOG UP --------- 73 RR73 ---------->";
                                 one_addtolog_auto_seq = true;//importent
@@ -5235,14 +5428,11 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
                             {
                                 count_73_auto_seq = 2;
                                 bool svlog = false;//2.59 exeption from -> (!f_cfm73 && f_areset_qso) effect no save QSO
-                                if ((!f_add_to_log_started && !one_addtolog_auto_seq) ||
-                                        (!f_add_to_log_started && hisBaseCall_inmsg != s_last_bccall_tolog_excp)) svlog = true;
+                                if (isAddToLog(hisBaseCall_inmsg)) svlog = true;//2.76.1        
                                 CountTx73_p(svlog);
                             }
                         }
-
-                        if ((!f_add_to_log_started && !one_addtolog_auto_seq) ||
-                                (!f_add_to_log_started && hisBaseCall_inmsg != s_last_bccall_tolog_excp))
+                        if (isAddToLog(hisBaseCall_inmsg))//2.76.1        
                         {
                             //qDebug()<<"msg4 ASK= LOG UP --------- 73 RR73 ---------->";
                             one_addtolog_auto_seq = true;//importent
@@ -5274,14 +5464,12 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
                                 {
                                     count_73_auto_seq = 2;
                                     bool svlog = false;//2.59 exeption from -> (!f_cfm73 && f_areset_qso) effect no save QSO
-                                    if ((!f_add_to_log_started && !one_addtolog_auto_seq) ||
-                                            (!f_add_to_log_started && hisBaseCall_inmsg != s_last_bccall_tolog_excp)) svlog = true;
+                                    if (isAddToLog(hisBaseCall_inmsg)) svlog = true;//2.76.1        
                                     CountTx73_p(svlog);
                                 }
                                 //else count_73_auto_seq = 1;
                                 //2.59 for NA Contest msg-> R KN23
-                                if ((!f_add_to_log_started && !one_addtolog_auto_seq) ||
-                                        (!f_add_to_log_started && hisBaseCall_inmsg != s_last_bccall_tolog_excp))
+                                if (isAddToLog(hisBaseCall_inmsg))//2.76.1        
                                 {
                                     one_addtolog_auto_seq = true;//importent
                                     if (s_cont_type>1 && s_mode != 12) AddToLog_p(true);//true direct save to log on
@@ -5294,8 +5482,7 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
                             {
                                 //qDebug()<<"22=="<<count_73_auto_seq;
                                 count_73_auto_seq = 1;
-                                if ((!f_add_to_log_started && !one_addtolog_auto_seq) ||
-                                        (!f_add_to_log_started && hisBaseCall_inmsg != s_last_bccall_tolog_excp))
+                                if (isAddToLog(hisBaseCall_inmsg))//2.76.1        
                                 {
                                     one_addtolog_auto_seq = true;//importent
                                     if (s_cont_type>1 && s_mode != 12) AddToLog_p(true);//true direct save to log on
@@ -5315,8 +5502,7 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
                                                    rpt_inmsg.at(rpt_inmsg.count()-1)=='R') || rpt_inmsg=="73")) ||
                             rr73_inmsg=="RR73")//1.54=RR73 msg=3-4 RRR 73 RR73
                     {
-                        if ((!f_add_to_log_started && !one_addtolog_auto_seq) ||
-                                (!f_add_to_log_started && hisBaseCall_inmsg != s_last_bccall_tolog_excp))
+                        if (isAddToLog(hisBaseCall_inmsg))//2.76.1        
                         {
                             one_addtolog_auto_seq = true;//importent
                             if (direct_log_qso) AddToLog_p(true);
@@ -5325,8 +5511,7 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
                             else if(s_id_contest_mode>1) AddToLog_p(true);//true direct save to log on*/
                         }
                     }
-                    else // any other msg reset rrr and 73
-                        one_addtolog_auto_seq = false;//importent
+                    else one_addtolog_auto_seq = false;//importent // any other msg reset rrr and 73
                 }
             }
         }
@@ -5334,8 +5519,7 @@ void HvTxW::SetTextForAutoSeq(QStringList list_in)
 }
 void HvTxW::ExternalFindLocFromDB(QString call)
 {
-    QString loc = TMsDb->CheckBD(call);
-    //emit EmitLocFromDB(loc);
+    QString loc = TMsDb->CheckBD(call); //emit EmitLocFromDB(loc);
     TRadioAndNetW->SetLocFromDB(loc);
 }
 

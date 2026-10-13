@@ -24,15 +24,15 @@ class CpuWudget_W : public QWidget
 {
     Q_OBJECT
 public:
-    CpuWudget_W(int CpuN, int cpu_count, bool all_in_one, QWidget *parent = 0);
+    CpuWudget_W(int CpuN, int cpu_count,/*bool all_in_one,*/QWidget *parent = 0);
     virtual ~CpuWudget_W();
 
 public slots:
-    void SetValue();
+    //void SetValue();
     void SetValueAllInOne();
 
 private:
-    HvProgBarSlowH *THvProgBarSlowH;
+    //HvProgBarSlowH *THvProgBarSlowH;
     QLabel *l_cpu0;
     CpuSensorHv *TCpuSensorHv;
     int s_cpu_count;
@@ -48,10 +48,8 @@ public:
     virtual ~CpuWudget();
     int GetThrCount()
     {
-    	if (s_cpu_c>0)//protection
-    		return s_cpu_c;
-    	else
-    		return 1;	
+    	if (s_cpu_c>0) return s_cpu_c;//protection    		
+    	else return 1;	
    	}
 
 signals:
@@ -61,7 +59,7 @@ signals:
 private:
 	int s_cpu_c;
     void ScanForCpus();
-    void AddWidgets(int number);
+    //void AddWidgets(int number);
     //void AddWidgetForAll(int cpu_count);
     QHBoxLayout *H_B;
     QTimer *timer_refreshcpu;

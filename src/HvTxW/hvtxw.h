@@ -143,6 +143,8 @@ private:
 #include "../HvSlider_V_Identif/hvslider_v_identif.h"
 #include "HvAstroDataW/hvastrodataw.h"
 #include "hvspinbox.h"
+#include "../HvButtons/hvbutton_lrc.h"
+#include "../HvRigControl/HvRigCat/network/flexpanel.h"
 
 //#define _BANDS_H_
 //#define _FREQTOBAND_H_
@@ -274,7 +276,7 @@ public:
     QString GetFreqGlobal()
     {
         return FREQ_GLOBAL;
-    };      
+    };         
     void ExpandShrinkDf(bool f);//2.05
     //void SetMacros(QStringList,int,QString,QString); //2.32
     void SetDPLogQso(bool,bool);
@@ -282,9 +284,12 @@ public:
     void SetStartQsoDateTime(); //2.49
     void SetTxMessage(int); //2.49
     void ReadEDILog();//2.57
+    void SendIdMshf();//2.76
+    void RefreshOtpKeyMsg();//2.76 
+    //void FlexSetDefFreqGlobal(QString);//2.76.7 
 
 public slots:
-	void SetFtDf1500(bool);
+	//void SetFtDf1500(bool);
 	void SetAResetQsoAtEnd(bool); //2.49
 	void SetCfm73(bool);
     void StopAuto();
@@ -323,7 +328,7 @@ public slots:
     void SetTextMark(bool*,QString);
     void SetRxOnlyFiSe();
 
-    void ValidateStationInfo(QStringList list, int id, bool emitudpdectxt);//2.43 emitudpdectxt
+    void ValidateStationInfo(QStringList list, int id, bool emitudpdectxt,uint8_t);//2.43 emitudpdectxt
     void SetDecodeInProgresPskRep(bool);
     void SetRxDf(int);
 
@@ -347,6 +352,9 @@ public slots:
     void SetUseASeqMaxDist(bool);//2.66
     void SetMAFirstTX(bool);
     void SetMaManAdding(bool);
+    void CBEnableAliChanged(bool);//2.75
+    void SetAutoLogInfo();//2.75
+    void ShowFlexPanel(); //2.76.7
 
 signals:
 	void EmitMacros(int,QString);
@@ -379,20 +387,29 @@ signals:
     void EmitLockTxrx(bool);
     void EmitFreqTxW(double);
     void EmitQSOProgress(int);
+    void EmitFreqGlobalToDec(QString);//2.76.5
     void EmitMAMCalls(QStringList);
     void EmitUdpCmdDl(QStringList);
+    void EmitUdpConfigure(int);//2.76.7
     void EmitUdpCmdStop(bool);
     void EmitQrgParms(QString s,bool f);//2.45 
     void EmitQrgQSY(QStringList);//2.46 
     void EmitDistUnit(bool);
     void EmitHisCalls(QStringList);
+    void EmitMshfChanget(uint8_t);//2.76
+    void EmitSFMATxAll(QString);//2.76
+    void EmitOtpTxKey(QString);//2.76
+    void EmitOtpRxMsg(bool);//2.76
+    void EmitOtpVerif(QString,uint8_t);//2.76
+    void EmitOffsetDt(int);//2.76.5
+    void EmitUpdateFlexMeter(bool,bool,double,double);
  
 private slots:
     void SetRptRsq(bool);
 	void SetMacros(QStringList,int,QString,QString); //2.32	
     void SetDistUnit(bool);
     void SetEmitMessage(QString msg,bool imidiatly,bool iftximid,bool id_mam);
-	void SetRigCatActiveAndRead(bool f);
+	void SetRigCatActiveAndRead(bool,QString);//2.76.1
     void ExternalFindLocFromDB(QString call);
     void LockTxrxChanged(bool);
     void RbPress(int);
@@ -418,8 +435,12 @@ private slots:
     void RefreshLRestrict();
     void SetQrgActiveId(int);//2.60
     void SetHisCalls(QStringList);
+    void MshfChanget(bool);//2.76
+    void UpdateFlexMeter(bool,bool,double,double,bool);
 
 private:
+	FlexPanel *flex_panel;	
+	uint8_t id_mshf;//2.76
 	bool f_ma_first_tx;
 	bool dsty;
 	bool allq65;
@@ -436,6 +457,7 @@ private:
 	bool sf_cfm73;
 	void RefreshCfm73();
 	bool g_ub_m_k;	
+	bool prev_frest_;
     bool f_mod_set_frq_to_rig;
 	QFrame *Box_in_tx;
 	int s_list_log_mark_txt_p1;
@@ -447,7 +469,8 @@ private:
 	//int s_mark_myc_pos;
 	int s_mark_hisc_pos;
 	void SetMarkTextAll();
-	QString s_last_bccall_tolog_excp;	
+	QString s_last_bccall_tolog_excp;
+	HvButtonLeftRightClick *b_add_to_log;//QPushButton *b_add_to_log;	
     void AddToLog_p(bool direct_save_to_log); 
     bool s_start_qso_from_tx2;
     //bool DialogIsCallDupeInLog(QString hisCall_inmsg);
@@ -489,6 +512,7 @@ private:
     QVBoxLayout *V_l;
     QLabel *l_time;
     QLabel *l_dey;
+    HvSpinBoxDt *sb_dt;
     QLabel *l_mycall_loc;
 
     QString AppPath;
@@ -538,7 +562,7 @@ private:
     //QString FindBaseCallRemAllSlash(QString);
 
     //bool isStandardCall(QString w);
-    QString DecodeMacros(QString,bool,int,bool,bool,bool);
+    QString DecodeMacros(QString,bool,int,bool,bool,uint8_t);
     HvSpinBox *SB_MinSigdB;
     //bool f_last_from_queued;
     HvQueuedCallW *TQueuedCall; 
@@ -578,7 +602,8 @@ private:
     QCheckBox *cb_zap;
     QCheckBox *cb_sh_rpt;
     QCheckBox *cb_swl;
-    //ft8
+    QCheckBox *cb_msh;//2.76
+    QCheckBox *cb_msf;//2.76
     HvTxRxEqual *pb_tx_to_rx;
     HvTxRxEqual *pb_rx_to_tx;//2.63
     HvLabAutoSeq *AutoSeqLab;
@@ -640,8 +665,10 @@ private:
     bool info_dupe_qso;
     bool is_locked_tx_rst_msk_aseq;
     void SetLockTxRstMskASeq(bool);
-    void SetTxRstASeq(QString);    
-	long long int _ftfr_[20];
+    void SetTxRstASeq(QString);
+    bool isAddToLog(QString);//2.76.1 
+       
+	long long int _ftfr_[40];//+FT2
     //TX watchdog
     QString s_PrevTxRpt;
     unsigned int s_last_txwatchdog_time;

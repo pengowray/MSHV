@@ -9,5 +9,7 @@ unsigned char *to_bcd_(unsigned char *bcd_data, unsigned long long freq, int bcd
 unsigned long long from_bcd_(const unsigned char *bcd_data, int bcd_len);
 unsigned char *to_bcd_be_(unsigned char *bcd_data, unsigned long long freq, int bcd_len);
 unsigned long long from_bcd_be_(const unsigned char *bcd_data, int bcd_len);
+//unsigned char *to_be(unsigned char *data,unsigned long long freq,int byte_len);
+//unsigned long long from_be(const unsigned char *data,int byte_len);
 
 #endif

@@ -41,8 +41,10 @@ static const addr_newm icom_addr_newm[ICOM_COUNT] =
     {
         /*IC-7000*/{0x70,false},
         /*IC-7100*/{0x88,true},
+        /*IC-7110*/{0xba,true},//2.76.7
         /*IC-7200*/{0x76,false},
         /*IC-7300*/{0x94,true},
+        /*IC-7300MK2*/{0xb6,true},//2.76.6
         /*IC-705*/{0xa4,true},
         /*IC-756*/{0x50,false},
         /*IC-756PRO*/{0x5c,false},
@@ -53,10 +55,11 @@ static const addr_newm icom_addr_newm[ICOM_COUNT] =
         /*IC-706MkIIG*/{0x58,false},
         /*IC-905*/{0xac,false},
         /*IC-9100*/{0x7c,false},
-        /*IC-9700*/{0xa2,false},
+        /*IC-9700*/{0xa2,true},//2.76.4 //false
         /*IC-7800*/{0x6a,false},
         /*IC-785x*/{0x8e,false},
         /*IC-7700*/{0x74,false},
+        /*IC-7760*/{0xb2,true},//true = new filter 0x01,0x02,0x03 FIL1(wide), FIL2 (mid) or FIL3 (narrow).
         /*IC-7600*/{0x7a,true},
         /*IC-7610*/{0x98,true},
         /*IC-7410*/{0x80,false},
@@ -101,10 +104,12 @@ static const addr_newm icom_addr_newm[ICOM_COUNT] =
         /*IC-RX7*/{0x78,false},
         /*IC ID-1*/{0x01,false},
         /*ID-5100*/{0x8c,false},
-        /*Xiegu G90*/{0x70,true},
+        /*Xiegu G106*/{0x70,true},//0x90 ?
+        /*Xiegu G90*/{0x70,true},//0x70 ?        
         /*Xiegu X108G*/{0x70,true},
         /*Xiegu X5105*/{0x70,true},
-        /*Xiegu X6100*/{0x70,true}
+        /*Xiegu X6100*/{0xa4,true},//0x70 ?
+        /*Xiegu X6200*/{0xa4,true} // ?
     };
 Icom::Icom(int ModelID,QWidget *parent)
         : QWidget(parent)
@@ -132,6 +137,7 @@ static const icom_cmd_init init_0[ICOM_COUNT] =
         {2,{{0x1a,0x05,0x00,0x95,0x00},{0x1a,0x05,0x00,0x32,0x00},{0}}},//IC-7100
         {2,{{0x1a,0x03,0x48,0x00,0x00},{0x1a,0x03,0x37,0x00,0x00},{0}}},//IC-7200  FEFE76E0.1A0348.00.FD   FEFE76E0.1A0337.00.FD
         {3,{{0x1a,0x05,0x00,0x75,0x01},{0x1a,0x05,0x00,0x71,0x00},{0x1a,0x05,0x00,0x53,0x00}}},//IC-7300
+        {3,{{0x1a,0x05,0x00,0x75,0x01},{0x1a,0x05,0x00,0x71,0x00},{0x1a,0x05,0x00,0x53,0x00}}},//IC-7300MK2
         {3,{{0x1a,0x05,0x01,0x32,0x01},{0x1a,0x05,0x01,0x31,0x00},{0x1a,0x05,0x00,0x70,0x00}}},//IC-705
         {0,{{0},{0},{0}}},//IC-756
         {0,{{0},{0},{0}}},//IC-756PRO
@@ -351,7 +357,8 @@ void Icom::set_mode(QString str)
             }
             else mode = S_USB;
         }
-        else if (str=="LSB") mode = S_LSB;
+        else if (str=="LSB")  mode = S_LSB;
+        else if (str=="DIGU") mode = S_DIGU;//2.76.4 0x08
         else return;
         cmd[0] = C_SET_MODE;
         cmd[1] = mode;

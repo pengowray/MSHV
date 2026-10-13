@@ -1,17 +1,17 @@
 #ifndef _CONFIG_STR_ALL_H_
 #define _CONFIG_STR_ALL_H_
 
-#define COUNT_MODE 18
+#define COUNT_MODE 19
 
 static const uint8_t pos_mods[COUNT_MODE] =
     {
-        0,12,1,2,3,4,5,6,13,11,14,15,16,17,7,8,9,10
+        0,12,1,2,3,4,5,6,18,13,11,14,15,16,17,7,8,9,10
     };       
 inline static const QString ModeStr(int i)
 {
     QString ModeStr_[COUNT_MODE]={"MSK144","JTMS","FSK441","FSK315","ISCAT-A","ISCAT-B","JT6M",
                                  "JT65A","JT65B","JT65C","PI4","FT8","MSKMS","FT4",
-                                 "Q65A","Q65B","Q65C","Q65D"};
+                                 "Q65A","Q65B","Q65C","Q65D","FT2"};
     QString mode = "UNKNOWN";
     if (i>=0 && i<=COUNT_MODE-1)// stop exseptions 
         mode = ModeStr_[i];
@@ -38,8 +38,9 @@ inline static const QString ModeColorStr(int i)
             "QLabel{background-color:rgb(92,229,210);",   //Color Q65A
             "QLabel{background-color:rgb(92,229,210);",   //Color Q65B
             "QLabel{background-color:rgb(92,229,210);",   //Color Q65C
-            "QLabel{background-color:rgb(92,229,210);"};  //Color Q65D
-            //"QLabel{background-color:rgb(92,229,210);"};  //Color 18
+            "QLabel{background-color:rgb(92,229,210);",   //Color Q65D
+            "QLabel{background-color:rgb(92,235,220);"};  //Color FT2
+            //"QLabel{background-color:rgb(92,229,210);"};  //Color 19
 
     QString modec = "QLabel{background-color:rgb(255,255,255);}";// White
     if (i>=0 && i<=COUNT_MODE-1)// stop exseptions
