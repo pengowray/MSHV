@@ -1,7 +1,7 @@
 /* MSHV Part from hvutils bcd conversion
  * Copyright 2015 Hrisimir Hristov, LZ2HV
  * May be used under the terms of the GNU General Public License (GPL)
- */
+ */ 
 unsigned char *to_bcd_(unsigned char *bcd_data, unsigned long long freq, int bcd_len)
 {
     int i;
@@ -80,3 +80,19 @@ unsigned long long from_bcd_be_(const unsigned char *bcd_data, int bcd_len)
 	}
 	return f;
 }
+/*unsigned char *to_be(unsigned char *data,unsigned long long freq,int byte_len)
+{
+    for (int i = byte_len - 1; i >= 0; i--)
+    {
+        unsigned char a = freq & 0xFF;
+        freq >>= 8;
+        data[i] = a;
+    }
+    return data;
+}
+unsigned long long from_be(const unsigned char *data,int byte_len)
+{
+    unsigned long long f = 0;
+    for (int i = 0; i < byte_len; i++) f = (f << 8) + data[i];
+    return f;
+}*/

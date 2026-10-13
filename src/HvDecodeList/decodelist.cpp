@@ -111,8 +111,8 @@ DecodeList::DecodeList(int ident,bool f,QWidget *parent)
     effect->setBlurRadius(0); effect->setColor(QColor(255, 0, 0));
     effect->setOffset(1,1); 
     setGraphicsEffect(effect);*/
-
     dsty = f;
+    f_otp_show_msg = false;
     is_filters_active = false;
     f_bgcolor_clr_lst = true;//2.43
     show_filter_list = false;
@@ -171,6 +171,7 @@ DecodeList::DecodeList(int ident,bool f,QWidget *parent)
     f_mark_tx = true;
     f_mark_qsy = true;
     f_mark_txqsy = false;//tx=0 qsy=1;
+    id_mark_otp_verif = 0;
     s_list_ident = ident;
     f_new_dec_clr_msg_list = false;
     last_pt_dec_clr_msg_list = "NONE";
@@ -308,12 +309,12 @@ QStringList DecodeList::GetCountries()
 }
 /*void DecodeList::SetHeaderSingleClicked()
 {
-    //if (s_mode==11 || s_mode==13) //emit EmitHeaderDoubleClicked();
+    //if (s_mode==11 || s_mode==13|| s_mode==18) //emit EmitHeaderDoubleClicked();
     qDebug()<<"Click";
 }*/
 void DecodeList::SetHeaderDoubleClicked()//2.44
 {
-    if (s_mode==11 || s_mode==13) emit EmitHeaderDoubleClicked();
+    if (s_mode==11 || s_mode==13 || s_mode==18) emit EmitHeaderDoubleClicked();
 }
 void DecodeList::SaveAndCorrSectionSize()
 {
@@ -395,7 +396,7 @@ void DecodeList::SetUdpCmdDl(QStringList l)
         int dt_col  = 0;
         int snr_col = 0;
 
-        if (s_mode==11 || s_mode==13 || allq65)//ft8 ft4	msg=4
+        if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)//ft8 ft4	msg=4
         {
             msg_col = 4;
             dt_col  = 2;
@@ -536,7 +537,7 @@ void DecodeList::ItemSelectedText(QString str,int in_column,int in_row)
                                      model.item(in_row, 2)->text(),model.item(in_row, 9)->text());
         }
     }
-    if (s_mode==11 || s_mode==13 || allq65)//ft8 ft4
+    if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)//ft8 ft4
     {
         //if (model.item(in_row, 1)->text()=="TX")//1.60=moved to insert my tx
         //return;
@@ -572,7 +573,7 @@ void DecodeList::ItemSelectedText(QString str,int in_column,int in_row)
     if ((s_mode == 1 || s_mode == 2 || s_mode == 3) && in_column==4 ) // jtms fsk441 fsk315  and rpt column
         st_lineEdit_hv->setCursor(Qt::ArrowCursor);
 
-    if ((s_mode == 11 || s_mode==13 || allq65) && (in_column==1 || in_column==8)) // ft8 ft4  and rpt and freq column
+    if ((s_mode == 11 || s_mode==13 || s_mode==18 || allq65) && (in_column==1 || in_column==8)) // ft8 ft4  and rpt and freq column
         st_lineEdit_hv->setCursor(Qt::ArrowCursor);
 
     // JT6M no rpt column for selection
@@ -587,7 +588,7 @@ void DecodeList::CountMsgInPeriod(bool f)
     if (s_list_ident!=1) return;
     //only for MSK, JT65, FT8, FT4
     //if (s_mode!=11 && s_mode!=13 && s_mode!=0 && s_mode!=12 && s_mode!=7 && s_mode!=8 && s_mode!=9) return;
-    if (s_mode==11 || s_mode==13 || s_mode==0 || s_mode==12 || s_mode==7 || s_mode==8 || s_mode==9 || allq65)// || allq65
+    if (s_mode==11 || s_mode==13 || s_mode==18 || s_mode==0 || s_mode==12 || s_mode==7 || s_mode==8 || s_mode==9 || allq65)// || allq65
     {
         if (f) count_dec++;
         else
@@ -617,7 +618,7 @@ void DecodeList::SetTimeElapsed(float ts)
 //#include <QToolTip>
 void DecodeList::RefreshFiltHeadColor(bool f1,bool f2,bool f3,bool f4,bool f5,bool f6,bool f7,bool f8,bool f9)
 {
-    if ((s_mode==11 || s_mode==13) && (f1 || f2 || f3 || f4 || f5 || f6 || f7 || f8 || f9))//ft8 ft4
+    if ((s_mode==11 || s_mode==13 || s_mode==18) && (f1 || f2 || f3 || f4 || f5 || f6 || f7 || f8 || f9))//ft8 ft4
     {
         is_filters_active = true;
         if (dsty) header()->setStyleSheet("QHeaderView::section{background-color:rgb(155,90,90);}");
@@ -642,7 +643,7 @@ void DecodeList::RefreshFiltHeadColor(bool f1,bool f2,bool f3,bool f4,bool f5,bo
     {
         is_filters_active = false;
         header()->setStyleSheet("QHeaderView::section{background-color:palette(Button);}");
-        if (s_mode==11 || s_mode==13) //2.45
+        if (s_mode==11 || s_mode==13 || s_mode==18) //2.45
         {
             if (model.rowCount()<1) emit EmitLstNexColor(false);
             else if (!is_filter_dec)
@@ -931,7 +932,7 @@ void DecodeList::SetMode(int mode,bool flag_two,bool f0,bool f1,bool f2,bool f3)
 
         msg_column = 6;
     }
-    if (mode==11 || mode==13 || allq65)//ft8 ft4
+    if (mode==11 || mode==13 || mode==18 || allq65)//ft8 ft4
     {
         QString qdc = "Qual";
         if (allq65) qdc = "Dec";
@@ -1098,7 +1099,7 @@ void DecodeList::keyPressEvent(QKeyEvent * event)
             str.replace("\n"," ");// zaradi JT6M jtms
             active.append(str);//MSG
         }
-        else if (s_mode==11 || s_mode==13 || allq65) // ft8 ft4
+        else if (s_mode==11 || s_mode==13 || s_mode==18 || allq65) // ft8 ft4
         {
             active.append(model.item(index.row(),0)->text()+" ");//Time
             active.append(model.item(index.row(),1)->text()+" dB ");//db
@@ -1146,7 +1147,7 @@ void DecodeList::HideShowWfTxRefreshList()//2.64
 void DecodeList::SetBackColor(bool f)
 {
     //qDebug()<<"f_row_color="<<is_filter_dec<<f_bgcolor_clr_lst<<model.rowCount();
-    //if ((s_mode==11 || s_mode==13) && is_filters_active && !is_filter_dec && !f_bgcolor_clr_lst)//2.66 old && model.rowCount()>0
+    //if ((s_mode==11 || s_mode==13|| s_mode==18) && is_filters_active && !is_filter_dec && !f_bgcolor_clr_lst)//2.66 old && model.rowCount()>0
     bool is_fact = is_filters_active; //2.66 //bool is_fdec = is_filter_dec;
     if (!is_fact && g_block_list_exp && s_list_ident==1)//2.66 importent->s_list_ident==1 g_block_list_exp<-problem for list=2
     {
@@ -1154,7 +1155,7 @@ void DecodeList::SetBackColor(bool f)
         is_filter_dec = false;
     }
 
-    if ((s_mode==11 || s_mode==13) && is_fact && !is_filter_dec && !f_bgcolor_clr_lst) //2.66
+    if ((s_mode==11 || s_mode==13 || s_mode==18) && is_fact && !is_filter_dec && !f_bgcolor_clr_lst) //2.66
     {
         if (f) emit EmitLstNexColor(false);
         else   emit EmitLstNexColor(true);
@@ -1175,7 +1176,7 @@ void DecodeList::SetBackColorTxQsy(bool f)//2.46
 }
 void DecodeList::RefreshFastDcml()
 {
-    if (f_new_dec_clr_msg_list && (s_mode==11 || s_mode==13)) s_fast_dec_clr_msg_list = true;//ft4
+    if (f_new_dec_clr_msg_list && (s_mode==11 || s_mode==13 || s_mode==18)) s_fast_dec_clr_msg_list = true;//ft4
     else s_fast_dec_clr_msg_list = false;
     //qDebug()<<"s_fast_dec_clr_msg_list="<<s_list_ident<<s_fast_dec_clr_msg_list;
 }
@@ -1185,7 +1186,7 @@ void DecodeList::SetNewDecClrMsgListFlag(bool f)
     {
         f_new_dec_clr_msg_list = f;
         RefreshFastDcml();
-        if (s_mode==11 || s_mode==13)//ft4
+        if (s_mode==11 || s_mode==13 || s_mode==18)//ft4
         {
             if (f)
             {
@@ -1292,7 +1293,8 @@ QString DecodeList::FindHisCall(QString c)
     //"CQ 001 LZ2HVV KN23"
     //"CQ DX LZ2HVV KN23"
     //"CQ RU LZ2HVV KN23"
-    //"CQ LZ2000HV"
+    //c="CQ LZ2000HV";
+    //c="W0A/B KN23";
     QString res = "";
     QString tstr = c;
     tstr.remove("<");
@@ -1337,9 +1339,13 @@ QString DecodeList::FindHisCall(QString c)
         bool alldorl = AllisDigitOrAllisLetter(res);
         if (alldorl) res="";
         else if (!THvQthLoc.isValidCallsign(res)) res = "";//2.66
-    }
-    //if (!THvQthLoc.isValidCallsign(res)) res = "";//2.66
-    //qDebug()<<"out="<<res.leftJustified(13,' ')<<" in="<<tstr;
+        //2.75 "LZ2HV/B KN23" "W0A/B KN23"
+        if (clm == 2/*&& THvQthLoc.isValidCallsign(lm.at(0))*/)
+        {
+        	int idx = lm.at(0).indexOf("/B"); //qDebug()<<idx<<lm.at(0);
+        	if (idx>2 && THvQthLoc.isValidLocator(res)) res = lm.at(0);
+       	}
+    } //qDebug()<<"out="<<res.leftJustified(13,' ')<<" in="<<tstr; 
     return res;
 }
 bool DecodeList::ShowDecode(QString s)// show CQ,73,RR73
@@ -1477,6 +1483,27 @@ bool DecodeList::isFromHiscals(QString s)
     }
     return f;
 }
+void DecodeList::SetOtpVerif(QString s,uint8_t id)
+{	
+	QStringList l = s.split("#");//id=1,verified id=2,invalid
+	id_mark_otp_verif = id;
+	InsertItem_hv(l,true,true);
+	id_mark_otp_verif = 0;
+}
+void DecodeList::SetShowOtpRxMsg(bool f)
+{
+	f_otp_show_msg = f; //qDebug()<<f;
+}
+/*uint8_t DecodeList::isVerfOrOtpmsg(QString s,bool f)
+{
+	uint8_t id = 0;//0=normal msg, 1=$VERIFY$, 2=C0ALL.123456, 3=verified
+	if (s_mode!=11) return 0;
+	if 		(s.startsWith("$VERIFY$ ")) id = 1;
+    else if (s.contains(QRegularExpression{"^[A-Z0-9]{2,6}\\.[0-9]{6}"})) id = 2;
+    else if (f) id = 3;
+    else if (s.endsWith(" verified")) id = 3;  
+    return id;	
+}*/
 void DecodeList::InsertItem_hv(QStringList list,bool ffopen,bool forme)
 {
     if (g_block_list_exp) return;
@@ -1487,7 +1514,7 @@ void DecodeList::InsertItem_hv(QStringList list,bool ffopen,bool forme)
         bool f_sho0 = true;
         QString call = "";
         if (is_filters_active && f_hide_c[9] && !is_only_cqrr73_active) freply = isFromHiscals(list.at(4));
-        if ((is_filters_active && !forme) || (is_filters_active && !freply))//no needed ->(s_mode == 11 || s_mode == 13)
+        if ((is_filters_active && !forme) || (is_filters_active && !freply))//no needed ->(s_mode == 11 || s_mode == 13|| s_mode==18)
         {
             //QString call = "";
             bool f_b4qso = false;
@@ -1556,10 +1583,37 @@ void DecodeList::InsertItem_hv(QStringList list,bool ffopen,bool forme)
         falltxt[0] = 100; //no save column
         falltxt[1] = 100; //no save column
 
-        if (s_mode==11 || s_mode==13 || allq65)
+        uint8_t id_vomsg = 0;
+        if (s_mode==11)//2.76sf 0=normal msg, 1=$VERIFY$, 2=C0ALL.123456, 3=verified
         {
-            list.insert(5, FindCountry(list.at(1),list.at(4),call));
-            list.insert(6,CalcDistance(list.at(1),list.at(4)));
+        	if (list.at(4).startsWith("$VERIFY$ "))
+        	{
+        		if (!f_otp_show_msg) f_show = false;
+        		if (s_list_ident == 2 && list.at(1).startsWith("TX")) f_show = true;//only from 2 list my TX
+        		id_vomsg = 1;
+       		}
+       		else if (list.at(4).contains(QRegularExpression{"^[A-Z0-9]{2,6}\\.[0-9]{6}"}))
+       		{
+        		if (!f_otp_show_msg) f_show = false;
+        		if (s_list_ident == 2 && list.at(1).startsWith("TX")) f_show = true;//only from 2 list my TX
+        		id_vomsg = 2;       			
+      		}
+       		else if (id_mark_otp_verif>0) id_vomsg = 3;//verified & invalid & not found
+       		//else if (id_mark_otp_verif==2) id_voms = 4;//invalid
+       	}//if (s_list_ident==1) qDebug()<<"id_voms="<<id_voms<<"f_show="<<f_show;
+
+        if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)
+        {
+        	if (id_vomsg>0)//2.76sf 
+        	{
+        		list.insert(5,"");//list.insert(5, FindCountry("","",list.at(4).split(" ").at(0))); 
+        		list.insert(6,"");      		
+       		}
+            else 
+            {
+            	list.insert(5, FindCountry(list.at(1),list.at(4),call)); 
+            	list.insert(6,CalcDistance(list.at(1),list.at(4)));           	
+           	}            
             falltxt[0] = 5;
             falltxt[1] = 6;
         }
@@ -1576,7 +1630,8 @@ void DecodeList::InsertItem_hv(QStringList list,bool ffopen,bool forme)
             list.insert(8,CalcDistance(list.at(4),list.at(6)));
             falltxt[0] = 7;
             falltxt[1] = 8;
-        }
+        }        
+
         for (QStringList::iterator it =  list.begin(); it != list.end(); ++it)
         {
             QString txtin = QString(*it);
@@ -1623,7 +1678,7 @@ void DecodeList::InsertItem_hv(QStringList list,bool ffopen,bool forme)
                     else item->setTextAlignment(Qt::AlignCenter);
                     if (k==12) item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);//2.73 Dist Country
                 }
-                else if (s_mode==11 || s_mode==13 || allq65)//ft8 ft4
+                else if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)//ft8 ft4
                 {
                     if (k==1)
                     {
@@ -1680,6 +1735,18 @@ void DecodeList::InsertItem_hv(QStringList list,bool ffopen,bool forme)
                         else item->setBackground(QColor(212,222,242));//rgb item->setBackground(QColor(212,222,242));
                     }
                 }
+                
+                if (id_mark_otp_verif==1)//2.76sf verified
+                {
+                	if (dsty) item->setBackground(QColor(0,100,0));
+                	else item->setBackground(QColor(200,250,200));
+               	}
+                else if (id_mark_otp_verif>1)//2.76sf invalid & not found
+                {
+                	if (dsty) item->setBackground(QColor(130,10,10));
+                	else item->setBackground(QColor(250,200,200));
+               	} 
+               	              	
                 qlsi.append(item);
             }
             if (k!=falltxt[0] && k!=falltxt[1])//2.73
@@ -1694,7 +1761,7 @@ void DecodeList::InsertItem_hv(QStringList list,bool ffopen,bool forme)
             model.appendRow(qlsi);
             is_filter_dec = true;
         }
-        CountMsgInPeriod(true);
+        if (id_vomsg==0) CountMsgInPeriod(true);//qDebug()<<id_voms<<f_otp_show_msg;
 
         alltxt.replace("\n"," ");// for JT6M jtms
         emit EmitRxAllTxt(alltxt);
@@ -1703,12 +1770,20 @@ void DecodeList::InsertItem_hv(QStringList list,bool ffopen,bool forme)
         {
             if (s_list_ident == 1)//only from 1 list
             {
-                bool emitudpdectxt = true;
-                if (f_hide_c[7] && !f_show) emitudpdectxt = false;  //qDebug()<<"EmitUdpDecTxt="<<emitudpdectxt;
-                emit EmitRxStationInfo(list,0,emitudpdectxt);//0->to psk reporter 1->to dx cluster, bool usefudpdectxt
-                if (f_show && freply) emit EmitRxTextForAutoSeq(list);//this signal for  2 list no conected
+                bool emitudpdectxt = true;//2.76sf id_voms -> 0=normal msg, 1=$VERIFY$, 2=C0ALL.123456, 3=verified
+                if (f_hide_c[7] && !f_show) emitudpdectxt = false;//qDebug()<<"EmitUdpDecTxt="<<emitudpdectxt;
+                if (id_vomsg>0   && !f_show) emitudpdectxt = false;//2.76sf to DecText
+                emit EmitRxStationInfo(list,0,emitudpdectxt,id_vomsg);//0->to psk reporter 1->to dx cluster, bool usefudpdectxt
+                if (f_show && freply && id_vomsg==0) emit EmitRxTextForAutoSeq(list);//this signal for  2 list no conected  
             }
         }
+        /*else if (s_list_ident == 1 && id_voms>0)//2.76.1 For the future from file open
+        {
+            bool emitudpdectxt = true;//2.76sf id_voms -> 0=normal msg, 1=$VERIFY$, 2=C0ALL.123456, 3=verified
+            if (f_hide_c[7] && !f_show) emitudpdectxt = false;//qDebug()<<"EmitUdpDecTxt="<<emitudpdectxt;
+            if (id_voms>0   && !f_show) emitudpdectxt = false;//2.76sf to DecText
+            emit EmitRxStationInfo(list,100,emitudpdectxt,id_voms);//0->to psk reporter 1->to dx cluster, bool usefudpdectxt        	
+       	}*/
         if (model.rowCount() > 250) model.removeRow(0);
         if (!list_rfresh_timer->isActive() && f_show) list_rfresh_timer->start(80);
     }
@@ -1717,7 +1792,7 @@ void DecodeList::Clear_List()
 {
     for (int i = model.rowCount()-1; i >= 0; --i) model.removeRow(i);
     /*qDebug()<<"Clear_List()"<<s_mode<<show_filter_list<<s_list_ident;
-       if ((s_mode==222 || s_mode==11 || s_mode==13) && show_filter_list) emit EmitLstNexColor(true);
+       if ((s_mode==222 || s_mode==11 || s_mode==13|| s_mode==18) && show_filter_list) emit EmitLstNexColor(true);
        else emit EmitLstNexColor(false);*/
     f_bgcolor_clr_lst = true;
     emit EmitLstNexColor(false);
@@ -1933,7 +2008,7 @@ void DecodeList::paintEvent(QPaintEvent *event)
     }
     else if (s_mode==4 || s_mode==5 ) c_col=11;//iskat-a iskat-b
     else if (s_mode==10) c_col=10;//pi4
-    else if (s_mode==11 || s_mode==13 || allq65)//<<tr("Time")<<"dB"<<"DT"<<"DF Of TX"<<tr("Message")<<tr("Dist")<<tr("Type")<<qdc<<"Freq";
+    else if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)//<<tr("Time")<<"dB"<<"DT"<<"DF Of TX"<<tr("Message")<<tr("Dist")<<tr("Type")<<qdc<<"Freq";
     {
         if (!s_show_timec && !allq65) istrt = 2;
         if (s_flag_two)
@@ -1977,8 +2052,9 @@ void DecodeList::ac_spot()
     QModelIndex index = selectionModel()->currentIndex();
     QStringList list;
     for (int i = 0; i < model.columnCount(); i++) list << index.sibling(index.row(),i).data().toString();
-    // no crash ->model.item(index.row(),1)->text();//2.48
-    emit EmitRxStationInfo(list,1,false);//0->to psk reporter 1->to dx clusters  2.34, bool usefudpdectxt
+    // no crash ->model.item(index.row(),1)->text();//2.48    
+	//2.76sf last -> 0=normal msg, 1=$VERIFY$, 2=C0ALL.123456, 3=verified
+    emit EmitRxStationInfo(list,1,false,3);//0->to psk reporter 1->to dx clusters  2.34, bool usefudpdectxt
 }
 /*
 void DecodeList::mouseDoubleClickEvent(QMouseEvent * event)
@@ -1999,7 +2075,7 @@ void DecodeList::mousePressEvent(QMouseEvent * event)
     QModelIndex index = indexAt(event->pos());
     if (event->button() == Qt::RightButton && !(index.row() == -1)) m_spot->exec(QCursor::pos());
 
-    if (f_click_on_call_show_cty && (s_mode==0 || s_mode==12 || s_mode==11 || s_mode==13 || allq65) &&
+    if (f_click_on_call_show_cty && (s_mode==0 || s_mode==12 || s_mode==11 || s_mode==13 || s_mode==18 || allq65) &&
             event->button() == Qt::LeftButton && !(index.row() == -1))
     {
         QString ss = model.item(index.row(),msg_column)->text();//2.48

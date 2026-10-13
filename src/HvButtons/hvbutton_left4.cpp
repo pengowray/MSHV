@@ -9,6 +9,7 @@ HvButton_Left4::HvButton_Left4( QWidget * parent )
     Button_Release_Left = true;
     Button_Stop_b = true;
     Mouse_Over_Button = true;
+    //setToolTip(tr("Change Display Size"));
 }
 void HvButton_Left4::SetupButton_hv(QPixmap release_stop, QPixmap press_start, QPixmap release_start, QPixmap press_stop, int x_pos, int y_pos)
 {

@@ -49,6 +49,8 @@ public:
     void setfile_play(char *,bool,int mod_ident,int);
     void Stop();
     void SetTxFreq(double);// ft8 for the moment 1.43
+    void SetMsf(bool);
+    void SetOffsetDt(int dt);//2.76.5
 
 signals:
     //void SendTxRx(bool);
@@ -64,9 +66,11 @@ public slots:
     void SetVolume(int);
     void SetSoundDevice(QString dev,int,int buffer);
     void SaveFile(int*,int,QString);
-    //void SetTxFreq(double);// ft8 for the moment 1.43
+    void SetSFMATxAll(QString);
+    void SetOtpTxKey(QString);
 
 private:
+	int s_offset_dt;
 	int s_bitpersample;
     char dev_in_p[128];//2.50
     QString s_prev_disp_msg;
@@ -96,13 +100,17 @@ private:
     mus musics;
     msui music;
     bool f_message_or_file;
-    int s_mod_ident;
+    int s_mode;
     QString App_Path;
     double s_tx_freq;// = 1200.0 //ft8 for the moment
     double SAVE_SAMPLE_RATE;   
     char *filenamehv;
     int s_period_time_sec;
     void Restart();
+    bool s_msf;
+    QString sfma_tx_all;
+    QString otp_tx_key;
+    void GetSsMsAndOffset(int &,int &);
 
 protected:
     void xplay();

@@ -684,7 +684,21 @@ next_card:
     DevBoxIn->addItem("TCI Client Input");
     DevBoxOut->addItem("TCI Client Output");
     //end tci
-    no_emit = false;
+    //flex native vita-49
+	for (int ch = 1; ch <= 8; ++ch)
+	{
+		if (ch==1) DevBoxIn->addItem("Flex Native Input");
+		else DevBoxIn->addItem(QString("Flex Native Input DAX %1").arg(ch));	
+		/*else 
+		{
+			QString c = "Flex Native Input DAX ";
+			c.append(QChar(64+ch));
+			DevBoxIn->addItem(c);							
+		}*/
+	}
+	DevBoxOut->addItem("Flex Native Output");
+	//end flex native vita-49
+    no_emit = false; 
 }
 void SettingsMs::SetDevices_Drv(QString dev_in,QString bpsampl,QString card_latency,//sample_rate not used
                                 QString card_buffer_polls,QString in_channel,QString scan_refresh,
@@ -738,59 +752,55 @@ void SettingsMs::SetDevices_Drv(QString dev_in,QString bpsampl,QString card_late
 }*/
 void SettingsMs::TciDevSelectAndRestr()//tci
 {
-    int out = 0;
+    int out_tci = 0;
     QString dev = "";
     if (DevBoxOut->currentText()=="TCI Client Output" && DevBoxIn->currentText()=="TCI Client Input")
     {
-        dev=tr("Output and Input Devices");
-        out = 3;
+        out_tci = 3;
     }
     else if (DevBoxOut->currentText()=="TCI Client Output")
     {
-        dev=tr("Output Device");
-        out = 2;
+        out_tci = 2;
     }
     else if (DevBoxIn->currentText()=="TCI Client Input")
     {
-        dev=tr("Input Device");
-        out = 1;
+        out_tci = 1;
     }
-    emit EmitTciSelect(out);//0=non 1=rx 2=tx 3=rx,tx
+    
+    int vita_rx = 0;//no RX vita
+    bool vita_tx =false;//no TX vita
+    if (DevBoxOut->currentText()=="Flex Native Output")
+   	{  		
+   		vita_tx = true;
+  	}
+  	QString name = DevBoxIn->currentText();
+    if (name=="Flex Native Input")
+    {    	
+    	vita_rx = 1;
+   	}
+   	else if (name.startsWith("Flex Native Input DAX ") && name.count()>22)
+    {
+    	bool ok = false;
+		vita_rx = name.mid(22).trimmed().toInt(&ok);
+   	}
+   	
+   	if (out_tci==3 || (vita_rx>0 && vita_tx)) dev=tr("Output and Input Devices"); 
+   	else if (out_tci==2 && vita_rx>0) 		  dev=tr("Output and Input Devices");
+   	else if (vita_tx && out_tci==1)   		  dev=tr("Output and Input Devices");
+   	else if (vita_tx || out_tci==2)   		  dev=tr("Output Device");
+   	else if (vita_rx>0 || out_tci==1)   	  dev=tr("Input Device");
 
-    /*if (DevBoxOut->currentText()=="TCI Client Output")
-    {
-    	OutBuf->setEnabled(false);
-    	cb_out_bitpersample->setEnabled(false);
-    }
-    else
-    {
-    	OutBuf->setEnabled(true);
-    	cb_out_bitpersample->setEnabled(true);  
-    }
-    if (DevBoxIn->currentText()=="TCI Client Input")
-    {
-    	cb_in_bitpersample->setEnabled(false);
-    	CardLatency->setEnabled(false);
-    	CardBufferPolls->setEnabled(false);
-    }
-    else
-    {
-    	cb_in_bitpersample->setEnabled(true);
-    	CardLatency->setEnabled(true);
-    	CardBufferPolls->setEnabled(true);
-    }*/
+    emit EmitTciSelect(out_tci,vita_rx,vita_tx);//tci 0=non 1=rx 2=tx 3=rx,tx
 
     if (!f_tci_restr) return;
     if (!dev.isEmpty())
     {
         QMessageBox::critical(this, "MSHV",
-                              tr("The TCI Client does not support 44100 Hz Sample Rate\n"
+                              tr("The TCI Client and Flex Native does not support 44100 Hz Sample Rate\n"
                                  "Not possible to use modes JTMS, FSK, ISCAT and JT6M\n"
                                  "Please in Sound Settings choose other")+"\n"+dev,
                               QMessageBox::Close);
     }
-
-
 }
 void SettingsMs::SetMode(int mode)//tci
 {
@@ -826,7 +836,7 @@ void SettingsMs::OutDeviceChanged(QString)
 
         //if (DevBoxOut->currentText()!="pulse")// "pulse: "
         QString dn0 = dev_name+"xxxxxxx";//2.70
-        if (dn0.mid(0,7)!="pulse: " && dev_name!="TCI Client Output")
+        if (dn0.mid(0,7)!="pulse: " && dev_name!="TCI Client Output" && dev_name!="Flex Native Output")
         {
             QRegExp rx;
             QString card_out, device_out;
@@ -877,7 +887,7 @@ void SettingsMs::InDeviceChanged(QString)
 
         //if (DevBoxIn->currentText()!="pulse")
         QString dn0 = dev_name+"xxxxxxx";//2.70
-        if (dn0.mid(0,7)!="pulse: " && dev_name!="TCI Client Input")
+        if (dn0.mid(0,7)!="pulse: " && dev_name!="TCI Client Input" && !dev_name.startsWith("Flex Native Input"))
         {
             QRegExp rx;
             QString card, device;

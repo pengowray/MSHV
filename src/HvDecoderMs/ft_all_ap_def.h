@@ -1,4 +1,4 @@
-#ifndef __FT_ALL_AP_DEF_H__
+#ifndef __FT_ALL_AP_DEF_H_
 #define __FT_ALL_AP_DEF_H_
 
 /*static const bool mcq_ft[9][29]=

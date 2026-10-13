@@ -849,7 +849,7 @@ void DecoderMs::SetCalsHashFileOpen(QString str)
 }
 void DecoderMs::SetCalsHash(QStringList l)
 {
-    if (l.count()<5) return;
+    if (l.count()<6) return;
 
     hash_msk40_all_calls(0,l.at(0)+" "+l.at(1));//prav    hash_msk40_all_rpt
     hash_msk40_all_calls(1,l.at(1)+" "+l.at(0));//obraten hash_msk40_all_rpt
@@ -868,14 +868,16 @@ void DecoderMs::SetCalsHash(QStringList l)
     if (HisGridLoc != l.at(4))
     {
     	HisGridLoc = l.at(4);//2.53 for jt65 q65
+    	DecFt8_0->SetStHisCallGrid(s_HisCall,s_HisBaseCall,HisGridLoc);//sw300rc1 ap8 and var
     	DecQ65->SetStHisCallGrid(s_HisCall,HisGridLoc);
    	}    	
     if (s_HisCall != l.at(1))
     { 
         s_HisCall  = l.at(1);
+        s_HisBaseCall = l.at(5);
         //no need static dec hash array TGenFt8->save_hash_call_my_his_r1_r2(s_HisCall,1);//0=my 1=his 2=r1 3=r2
         TGenMsk->save_hash_call_my_his_r1_r2(s_HisCall,1);
-        DecFt8_0->SetStHisCall(s_HisCall);
+        DecFt8_0->SetStHisCallGrid(s_HisCall,s_HisBaseCall,HisGridLoc);//sw300rc1 ap8 and var
         DecFt4_0->SetStHisCall(s_HisCall);
         DecQ65->SetStHisCallGrid(s_HisCall,HisGridLoc);
     }     	   
@@ -1652,7 +1654,7 @@ void DecoderMs::msk144signalquality(double complex *cframe,double snr,double fre
             c_msg[i]=' ';
     }
     //qDebug()<<"0"<<ss_msk144ms;
-    TGenMsk->genmsk(c_msg,1.0,i4tone,false,iwave,DEC_SAMPLE_RATE,1.0,0,s_mod,ss_msk144ms);//last is rpt_db_msk  mygrid,bcontest,
+    TGenMsk->genmsk(c_msg,1.0,i4tone,false,iwave,DEC_SAMPLE_RATE,1.0,0,s_mode,ss_msk144ms);//last is rpt_db_msk  mygrid,bcontest,
 
     //! reconstruct message bits from tones
     //QString sss;

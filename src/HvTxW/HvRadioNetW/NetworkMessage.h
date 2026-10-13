@@ -337,6 +337,7 @@ namespace NetworkMessage
       HighlightCallsign,	//0d
       SwitchConfiguration,	//0e
       Configure,			//0f
+      AnnotationInfo,       //10  2.76sf
       maximum_message_type_     // ONLY add new message types
                                 // immediately before here
     };

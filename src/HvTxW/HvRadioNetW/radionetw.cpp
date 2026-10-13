@@ -25,11 +25,17 @@
 //#include <QtGui>
 HvTcpClient::HvTcpClient(QObject *parent) : QObject(parent)
 {
+	//stat_disp = 0;
     tray_once_agen = false;
     socket = new QTcpSocket(this);
     connect(socket, SIGNAL(readyRead()), this, SLOT(readTelnet()));
     connect(socket, SIGNAL(connected()), this, SLOT(connected_s()));
     connect(socket, SIGNAL(disconnected()), this, SLOT(disconnected_s()));
+    s_pass = "";
+    rx_login.setPattern("(login:|callsign:|login :|callsign :)");
+    rx_login.setCaseSensitivity(Qt::CaseInsensitive);
+    rx_passw.setPattern("(password:|password :)");
+    rx_passw.setCaseSensitivity(Qt::CaseInsensitive);
 }
 #include "../../pfx_sfx.h"
 bool HvTcpClient::is_pfx(QString s)
@@ -67,96 +73,101 @@ QString HvTcpClient::FindBaseCallRemAllSlash(QString str)
     else res = str;
     return res;
 }
-void HvTcpClient::Connect(QString host,QString port,QString login_name)
+void HvTcpClient::Connect(QString host,QString port,QString login_name,QString pas)
 {
+	//stat_disp = 0;
     s_tcphost = host;
     s_tcpport = port;
     s_login_name = FindBaseCallRemAllSlash(login_name);
+    s_pass = pas;
     connectToHost();
-    //qDebug()<<"HvTcpClient::Connect";
-    //f_conect = true;
-    //t_tcp_connect->start(100);
 }
-void HvTcpClient::SetData(QString data)
+/*void HvTcpClient::SetData(QString data)
 {
     s_tcpdata = data;
-}
+}*/
+//#include <unistd.h>
 void HvTcpClient::connected_s()
 {
-    //qDebug()<<"connected_s=";//<<itxst;
-    //if (res)
-    writeData(s_login_name);
-    emit ConectionInfo("<font color='#00b300'>"+tr("Connected to")+" "+s_tcphost+" "+tr("and logged in as")+" "+s_login_name+"</font>");
-    //writeData(s_login_name);
+    //emit ConectionInfo("<font color='#00b300'>"+tr("Connected to")+" "+s_tcphost+" "+tr("and logged in as")+" "+s_login_name+"</font>");
+    //stat_disp = 0;
+    emit ConectionInfo("<font color='#00b300'>"+tr("Connected to")+" "+s_tcphost+"</font>");
 }
 void HvTcpClient::disconnected_s()
 {
-    //qDebug()<<"disconnected_s=";//<<itxst;
+    //stat_disp = 0;
     emit ConectionInfo("<font color='red'>"+tr("Disconnected")+itcp_call_err+"</font>");
     if (tray_once_agen)
     {
         tray_once_agen = false;
         connectToHost();
-    }
-    //qDebug()<<"disconnected_s=";
+    }//qDebug()<<"disconnected_s=";
 }
 void HvTcpClient::DisconectOnly()
 {
+	//stat_disp = 0;
     if (socket->state() == QAbstractSocket::ConnectedState)
     {
-        writeData("bye");
-        //qDebug()<<"DisconectOnly=";
+        writeData("bye"); //qDebug()<<"DisconectOnly=";
     }
 }
 void HvTcpClient::connectToHost()
 {
+	//stat_disp = 0;
     if (socket->state() == QAbstractSocket::ConnectedState)
     {
         writeData("bye");
-        tray_once_agen = true;
-        //qDebug()<<"Disconnect="<<s_tcphost<<s_tcpport<<s_login_name<<tray_once_agen;
+        tray_once_agen = true; //qDebug()<<"Disconnect="<<s_tcphost<<s_tcpport<<s_login_name<<tray_once_agen;
         return;
-        //socket->disconnect();
-    }
-    //qDebug()<<"connectToHost="<<s_tcphost<<s_tcpport<<s_login_name<<tray_once_agen;
-
+    } //qDebug()<<"connectToHost="<<s_tcphost<<s_tcpport<<s_login_name<<tray_once_agen;
     int p1 = s_tcpport.toInt();
     socket->connectToHost(s_tcphost, p1);
-    //bool res=false;
-    //res = socket->waitForConnected(500);
-    //if (res)
-    // writeData(s_login_name);
     socket->waitForConnected(350);//importent for TCP hv
 }
 void HvTcpClient::readTelnet()
 {
-    /*QDataStream in(socket);
-    in.setVersion(QDataStream::Qt_4_8); //Qt_4_0
-    QString rrr;
-    in >> rrr;
-    qDebug()<<"RRRRRRRRRR="<<rrr;*/
-
+	static uint8_t stat_disp = 0;
+	//if (stat_disp > 10) return;	//end refresh read
     QByteArray ba = socket->readAll();
     QString itcptxt = ba.data();
     itcptxt.remove("\r");
     itcptxt.remove("\n");
     itcptxt.remove("\007");
-
-    if (itcptxt.contains("invalid callsign"))//login: LZ2HV/PSorry LZ2HV/P is an invalid callsign
-        itcp_call_err = " "+s_login_name+" is an invalid callsign";
-    else
-        itcp_call_err="";
-
-    /*
-    if(itcptxt.contains(" 50"))
+	//if (itcptxt.startsWith("DX de")) return;
+    //login: LZ2HV/P Sorry LZ2HV/P is an invalid callsign
+    if (itcptxt.contains("invalid callsign")) itcp_call_err = " "+s_login_name+" is an invalid callsign";        
+    else itcp_call_err="";
+    //itcptxt= "callsign:"; 
+    //printf("%s\n",qPrintable(ba.data())); printf("------------- RX MSG END ---------------\n");  
+    if (itcptxt.contains(rx_login))//if ((itcptxt.contains("login",Qt::CaseInsensitive) || itcptxt.contains("callsign",Qt::CaseInsensitive)) && itcptxt.contains(":"))
     {
-    for (int i = 0; i<itcptxt.count(); i++)
-        itcptxt.replace("  "," ");
-    qDebug()<<"TCP="<<itcptxt;
-    }
-    */
-
-    /*   switch (socket->state ())
+    	writeData(s_login_name); //printf("   --MSHV SEND login Call-->%s\n",qPrintable(s_login_name));
+    	stat_disp = 1;               	
+   	} 	
+   	if (itcptxt.contains(rx_passw))//if (itcptxt.contains("password",Qt::CaseInsensitive) && itcptxt.contains(":"))
+    {
+    	writeData(s_pass); //printf("   --MSHV SEND Password-->%s\n",qPrintable(s_pass));
+    	stat_disp = 2;
+   	}
+   	//LZ2HV\n Hello Unknown Name.<-for this exception  stop-> itcptxt.contains("Hello "+s_login_name) 
+   	if (itcptxt.contains("Hello ",Qt::CaseInsensitive) && itcptxt.contains(s_login_name,Qt::CaseInsensitive))
+   	{
+   		//if (itcptxt.contains("not registered",Qt::CaseInsensitive) stat_disp == 1;
+   		QString sci = "<font color='#00b300'>"+tr("Connected to")+" "+s_tcphost+" "+tr("and logged in as")+" "+s_login_name;
+   		if (stat_disp == 1) 
+   		{
+   			//stat_disp = 6;//end refresh read after 4 reads
+   			emit ConectionInfo(sci+"</font>");   			
+  		} 
+   		if (stat_disp == 2)
+   		{   			
+   			//stat_disp = 6;//end refresh read after 4 reads
+			emit ConectionInfo(sci+" "+tr("Registered")+"</font>");   			
+  		}		
+  	} 
+  	//if (stat_disp >= 6) stat_disp++; 
+  	//qDebug()<<"stat_disp="<<stat_disp;  	    		 	    
+    /*switch (socket->state ())
     {
      case QAbstractSocket::UnconnectedState:
         qDebug()<< (tr("unconnected state"));
@@ -185,7 +196,8 @@ void HvTcpClient::readTelnet()
     }*/
 }
 bool HvTcpClient::writeData(QString str)
-{
+{   
+	//qDebug()<<"   --writeData-->"<<str;
     if (socket->state() == QAbstractSocket::ConnectedState)
     {
         str.append("\r\n");//end of msg
@@ -196,12 +208,7 @@ bool HvTcpClient::writeData(QString str)
         //qDebug()<<"close"<<socket->readAll();
         return socket->waitForBytesWritten(300); //500
     }
-    else
-        return false;
-    /*int size = data.size();
-    socket->write((const char*) &size, sizeof(int));
-    //use directly QIODevice::write(QByteArray)
-    socket->write(data);*/
+    else return false;
 }
 
 SpotDialog::SpotDialog(bool indsty,QWidget * parent)
@@ -410,7 +417,7 @@ void SpotDialog::Check(QString s_type)
 {
     if (s_type == "call")
     {
-        //if (le_his_call->getText().count()>1)
+        //if (le_dx_call->getText().count()>1)
         if (THvQthLoc.isValidCallsign(le_dx_call->getText()))
         {
             le_dx_call->setError(false);
@@ -660,7 +667,7 @@ EditRadInfo::EditRadInfo(QWidget * parent )
         }
         else
         {
-            HvInLeFreq *le_frq  = new HvInLeFreq(ModeStrForFerq[i]+" "+tr("Frequency In")+" Hz:");
+            HvInLeFreq *le_frq  = new HvInLeFreq(ModeStrForFerq[pos_mod_rea_frq[i]]+" "+tr("Frequency In")+" Hz:");
             VB_Freq->addWidget(le_frq);
         }
     }
@@ -700,8 +707,7 @@ void EditRadInfo::ApplayInfo()
     {
         HvInLeFreq *le_frq = (HvInLeFreq*)VB_Freq->itemAt(i)->widget();
         freqs.append(le_frq->Text());
-        if (i<COUNT_FREQ_MODES-1)
-            freqs.append("\n");
+        if (i<COUNT_FREQ_MODES-1) freqs.append("\n");
     }
     list <<l_band->text() << ant->text() << freqs;
     emit EmitSetInfo(list ,s_edit_index);
@@ -717,7 +723,6 @@ void EditRadInfo::SetEditStInfo(QStringList list, int index)
         HvInLeFreq *le_frq = (HvInLeFreq*)VB_Freq->itemAt(i)->widget();
         le_frq->SetText(ltfreq.at(i));
     }
-
     l_band->setText(list.at(0));
     s_edit_index = index;
     exec();
@@ -842,9 +847,8 @@ void HvRadList::InsertItem_hv(QStringList list)
                 QString mod;
                 for (int i  = 0; i < COUNT_FREQ_MODES; i++)
                 {
-                    mod.append(ModeStrForFerq[i]);
-                    if (i<COUNT_FREQ_MODES-1)
-                        mod.append("\n");
+                    mod.append(ModeStrForFerq[pos_mod_rea_frq[i]]);
+                    if (i<COUNT_FREQ_MODES-1) mod.append("\n");
                 }
                 item_mod = new QStandardItem(mod);
                 if (!f_row_color)
@@ -858,10 +862,8 @@ void HvRadList::InsertItem_hv(QStringList list)
         }
         model.insertRow(model.rowCount(), qlsi);
 
-        if (!f_row_color)
-            f_row_color = true;
-        else
-            f_row_color = false;
+        if (!f_row_color) f_row_color = true;
+        else f_row_color = false;
         //this->setCurrentIndex(model.index(model.rowCount()-1,0));
         //this->scrollTo(model.index(model.rowCount()-1,0));
     }
@@ -891,9 +893,8 @@ void HvRadList::SetItem_hv(QStringList list,int index_edit)//2.57 remove  new QS
             QString mod;
             for (int i  = 0; i < COUNT_FREQ_MODES; i++)
             {
-                mod.append(ModeStrForFerq[i]);
-                if (i<COUNT_FREQ_MODES-1)
-                    mod.append("\n");
+                mod.append(ModeStrForFerq[pos_mod_rea_frq[i]]);
+                if (i<COUNT_FREQ_MODES-1) mod.append("\n");
             }
             //item_mod = new QStandardItem(mod);
             item_mod->setText(mod);
@@ -938,6 +939,7 @@ void HvRadList::mouseDoubleClickEvent(QMouseEvent * event)
 #define _CONT_NAME_
 #include "../../config_str_con.h"
 QString _kkwe2_;
+#define BASE32_CHARSET "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
 RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWidget *parent )
         : QWidget(parent)
 {
@@ -945,6 +947,7 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
     f_mods_accept_cmd = false;
     s_mode = "FSK441";
     s_smode = "";
+    s_rigInfo = "No CAT control";
     //prev_pos_dec = 0;
     id_activ_upd = 0;//0=no 1=decoded 2=replay
     pos_dec = 0;
@@ -964,8 +967,8 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
     setWindowTitle(tr("Network Configuration"));//2.68
     //setWindowFlags(windowFlags() ^ Qt::WindowContextHelpButtonHint);
 
-    QVBoxLayout *V_l = new QVBoxLayout(this);
-    V_l->setContentsMargins (5,4,5,4);
+    QVBoxLayout *V_l = new QVBoxLayout();
+    V_l->setContentsMargins(4,4,4,4);//(5,4,5,4);
     V_l->setSpacing(2);
 
     //QGroupBox *GB_nets = new QGroupBox("Network Services:");   //Network Services:
@@ -973,7 +976,7 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
 
     QGroupBox *GB_psk_rep_settings = new QGroupBox(tr("PSK Reporter Settings")+":");
     QHBoxLayout *h_nets = new QHBoxLayout();
-    h_nets->setContentsMargins (5,0,0,0);
+    h_nets->setContentsMargins(5,0,0,0);
     h_nets->setSpacing(5);
     cb_start_stop_psk_rpt = new QCheckBox(tr("Enable PSK Reporter Spotting"));
     cb_start_stop_psk_rpt->setChecked(false);
@@ -1066,7 +1069,11 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
     QLabel *l_httpp = new QLabel(tr("Port")+":");//HTTPport
     TCPPort= new QLineEdit();
     TCPPort->setText("8000");
-    TCPPort->setInputMask("9999999999");
+    TCPPort->setInputMask("9999999999");      
+    QLabel *l_tcpp = new QLabel(tr("Password")+":");
+    TCPPass = new QLineEdit();
+    TCPPass->setEchoMode(QLineEdit::Password);
+    
     /*QHBoxLayout *h_hp = new QHBoxLayout();
     h_hp->setContentsMargins ( 5, 5, 5, 5);
     h_hp->setSpacing(5);
@@ -1085,9 +1092,9 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
 
     QLabel *l_telnet = new QLabel();
     l_telnet->setText(tr("Telnet Clusters")+":");
-    l_telnet->setFixedWidth(110);
+    //l_telnet->setFixedWidth(100);
     Cb_telnet = new QComboBox();
-    Cb_telnet->setMinimumWidth(140);
+    //Cb_telnet->setMinimumWidth(140);
     ReadTelnetList(path+"/settings/database/mstn_db.dbtn");
     Cb_telnet->setCurrentIndex(0);
     //Cb_telnet->setFixedWidth(140);
@@ -1095,8 +1102,9 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
     H_telnet->setContentsMargins(5, 1, 5, 1);
     H_telnet->setSpacing(3);
     H_telnet->addWidget(l_telnet);
-    //H_prop->setAlignment(l_prop,Qt::AlignLeft);
-    H_telnet->addWidget(Cb_telnet);
+    H_telnet->addWidget(Cb_telnet); //H_telnet->setAlignment(Cb_telnet,Qt::AlignLeft);
+    H_telnet->addWidget(l_tcpp);//2.76.3
+    H_telnet->addWidget(TCPPass);    
     V_spot->addLayout(H_telnet);
 
     GB_spot_settings->setLayout(V_spot);
@@ -1380,6 +1388,10 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
     qrz_is_act_send_check = 0;
     //end QRZ///////////////////////////////////////////
 
+    QVBoxLayout *V_2 = new QVBoxLayout();
+    V_2->setContentsMargins(4,4,4,4);//(5,4,5,4);
+    V_2->setSpacing(2);
+	
     //EQSL///////////////////////////////////////////////
     socet_tcp_eqsl = new QSslSocket(this); //QSslSocket QTcpSocket
     //connect(socet_tcp_eqsl, SIGNAL(connected()), this, SLOT(connected_eqsl()));
@@ -1396,7 +1408,7 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
     LeEQSLPort->setInputMask("99999");
     LeEQSLPort->setMaximumWidth(60);
     QLabel *l_pos_eqsl = new QLabel(tr("Post")+":");
-    LeEQSLPost = new QLineEdit();    
+    LeEQSLPost = new QLineEdit();
     QLabel *l_msg_eqsl = new QLabel(tr("eQSL MSG")+":");
     LeEQSLmsg = new QLineEdit();
     LeEQSLmsg->setMaxLength(239);
@@ -1409,8 +1421,8 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
     h_eqsl->addWidget(LeEQSLPort);
     h_eqsl->addWidget(l_pos_eqsl);
     h_eqsl->addWidget(LeEQSLPost);
-	//h_eqsl->addWidget(l_msg_eqsl);
-	//h_eqsl->addWidget(LeEQSLmsg);    
+    //h_eqsl->addWidget(l_msg_eqsl);
+    //h_eqsl->addWidget(LeEQSLmsg);
     QLabel *l_ma_eqsl = new QLabel(tr("User")+":");
     LeEQSLUser = new QLineEdit();
     QLabel *l_pa_eqsl = new QLabel(tr("Password")+":");
@@ -1428,18 +1440,18 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
     h_eqslmpc->addWidget(LeEQSLPass);
     h_eqslmpc->addWidget(l_nc_eqsl);
     h_eqslmpc->addWidget(LeEQSLQTHNick);
-    //h_eqslmpc->addWidget(cb_eqsl);    
+    //h_eqslmpc->addWidget(cb_eqsl);
     QHBoxLayout *h_eqslm = new QHBoxLayout();
     h_eqslm->setContentsMargins(5,4,5,0);
     h_eqslm->setSpacing(5);
     h_eqslm->addWidget(l_msg_eqsl);
     h_eqslm->addWidget(LeEQSLmsg);
-    h_eqslm->addWidget(cb_eqsl);        
+    h_eqslm->addWidget(cb_eqsl);
     V_tcp_eqsl->addLayout(h_eqsl);
     V_tcp_eqsl->addLayout(h_eqslmpc);
     V_tcp_eqsl->addLayout(h_eqslm);
     GB_tcp_EQSL->setLayout(V_tcp_eqsl);
-    V_l->addWidget(GB_tcp_EQSL);
+    V_2->addWidget(GB_tcp_EQSL);
     LeEQSLServer->setText("eqsl.cc");
     LeEQSLServer->setEnabled(false);
     LeEQSLPort->setText("443");//443 80
@@ -1458,6 +1470,87 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
     eqsl_pos_ul_read = 0;
     eqsl_is_act_send_check = 0;
     //EQSL END ///////////////////////////////////////////////
+
+    //Otp///////////////////////////////////////////////2.76
+    socet_tcp_otp = new QSslSocket(this);
+    //connect(socet_tcp_sfox, SIGNAL(connected()),this,SLOT(connected_sfox()));
+    //connect(socet_tcp_sfox, SIGNAL(disconnected()),this,SLOT(disconnected_sfox()));
+    //connect(socet_tcp_sfox, SIGNAL(sslErrors(QList<QSslError>)), this, SLOT(sslError(QList<QSslError>)) );
+    QGroupBox *GB_tcp_otp = new QGroupBox(tr("OTP Settings")+":");//2.76sf for remove un comment
+    //GB_tcp_otp = new QGroupBox(tr("OTP Settings")+":");//2.76sf for remove
+    QVBoxLayout *V_tcp_otp = new QVBoxLayout();
+    V_tcp_otp->setContentsMargins(5,2,5,2);
+    V_tcp_otp->setSpacing(0);
+    QLabel *l_ser_otp = new QLabel(tr("Server")+":");
+    LeOtpServer = new QLineEdit();
+    QLabel *l_po_otp = new QLabel(tr("Port")+":");
+    LeOtpPort = new QLineEdit();
+    LeOtpPort->setInputMask("99999");
+    LeOtpPort->setMaximumWidth(60);
+    CbOTPServers = new QComboBox();
+    QStringList l00;
+    l00<<tr("List Servers")<<"www.9dx.cc"<<"hamdx.org";//<<"ecqsl.com"; //l00<<" - Choice OTP Server - "<<"www.9dx.cc"<<"hamdx.org"; 
+    CbOTPServers->addItems(l00);
+    CbOTPServers->setCurrentIndex(0); 
+    QLabel *l_key_otp = new QLabel(tr("Key")+":");
+    LeOtpKey = new QLineEdit();
+    LeOtpKey->setContentsMargins(0,0,5,0);
+    const QRegularExpression b32(QString("(^[") + QString(BASE32_CHARSET)+QString(BASE32_CHARSET).toLower() + QString("]{16}$)|(^$)"));
+    LeOtpKey->setValidator(new QRegularExpressionValidator(b32, this));
+    //LeSFoxKey->setEchoMode(QLineEdit::Password);
+    cb_otp_msg = new QCheckBox(tr("Show OTP Messages"));
+    cb_otp_key = new QCheckBox(tr("TX OTP Key Super Fox"));
+    //cb_otp_key->setChecked(false);//2.76.2
+    //LeOtpKey->setEnabled(false);
+    //cb_otp_mamd_key = new QCheckBox("TX OTP MADXpedition");
+    QHBoxLayout *h_otp = new QHBoxLayout();
+    h_otp->setContentsMargins(5,0,5,0);
+    h_otp->setSpacing(5);
+    h_otp->addWidget(l_ser_otp);
+    h_otp->addWidget(LeOtpServer);
+    h_otp->addWidget(CbOTPServers);
+    h_otp->addWidget(l_po_otp);
+    h_otp->addWidget(LeOtpPort);
+    h_otp->addWidget(cb_otp_msg);
+    //h_otp->addWidget(l_pos_qrz);
+    //h_otp->addWidget(LeSFoxPost);
+    QHBoxLayout *h_otp1 = new QHBoxLayout();
+    h_otp1->setContentsMargins(5,4,5,0);
+    h_otp1->setSpacing(5);
+    //h_otp1->addWidget(cb_otp_mamd_key);
+    h_otp1->addWidget(cb_otp_key);
+    h_otp1->addWidget(l_key_otp);
+    h_otp1->addWidget(LeOtpKey);
+    //h_sfox1->addWidget(cb_otp_msgs);
+    V_tcp_otp->addLayout(h_otp);
+    //V_tcp_otp->addWidget(CbOTPServers);
+    V_tcp_otp->addLayout(h_otp1);
+    GB_tcp_otp->setLayout(V_tcp_otp);
+    V_2->addWidget(GB_tcp_otp);
+    LeOtpServer->setText("www.9dx.cc");
+    //LeSFoxServer->setEnabled(false);
+    LeOtpPort->setText("443");//443 80
+    LeOtpPort->setEnabled(false);
+    connect(CbOTPServers,SIGNAL(currentIndexChanged(QString)),this,SLOT(CbOTPServersChanged(QString)));       
+    connect(cb_otp_key,SIGNAL(toggled(bool)),this,SLOT(cb_otp_key_toggled()));
+    //connect(cb_otp_mamd_key,SIGNAL(toggled(bool)),this,SLOT(cb_otp_key_toggled()));
+    connect(LeOtpKey,SIGNAL(textEdited(QString)),this,SLOT(LeOtpKeyEdited(QString)));
+    //connect(cb_otp_sfox_msg,SIGNAL(toggled(bool)),this,SIGNAL(EmitSFoxRxMsg(bool)));
+    connect(cb_otp_msg,SIGNAL(toggled(bool)),this,SLOT(cb_otp_msg_toggled(bool)));
+    connect(socet_tcp_otp,SIGNAL(readyRead()),this,SLOT(readOtp()));
+    otp_check_timer = new QTimer();
+    connect(otp_check_timer, SIGNAL(timeout()),this,SLOT(SendOtpCheckDataGram()));
+    otp_check_timer->setSingleShot(true);
+    otp_pos_ch_writ = 0;
+    otp_pos_ch_read = 0;
+    otp_is_act_send_check = 0;
+    /*qrz_error_str = "Unknown Error";
+    qrz_once_data_err_msg = false;
+    qrz_err_flag = false;
+    qrz_pos_ul_writ = 0;
+    qrz_pos_ul_read = 0;
+    qrz_is_act_send_check = 0;*/
+    //end Otp///////////////////////////////////////////
 
     THvBcnListW = new HvBcnListW(path,indsty,x,y);
 
@@ -1487,14 +1580,17 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
     SetDefaultFreqs(true);//true all default
 
     //V_l->addLayout(H_bb);
-    V_l->setAlignment(Qt::AlignTop);
-    setLayout(V_l);
+	//V_l->setAlignment(Qt::AlignTop);
+	//setLayout(V_l);
 
     TEditRadInfo = new EditRadInfo(this);
     connect(THvRadList, SIGNAL(EmitDoubleClick(QStringList,int)), TEditRadInfo, SLOT(SetEditStInfo(QStringList,int)));
     connect(TEditRadInfo, SIGNAL(EmitSetInfo(QStringList,int)), this, SLOT(StInfoChanged(QStringList,int)));
 
-    psk_Reporter = new PSKReporter(false, QString{"MSHV v" + QString(VER_MS)}.simplified (),"",4739);
+    psk_Reporter = new PSKReporter(false, QString
+                                   {"MSHV v" + QString(VER_MS)
+                                   }
+                                   .simplified (),"",4739);
     connect(cb_start_stop_psk_rpt, SIGNAL(toggled(bool)), this, SLOT(StartStopReport(bool)));
     connect(UDPServer, SIGNAL(textChanged(QString)), this, SLOT(ServTextChanged(QString)));
     connect(pb_re_conect, SIGNAL(clicked(bool)), this, SLOT(Reconnect()));
@@ -1521,6 +1617,7 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
     connect(m_messageClientBroad, SIGNAL(error(QString)), this, SLOT(networkErrorUDPBrodcast(QString)));
     connect(m_messageClientBroad, SIGNAL(replay()), this, SLOT(replayDecodes()));
     connect(m_messageClientBroad, SIGNAL(reply_clr(QStringList)), this, SLOT(set_reply_clr(QStringList)));
+    connect(m_messageClientBroad, SIGNAL(configure(QStringList)), this, SLOT(set_configure(QStringList)));
     connect(m_messageClientBroad, SIGNAL(halt_tx(bool)), this, SLOT(set_halt_tx(bool)));
     connect(m_messageClientBroad, SIGNAL(ConectionInfo(QString)), this, SLOT(ConectionInfoBroad(QString)));
     connect(cb_udp_broad_log_qso, SIGNAL(toggled(bool)), this, SLOT(StartStopUdpBroad(bool)));
@@ -1562,6 +1659,23 @@ RadioAndNetW::RadioAndNetW(QString inst,QString path,bool indsty,int x,int y,QWi
     cl_upd_timer->setSingleShot(true);
     _kkwe2_ = "";
     for (int i = 0; i < 20; ++i) _kkwe2_ += QString("%1").arg(digg[i],2,16,QLatin1Char('0'));
+    
+    QTabWidget *TW = new QTabWidget();
+    QWidget *T0 = new QWidget();
+    V_l->setAlignment(Qt::AlignTop);
+    T0->setLayout(V_l);
+    QWidget *T1 = new QWidget();
+    V_2->setAlignment(Qt::AlignTop);
+    T1->setLayout(V_2);
+    TW->addTab(T0," "+tr("Page")+"  1");
+    TW->addTab(T1," "+tr("Page")+"  2");    
+    
+    QVBoxLayout *V_0 = new QVBoxLayout(this);
+    V_0->setContentsMargins(2,2,2,2);
+    V_0->setSpacing(0);
+    V_0->addWidget(TW);
+    setLayout(V_0);
+    
 }
 RadioAndNetW::~RadioAndNetW()
 {
@@ -1571,25 +1685,36 @@ RadioAndNetW::~RadioAndNetW()
     if (socet_udp2_broad->state() == QAbstractSocket::ConnectedState) socet_udp2_broad->disconnectFromHost();
     StartStopQRZLog(false);
     StartStopEQSL(false);
+    StartStopOtp(false);
     //SaveSettings(); //2.68 for TAB "Radio And Frequencies Configuration" moved to hvtxw.cpp qDebug()<<"DELETE RadioAndNetW";
 }
 void RadioAndNetW::GetFtFr(long long int *a)
 {
+	const long long int wsprf[10] = {1836600,5364700,3568600,7038600,10138700,14095600,18104600,21094600,24924600,28124600};
     QString s;
     int j = 0;
-    for (int i = 3; i < 13; ++i)
+    for (int i = 3; i < 14; ++i)
     {
-        if (i==5) continue;
+        if (i==5 || i==12) continue;
         s = all_bands_mods_frq[i][3];
         s.remove(".");
         a[j] = s.toLongLong();
         j++;
+        /*s = all_bands_mods_frq[i][6];//+FT2
+        s.remove(".");
+        a[j] = s.toLongLong();
+        j++;*/
         if (i==3) continue;
         s = all_bands_mods_frq[i][2];
         s.remove(".");
         a[j] = s.toLongLong();
         j++;
-    } //for (int i = 0; i < 17; ++i) printf(" Band =%lld\n",a[i]);
+    }
+    for (int i = 0; i < 10; ++i)
+    {
+    	a[j] = wsprf[i];
+    	j++;
+   	} //for (int i = 0; i < j; ++i) printf(" %d Band =%lld\n",i,a[i]);
 }
 void RadioAndNetW::RefreshUdpOrTcpBroadLoggedAll()
 {
@@ -1668,14 +1793,265 @@ QString RadioAndNetW::URLEncode(QString strEncode)
 }
 #include <QToolTip>
 #define MAXUPLOAUD 10 //2.71 old=6
-/*void RadioAndNetW::connected_eqsl()
+/*void RadioAndNetW::connected_sfox()
 {
     qDebug()<<"CONECTED  <--";
 }
-void RadioAndNetW::disconnected_eqsl()
+void RadioAndNetW::disconnected_sfox()
 {
     qDebug()<<"DISCONECT <--";
 }*/
+/*void RadioAndNetW::sslError(QList<QSslError> errors)
+{
+	qDebug()<<"SSL ERROR <-----------------------------";
+    socet_tcp_sfox->ignoreSslErrors();
+}*/
+///// Otp //////
+void RadioAndNetW::SendOtpTxKey()
+{
+    QString s = QString("%1").arg(cb_otp_key->isChecked())+"#";
+    s.append(LeOtpKey->text());
+    s.append("#0#0");//protect
+    emit EmitOtpTxKey(s);
+}
+void RadioAndNetW::cb_otp_key_toggled()
+{
+    SendOtpTxKey();
+    //if (!cb_otp_key->isChecked()) LeOtpKey->setEnabled(false);//2.76.2
+    //else LeOtpKey->setEnabled(true);
+}
+void RadioAndNetW::LeOtpKeyEdited(QString s0)
+{
+    LeOtpKey->setText(s0.toUpper());
+    SendOtpTxKey();
+}
+void RadioAndNetW::RefreshOtpKeyMsg()
+{
+    cb_otp_key_toggled();
+    emit EmitOtpRxMsg(cb_otp_msg->isChecked());
+}
+void RadioAndNetW::CbOTPServersChanged(QString s)
+{
+	if (CbOTPServers->currentIndex()==0 || s.isEmpty()) return;//if (s=="List Servers" || s.isEmpty()) return;
+	LeOtpServer->setText(s);
+	CbOTPServers->setCurrentIndex(0);//reset to begin
+}
+/*bool RadioAndNetW::StartStopOtp(bool f)
+{
+	static QString serv_0 = "#";
+    if (f)
+    {
+    	if (serv_0 != LeOtpServer->text())//2.761
+    	{
+    		serv_0 = LeOtpServer->text();//www.9dx.cc hamdx.org
+    		if (socet_tcp_otp->state() == QAbstractSocket::ConnectedState)
+    		{
+    			socet_tcp_otp->disconnectFromHost();
+    			socet_tcp_otp->waitForDisconnected(350);
+   			}
+   		}
+        if (socet_tcp_otp->state() != QAbstractSocket::ConnectedState)
+        {
+            int p1 = LeOtpPort->text().toInt();
+            socet_tcp_otp->connectToHostEncrypted(LeOtpServer->text(),p1);//socet_tcp_sfox->connectToHost(LeSFoxServer->text(),80);
+            socet_tcp_otp->waitForConnected(500);
+        }
+    }
+    else if (socet_tcp_otp->state() == QAbstractSocket::ConnectedState) socet_tcp_otp->disconnectFromHost();
+    
+    if (socet_tcp_otp->state() == QAbstractSocket::ConnectedState) return true;
+    else return false;
+}*/
+void RadioAndNetW::StartStopOtp(bool f)
+{
+    if (f)
+    {
+        if (socet_tcp_otp->state() != QAbstractSocket::ConnectedState)
+        {
+            int p1 = LeOtpPort->text().toInt();
+            socet_tcp_otp->connectToHostEncrypted(LeOtpServer->text(),p1);//socet_tcp_sfox->connectToHost(LeSFoxServer->text(),80);
+            socet_tcp_otp->waitForConnected(500);
+        }
+    }
+    else if (socet_tcp_otp->state() == QAbstractSocket::ConnectedState) socet_tcp_otp->disconnectFromHost();
+}
+void RadioAndNetW::cb_otp_msg_toggled(bool f)
+{
+    //StartStopSFox(f);
+    emit EmitOtpRxMsg(f);
+    //if (f) SendSFoxCheck("-");
+}
+#define MAXOTPCHECK 8
+typedef struct
+{
+    QString time;
+    QString call;
+    QString freq;
+    //QString msg;
+}
+SotpAD;
+static SotpAD otp_all_data[MAXOTPCHECK+10];
+static QString otp_formated_msg[MAXOTPCHECK+10];
+//#define _TEST_OTP_
+void RadioAndNetW::ParseOtpMsg(QString sba,uint8_t id)
+{
+    int pos = -1;
+    QStringList l0 = sba.split(" ");
+    if (otp_pos_ch_writ>MAXOTPCHECK) otp_pos_ch_writ=MAXOTPCHECK;//2.76.5
+    for (int i = 0; i < otp_pos_ch_writ; ++i)
+    {
+        QString call0 = otp_all_data[i].call;
+        for (int j = 0; j < l0.count(); ++j)
+        {
+            if (l0.at(j)==call0)
+            {
+                pos = i;
+                break;
+            }
+        }
+        if (pos>-1) break;
+    }
+#if defined _TEST_OTP_    
+    if (id==3) pos=0;
+#endif    
+    if (pos>-1 && pos<MAXOTPCHECK)//2.76.5
+    {
+        QString s = otp_all_data[pos].time+"#";
+        s.append("0#");
+        s.append("0.0#");
+        s.append("0#");
+        if		(id==1) s.append(otp_all_data[pos].call+" verified#");
+        else if (id==2) s.append(otp_all_data[pos].call+" invalid#");
+#if defined _TEST_OTP_         
+        else if (id==3) s.append(otp_all_data[pos].call+" not found#");
+#endif        
+        s.append("0#");
+        s.append("1.0#");
+        s.append(otp_all_data[pos].freq);
+        otp_all_data[pos].call = ".";//protect two times decode
+        emit EmitOtpVerif(s,id);
+    }
+}
+void RadioAndNetW::readOtp()
+{
+    /*HV variants
+    \r\n\r\n28\r\n2024-10-15T05:33:30Z LZ2HV 865414 INVALID\r\n"  next-> "0\r\n\r\n"
+    \r\n\r\n2024-10-15T05:29:30Z LZ2HV 633766 VERIFIED\r\n"  next-> "0\r\n\r\n"
+    */
+    QByteArray ba = socet_tcp_otp->readAll();
+    QString sba = QString(ba.data());
+    //if (sba.count()<1) return;//2.76.5
+    int ibeg = sba.indexOf("\r\n\r\n");
+    int csba = (sba.count()-(ibeg+4)); //qDebug()<<sba;
+    if (ibeg>-1 && csba>0)//2.77 //if (ibeg>-1 && sba.count()>5)//2.77 
+    {        
+        sba = sba.mid(ibeg+4,csba); //qDebug()<<"INDEX="<<sba;//sba = sba.mid(ibeg+4,sba.count()-(ibeg+4));
+        if		(sba.contains(" VERIFIED")) ParseOtpMsg(sba,1);
+        else if (sba.contains(" INVALID"))  ParseOtpMsg(sba,2);
+#if defined _TEST_OTP_        
+        else if (sba.contains(" not found")/* || sba.contains("N/A")*/) ParseOtpMsg(sba,3); //Callsign not found
+#endif         	      
+    }
+    if (otp_is_act_send_check == 2)
+    {
+        otp_check_timer->stop();
+        otp_check_timer->start(50);
+    }
+}
+void RadioAndNetW::SendOtpCheckDataGram()
+{
+    /*https://www.9dx.cc/check/LZ2HV/2024-10-13T12:03:00/432242.text*/
+    /*DataGram Debug -> curl -v https://www.9dx.cc/check/LZ2HV/2024-10-13T12:03:00/432242.text*/
+    static QString serv_otp0 = "#";
+    if (otp_is_act_send_check < 2)
+    {    	
+    	if (serv_otp0 != LeOtpServer->text()/*+LeOtpPort->text()*/)//2.76.1 Connect/Disconnect on the fly
+    	{
+    		serv_otp0 = LeOtpServer->text()/*+LeOtpPort->text()*/;//www.9dx.cc hamdx.org
+    		if (socet_tcp_otp->state() == QAbstractSocket::ConnectedState)
+    		{
+    			socet_tcp_otp->disconnectFromHost();
+    			socet_tcp_otp->waitForDisconnected(350);
+   			}
+   		}
+        if (socet_tcp_otp->state() != QAbstractSocket::ConnectedState) StartStopOtp(true);
+        if (socet_tcp_otp->state() == QAbstractSocket::ConnectedState)//if (StartStopOtp(true))        	
+        {
+            QByteArray res = "GET /"+otp_formated_msg[otp_pos_ch_read].toUtf8()+" HTTP/1.1\r\n";
+            res.append("Host: "+LeOtpServer->text().toUtf8()+"\r\n");
+            QString tmp = "User-Agent: MSHV/"+QString(VER_MS)+"\r\n";
+            res.append(tmp.toUtf8());
+            res.append("Accept: */*\r\n\r\n");
+            socet_tcp_otp->write(res); //qDebug()<<"MSHV Send-->"; qDebug()<<otp_pos_ch_read;//<<res.data();
+            otp_is_act_send_check = 2;
+            otp_check_timer->start(2000);
+        }
+        else
+        {
+            otp_check_timer->stop();
+            //qrz_err_flag = true;
+            //CheckQRZLogError();
+            otp_pos_ch_writ = 0;
+            otp_pos_ch_read = 0;
+            otp_is_act_send_check = 0;
+            /*QString s = " MSHV "+tr("Unsuccessful connection to ")+LeOtpServer->text();
+            QPoint post = w_parent->mapToGlobal(QPoint(0,0));
+            post+=QPoint(w_parent->width()/2-160,(-w_parent->pos().y()+50));
+            QToolTip::showText(post,s,this,rect(),8000);*/
+        }
+    }
+    else //check
+    {
+        otp_check_timer->stop();
+        //CheckQRZLogError();
+        otp_pos_ch_read++;
+        if (otp_pos_ch_read >= otp_pos_ch_writ)
+        {
+            otp_pos_ch_writ = 0;
+            otp_pos_ch_read = 0;
+            otp_is_act_send_check = 0;
+        }
+        else
+        {
+            otp_is_act_send_check = 1;//1=next send data
+            otp_check_timer->start(200);
+        }
+    }
+}
+//#include <QNetworkInterface>
+void RadioAndNetW::SendOtpCheck(QString s)
+{
+    /*QList<QNetworkInterface> list = QNetworkInterface::allInterfaces(); // now you have interfaces list
+    foreach (QNetworkInterface iface, list)  // this should print all interfaces' names
+    {
+    	if (iface.flags() & QNetworkInterface::IsUp)
+    	qDebug() << iface.name() << iface.flags();
+    }*/
+    //for (int i = 0; i<3; i++)
+    //{
+    //s = "101200 $VERIFY$ K1JT 958844 751";//20250108 		101200 	958844  HH2AA K1JT
+    QStringList l = s.split(" "); //qDebug()<<l;//"173730 $VERIFY$ LZ2HV 477064 751"
+    if (l.count()<5) return;
+    if (l.at(3)=="000000") return;		//no check 000000 code
+    if (l.at(2).contains("...")) return;//no check <...>
+    if (otp_pos_ch_writ > MAXOTPCHECK) return; //qDebug()<<l;
+    otp_all_data[otp_pos_ch_writ].time = l.at(0); //qDebug()<<"Check--------------------";
+    otp_all_data[otp_pos_ch_writ].call = l.at(2);
+    otp_all_data[otp_pos_ch_writ].freq = l.at(4);//+QString("%1").arg(i);
+    QString Call = URLEncode(l.at(2));  //qDebug()<<otp_pos_ch_writ<<sfox_all_data[otp_pos_ch_writ].freq;
+    QDateTime timestamp = QDateTime(QDateTime::currentDateTimeUtc().date(),QTime::fromString(l.at(0),"hhmmss"));
+    otp_formated_msg[otp_pos_ch_writ] = "check/" + Call + QString("/%1/%2.text").arg(timestamp.toString(Qt::ISODate)).arg(l.at(3));
+    otp_pos_ch_writ++;
+    if (otp_is_act_send_check == 0)//0=no_active
+    {
+        //qrz_once_data_err_msg = true;
+        otp_is_act_send_check = 1;//1=send data
+        //qrz_error_str = tr("Please check your Internet connection");
+        otp_check_timer->start(20); //4900
+    }
+    //}
+}
+///// end Otp //////
 ///// EQSL //////
 void RadioAndNetW::StartStopEQSL(bool f)
 {
@@ -1749,15 +2125,25 @@ void RadioAndNetW::CheckEQSLError()
 QString eqsl_adif_arr[MAXUPLOAUD+10];
 void RadioAndNetW::UplEQSLAdif()
 {
+	//static QString serv_eqsl0 = "#";
     if (eqsl_is_act_send_check < 2)
     {
+    	/*if (serv_eqsl0 != LeEQSLServer->text())//2.761 Connect/Disconnect on the fly
+    	{
+    		serv_eqsl0 = LeEQSLServer->text();
+    		if (socet_tcp_eqsl->state() == QAbstractSocket::ConnectedState)
+    		{
+    			socet_tcp_eqsl->disconnectFromHost();
+    			socet_tcp_eqsl->waitForDisconnected(350);
+   			}
+   		}*/    	
         if (socet_tcp_eqsl->state() != QAbstractSocket::ConnectedState) StartStopEQSL(true);
         if (socet_tcp_eqsl->state() == QAbstractSocket::ConnectedState)
         {
             eqsl_err_flag = true;
             QString adiftrim = eqsl_adif_arr[eqsl_pos_ul_read];
             adiftrim.remove(adiftrim.size()-1,1);//remove last \n  //adiftrim = adiftrim.trimmed();
-            QString s = LeEQSLmsg->text(); 
+            QString s = LeEQSLmsg->text();
             s = s.trimmed();
             if (!s.isEmpty()) adiftrim.insert(adiftrim.count()-5,"<QSLMSG:"+QString("%1").arg(s.count())+">"+s);//<EOR>
             QByteArray res = "POST /"+LeEQSLPost->text().toUtf8()+" HTTP/1.1\r\n";
@@ -1896,8 +2282,18 @@ void RadioAndNetW::CheckQRZLogError()
 QString qrzlog_adif_arr[MAXUPLOAUD+10];
 void RadioAndNetW::UplQRZLogAdif()
 {
+	//static QString serv_qrzlog0 = "#";	
     if (qrz_is_act_send_check < 2)
     {
+    	/*if (serv_qrzlog0 != LeQRZLogServer->text())//2.761 Connect/Disconnect on the fly
+    	{
+    		serv_qrzlog0 = LeQRZLogServer->text();
+    		if (socet_tcp_qrzlog->state() == QAbstractSocket::ConnectedState)
+    		{
+    			socet_tcp_qrzlog->disconnectFromHost();
+    			socet_tcp_qrzlog->waitForDisconnected(350);
+   			}
+   		}*/    	
         if (socet_tcp_qrzlog->state() != QAbstractSocket::ConnectedState) StartStopQRZLog(true);
         if (socet_tcp_qrzlog->state() == QAbstractSocket::ConnectedState)
         {
@@ -2081,8 +2477,18 @@ void RadioAndNetW::CheckClubLogError(int b,int e)
 static QByteArray cl_upload_file_;
 void RadioAndNetW::UplClubLogAdif()
 {
+	//static QString serv_clublog0 = "#";	
     if (cl_is_act_send_check < 3)
     {	//0=no_active 1=send data 2=send file 3=check data 4=check file
+    	/*if (serv_clublog0 != LeClubLogServer->text())//2.761 Connect/Disconnect on the fly
+    	{
+    		serv_clublog0 = LeClubLogServer->text();
+    		if (socet_tcp_clublog->state() == QAbstractSocket::ConnectedState)
+    		{
+    			socet_tcp_clublog->disconnectFromHost();
+    			socet_tcp_clublog->waitForDisconnected(350);
+   			}
+   		}*/    	
         if (socet_tcp_clublog->state() != QAbstractSocket::ConnectedState) StartStopClubLog(true);
         if (socet_tcp_clublog->state() == QAbstractSocket::ConnectedState)
         {
@@ -2283,7 +2689,7 @@ void RadioAndNetW::SetDefaultFreqsActType(int id)
     //"WW Digi DX Contest"			6	FT4: (1.840, 3.580, 7.080, 14.080, 21.080, 28.080)
     //									FT8: (1.844, 3.590, 7.090, 14.090, 21.090, 28.090)
     //"FT4 DX Contest"				7	FT4: (3.580, 7.080, 14.080, 21.080, 28.080)
-    //"FT8 DX Contest"				8	FT8: (3.590, 7.090, 14.090, 21.090, 28.090)//2.64
+    //"FT8 DX Contest"				8	FT8: (3.590, 7.090, 14.090, 21.090, 28.090)
     //"FT Roundup Contest"			9	FT4: (3.580, 7.080, 14.080, 21.080, 28.080)
     //									FT8: (3.590, 7.090, 14.090, 21.090, 28.090)
     //"Bucuresti Digital Contest"	10	FT4: (3.575.000, 7.047.500)
@@ -2293,6 +2699,8 @@ void RadioAndNetW::SetDefaultFreqsActType(int id)
     //"Q65 Pileup" or "Pileup"		14	all_bands_mods_frq
     //"NCCC Sprint"					15	all standard (1.840, 3.575, 7.047, 14.080, 21.140, 28.180, 50.318)
     //"ARRL Inter. EME Contest"		16	all_bands_mods_frq
+    //FT Challenge Contest			17  FT4: (3.580, 7.080, 14.080, 21.080, 28.080)
+    //									FT8: (3.590, 7.090, 14.090, 21.090, 28.090)
 
     const QString aidc_mods_frq[2][7] =
         {
@@ -2302,9 +2710,9 @@ void RadioAndNetW::SetDefaultFreqsActType(int id)
             {"1.840.000","3.590.000","7.090.000","14.090.000","21.090.000","28.090.000","50.340.000"},
         };
     const QString ww_mods_frq[2][6] =
-        {
-            {"1.840.000","3.580.000","7.080.000","14.080.000","21.080.000","28.080.000"
-            },
+        {   
+        	//no move
+            {"1.840.000","3.580.000","7.080.000","14.080.000","21.080.000","28.080.000"},
             {"1.844.000","3.590.000","7.090.000","14.090.000","21.090.000","28.090.000"},
         };
     /*const QString ft4dx_mods_frq[5] =
@@ -2316,9 +2724,9 @@ void RadioAndNetW::SetDefaultFreqsActType(int id)
            "3.590.000","7.090.000","14.090.000","21.090.000","28.090.000" //2.64
        };*/
     const QString ftru_mods_frq[2][5] = //same as ft4dx, ft8dx
-        {
-            {"3.580.000","7.080.000","14.080.000","21.080.000","28.080.000"
-            },
+        {   
+        	//no move
+            {"3.580.000","7.080.000","14.080.000","21.080.000","28.080.000"},
             {"3.590.000","7.090.000","14.090.000","21.090.000","28.090.000"},
         };
     const QString bu_mods_frq[2] =
@@ -2344,9 +2752,10 @@ void RadioAndNetW::SetDefaultFreqsActType(int id)
     if (id == 6 || id == 5) col = 3;//start from 1.8
     if (id == 11) col = 6;//start from 7.0
 
-    int modp = 2;//start from ft4
-    if (id == 8) modp = 3;//start from ft8
-
+	//"MSK","FSK","FT2","FT4","FT8", "J65","Q65" <-- real pos in RadList
+    int modp = pos_mod_sav_frq[2];//3 start from ft4
+    if (id == 8) modp = pos_mod_sav_frq[3];//4 //start from ft8
+    
     int coar = 5;//all others
     if (id == 5)  coar = 7;//"ARRL Inter. Digital Contest"
     if (id == 6)  coar = 6;//"WW Digi DX Contest"
@@ -2387,7 +2796,7 @@ void RadioAndNetW::SetDefaultFreqsActType(int id)
             lf.replace(modp,  ftru_mods_frq[1][i]);
             ft8_s.append(ftru_mods_frq[1][i]+", ");
         }
-        else if (id == 9) //"FT Roundup Contest"
+        else if (id == 9 || id == 17) //"FT Roundup Contest" and "FT Challenge"
         {
             lf.replace(modp,  ftru_mods_frq[0][i]);
             lf.replace(modp+1,ftru_mods_frq[1][i]);
@@ -2414,8 +2823,7 @@ void RadioAndNetW::SetDefaultFreqsActType(int id)
         for (int j  = 0; j < COUNT_FREQ_MODES; j++)
         {
             sfrq.append(lf.at(j));
-            if (j<COUNT_FREQ_MODES-1)
-                sfrq.append("\n");
+            if (j<COUNT_FREQ_MODES-1) sfrq.append("\n");
         }
         list << lst_bands[col]<<THvRadList->model.item(col, 1)->text()<<sfrq;
         THvRadList->SetItem_hv(list,col);  //qDebug()<<list;
@@ -2427,8 +2835,8 @@ void RadioAndNetW::SetDefaultFreqsActType(int id)
             else if (i==1) col=6;
             else if (i==2) col=8;
             else if (i==3) col=10;
-            else if (i==4) col=12;
-            else if (i==5) col=14;
+            else if (i==4) col=13;//2.76.5
+            else if (i==5) col=15;//2.76.5
         }
         else if (id == 6) //"WW Digi DX Contest"
         {
@@ -2436,7 +2844,7 @@ void RadioAndNetW::SetDefaultFreqsActType(int id)
             else if (i==1) col=6;
             else if (i==2) col=8;
             else if (i==3) col=10;
-            else if (i==4) col=12;
+            else if (i==4) col=13;//2.76.5
         }
         else if (id == 11)//"FT4 SPRINT Fast Training"
         {
@@ -2448,7 +2856,7 @@ void RadioAndNetW::SetDefaultFreqsActType(int id)
             if   	(i==0) col=6;
             else if (i==1) col=8;
             else if (i==2) col=10;
-            else if (i==3) col=12;
+            else if (i==3) col=13;//2.76.5
         }
     }
 
@@ -2484,8 +2892,7 @@ void RadioAndNetW::SetDefaultFreqs(bool f)
         QString sfrq;
         for (int j  = 0; j < COUNT_FREQ_MODES; j++)
         {
-            sfrq.append(all_bands_mods_frq[i][j]);
-
+            sfrq.append(all_bands_mods_frq[i][pos_mod_rea_frq[j]]);
             if (j<COUNT_FREQ_MODES-1) sfrq.append("\n");
         }
         if (f)//true all is default
@@ -2583,7 +2990,7 @@ void RadioAndNetW::TCPServPortChanged(QString)
 {
     if (!s_myCall.isEmpty() && global_tcp_stat)
     {
-        TelnetClient->Connect(TCPServer->text(),TCPPort->text(),s_myCall);
+        TelnetClient->Connect(TCPServer->text(),TCPPort->text(),s_myCall,TCPPass->text());
         //qDebug()<<"RadioAndNetW::TCPServPortChanged";
     }
 }
@@ -2669,21 +3076,27 @@ void RadioAndNetW::UdpTcpChangedPsk(bool f)
         Reconnect();// for read settings
     }
 }
+void RadioAndNetW::SetFullRigInfo(QString rigInfo)//2.76.1 for pskreporter
+{
+	static QString prev_rigInfo = "#";
+	s_rigInfo = rigInfo; //qDebug()<<"IN="<<rigInfo;
+    if (rigInfo == "None" || rigInfo.isEmpty()) s_rigInfo = "No CAT control"; 
+    if (prev_rigInfo == s_rigInfo) return;
+    prev_rigInfo = s_rigInfo;
+    SetLocalStation(s_myCall,s_myLoc,s_band,s_cont_id); //qDebug()<<"PSKrep OUT="<<s_rigInfo;
+}
 void RadioAndNetW::SetLocalStation(QString myCall,QString myLoc,QString band,int con_id)
 {
-    //qDebug()<<s_myCall<<myCall<<band;
     if (s_myCall!=myCall)//1.76
     {
         s_myCall = myCall;
         TCPServPortChanged("d");// for my call if change
-    }
-
+    } //qDebug()<<s_myCall<<myCall<<band;
     s_cont_id = con_id;
     s_band = band;
     s_myCall = myCall;
     s_myLoc = myLoc;
     LClubLogCall->setText(myCall);
-
     QString myAnt;
     for (int z=0; z<COUNT_BANDS; z++)
     {
@@ -2693,12 +3106,9 @@ void RadioAndNetW::SetLocalStation(QString myCall,QString myLoc,QString band,int
             break;
         }
     }
-
-    //psk_Reporter->setLocalStation(myCall,myLoc,myAnt,QString{"MSHV v" + QString(VER_MS)}.simplified ());
-    psk_Reporter->setLocalStation(myCall,myLoc,myAnt);
-    //qDebug()<<FREQ_GLOBAL<<s_band;
-
-    if (s_cont_id > 4 && s_cont_id < 13)//=COUNT_CONTEST protection  13 = CQ WW VHF Contest no default freq
+    //psk_Reporter->setLocalStation(myCall,myLoc,myAnt,QString{"MSHV v" + QString(VER_MS)}.simplified ());   
+    psk_Reporter->setLocalStation(myCall,myLoc,myAnt,s_rigInfo);
+    if ((s_cont_id > 4 && s_cont_id < 13) || s_cont_id == 17)//=COUNT_CONTEST protection  13 = CQ WW VHF Contest no default freq
     {
         b_reset_default_freqs_cont->setEnabled(true);
         b_reset_default_freqs_cont->setText(tr("Default FREQs For")+" "+s_cont_name[s_cont_id]);
@@ -2723,8 +3133,7 @@ void RadioAndNetW::FindFreqLocFromBcnList(QString hisCall,int id,QString &hisLoc
             break;
     }
 
-    if (band_n==COUNT_BANDS)
-        return;
+    if (band_n>=COUNT_BANDS) return;
 
     for (int z=0; z<THvBcnListW->THvBcnList->model.rowCount(); z++)
     {
@@ -2755,73 +3164,53 @@ void RadioAndNetW::SetModeForFreqFromMode(int i)
         s_mode = s;//"MFSK";  //??????
         //s_smode = s;        //??????
     }
+    else if (s=="FT2") // submode = m_nSubMode + 65;
+    {
+        s_mode = s;//"MFSK";  //??????
+        //s_smode = s;        //??????
+    }
     else if (s=="ISCAT-A" || s=="ISCAT-B")
     {
         s_mode = "ISCAT";
-        if (s=="ISCAT-A")
-            s_smode = "A";//QString("%1").arg(65);
-        else
-            s_smode = "B";//QString("%1").arg(66);
+        if (s=="ISCAT-A") s_smode = "A";//QString("%1").arg(65);      
+        else s_smode = "B";//QString("%1").arg(66);            
     }
     else if (s=="JT65A" || s=="JT65B" || s=="JT65C")
     {
         s_mode = "JT65";
-        if (s=="JT65A")
-            s_smode = "A";//QString("%1").arg(65);
-        else if (s=="JT65B")
-            s_smode = "B";//QString("%1").arg(66);
-        else
-            s_smode = "C";//QString("%1").arg(67);
+        if (s=="JT65A") s_smode = "A";//QString("%1").arg(65);            
+        else if (s=="JT65B") s_smode = "B";//QString("%1").arg(66);   
+        else s_smode = "C";//QString("%1").arg(67);            
     }
     else if (s=="Q65A" || s=="Q65B" || s=="Q65C" || s=="Q65D")
     {
         s_mode = "Q65";
-        if (s=="Q65A")
-            s_smode = "A";
-        else if (s=="Q65B")
-            s_smode = "B";
-        else if (s=="Q65C")
-            s_smode = "C";
-        else
-            s_smode = "D";
+        if (s=="Q65A") s_smode = "A";  
+        else if (s=="Q65B") s_smode = "B";  
+        else if (s=="Q65C") s_smode = "C";   
+        else s_smode = "D";       
     }
-    else
-        s_mode = s;
-    //s_mode = ModeStr(i);
-
-    //qDebug()<<"s_mode="<<s_mode;
+    else s_mode = s;
     //convertion from mod to no sub mode
     // i = 0 msk144
-    if (i==1 || i==2 || i==3 || i==4 || i==5 || i==6 || i==10)//"JTMS","FSK441","FSK315","ISCAT-A","ISCAT-B","JT6M" for any case "PI4"
-        i=1;
-    if (i==13)//"FT4"
-        i=2;
-    if (i==11)//"FT8"
-        i=3;
-    if (i==7 || i==8 || i==9)//"JT65A","JT65B","JT65C"
-        i=4;
-    if (i==0 || i==12)//msk144 msk144ms
-        i=0;
-    if (i==14 || i==15 || i==16 || i==17)//q65
-        i=5;
-
+    if (i==1 || i==2 || i==3 || i==4 || i==5 || i==6 || i==10) i=1;//"JTMS","FSK441","FSK315","ISCAT-A","ISCAT-B","JT6M" for any case "PI4" 
+    if (i==13) i=2;//"FT4"    
+    if (i==11) i=3;//"FT8"        
+    if (i==7 || i==8 || i==9) i=4;//"JT65A","JT65B","JT65C"  
+    if (i==0 || i==12) i=0;//msk144 msk144ms    
+    if (i==14 || i==15 || i==16 || i==17) i=5;//Q65        
+    if (i==18) i=6;//"FT2"
     QString mode = "UNKNOWN";
-    if (i>=0 && i<=COUNT_FREQ_MODES-1)// stop exseptions
-        mode = ModeStrForFerq[i];
+    if (i>=0 && i<=COUNT_FREQ_MODES-1) mode = ModeStrForFerq[i];//HV no pos_mod_rea_frq[i]
     s_mode_str_for_ferq = mode;
-
-    if (s_mode=="FT8" || s_mode=="FT4" || s_mode=="MSK144" || s_mode=="MSKMS")
-        f_mods_accept_cmd = true;
-    else
-        f_mods_accept_cmd = false;
-
-    //qDebug()<<"Mode=8"<<s_smode;
-    SendStatus(8);//2.55
+    if (s_mode=="FT8" || s_mode=="FT4" || s_mode=="FT2" || s_mode=="MSK144" || s_mode=="MSKMS") f_mods_accept_cmd = true;
+    else f_mods_accept_cmd = false;
+    SendStatus(8); //qDebug()<<"Mode=8"<<s<<s_smode<<mode<<f_mods_accept_cmd<<s_mode;
     if (cb_wr_status->isChecked()) write_status_timer->start(400);
 }
 void RadioAndNetW::SetFreqGlobal(QString s)
 {
-    FREQ_GLOBAL = s; //qDebug()<<"Freq=7"<<FREQ_GLOBAL;
+    FREQ_GLOBAL = s;//qDebug()<<"Freq=7"<<FREQ_GLOBAL;
     SendStatus(7);//2.55
     if (cb_wr_status->isChecked()) write_status_timer->start(400);
 }
@@ -2837,7 +3226,7 @@ void RadioAndNetW::FindFreqRadList(int id,QString &sfrq)
             QStringList lsmode = smode.split("\n");
             for (int x=0; x<COUNT_FREQ_MODES; x++)
             {
-                if (s_mode_str_for_ferq==lsmode.at(x))
+                if (s_mode_str_for_ferq==lsmode.at(x))//HV no by find name   pos_mod_rea_frq[x]
                 {
                     sfrq=lsfrq.at(x);
                     break;
@@ -2848,21 +3237,18 @@ void RadioAndNetW::FindFreqRadList(int id,QString &sfrq)
             //long long int frq0 = sfrq.toLongLong();//2.31 remove first zero 0.455.000
             //sfrq = QString("%1").arg(frq0);
             //if (id==0)
-            //sfrq=sfrq.mid(0,sfrq.count()-3);//+"000" to KHz
-            if (id==1 || id==10)//id 0->to psk reporter 1->to dx clusters spot 10->empty to dx clusters spot
-                sfrq=sfrq.mid(0,sfrq.count()-3);//+"000" to KHz
+			//qDebug()<<"FindFreqRadList="<<sfrq;//sfrq=sfrq.mid(0,sfrq.count()-3);//+"000" to KHz
+            if (id==1 || id==10) sfrq=sfrq.mid(0,sfrq.count()-3);//+"000" to KHz//id 0->to psk reporter 1->to dx clusters spot 10->empty to dx clusters spot                
             break;
         }
     }
 }
-void RadioAndNetW::AddRemoteStation(QString hisCall,QString hisLoc,int frq_offset,QString mode,int snr,int id,QString pwidth)//id 0->to psk reporter 1->to dx clusters spot 10=empty
+void RadioAndNetW::AddRemoteStation(QString hisCall,QString hisLoc,int frq_offset,QString mode,int snr,int id,QString pwidth,QString hhmmsspt)//id 0->to psk reporter 1->to dx clusters spot 10=empty
 {
     //from file open no emit HV
     //global block emitting if somting mising here HV
     //need hiscall hisloc HV
-
     //qDebug()<<"PskReporter"<<s_myCall<<hisCall<<hisLoc;
-
     QString sfrq;
     if (cb_start_stop_psk_rpt->isChecked() && id==0)//id 0->to psk reporter 1->to dx clusters spot 10->empty to dx clusters spot
     {
@@ -2882,9 +3268,7 @@ void RadioAndNetW::AddRemoteStation(QString hisCall,QString hisLoc,int frq_offse
         if (mode!="PI4" && (hisCall.isEmpty() || hisLoc.isEmpty())) return;
 
         sfrq = "0";
-        if (mode=="PI4")//for pi4
-            FindFreqLocFromBcnList(hisCall,id,hisLoc,sfrq);
-
+        if (mode=="PI4") FindFreqLocFromBcnList(hisCall,id,hisLoc,sfrq);//for pi4
         if (sfrq=="0" && mode!="PI4")// no emit if no find from BcnList to psk_Reporter
         {
             unsigned long long freq = FREQ_GLOBAL.toLongLong()+frq_offset;
@@ -2893,27 +3277,23 @@ void RadioAndNetW::AddRemoteStation(QString hisCall,QString hisLoc,int frq_offse
         }
 
         //qDebug()<<"PskReporter1"<<sfrq;
-        if (s_myCall.isEmpty() || hisCall.isEmpty() || sfrq.toLongLong()<100000 )//here hz 100000hz 100khz min
-            return;
+        if (s_myCall.isEmpty() || hisCall.isEmpty() || sfrq.toLongLong()<100000 ) return;//here hz 100000hz 100khz min            
         //qDebug()<<"PskReporter2"<<sfrq;
 
         //psk_Reporter->addRemoteStation(hisCall,hisLoc,sfrq,mode,QString("%1").arg(snr),
         //QString::number(QDateTime::currentDateTimeUtc().t_oTime_t()));
-        psk_Reporter->addRemoteStation(hisCall,hisLoc,sfrq,mode,snr);
-        //qDebug()<<"PskReporter"<<hisCall<<hisLoc<<QString::number(QDateTime::currentDateTimeUtc().toTime_t())<<sfrq<<snr;
+        psk_Reporter->addRemoteStation(hisCall,hisLoc,sfrq,mode,snr,hhmmsspt);
+        //qDebug()<<"PskReporter"<<hisCall<<hisLoc<<QString::number(QDateTime::currentDateTimeUtc().toTime_t())<<sfrq<<snr<<mode;
     }
     else if (id==1)//id 0->to psk reporter 1->to dx clusters spot 10->empty to dx clusters spot
     {
         sfrq = "0";
-        if (mode=="PI4")//for pi4
-            FindFreqLocFromBcnList(hisCall,id,hisLoc,sfrq);
-
+        if (mode=="PI4") FindFreqLocFromBcnList(hisCall,id,hisLoc,sfrq);//for pi4            
         QStringList list;
         if (pwidth=="NA")//no aplicatenle -> no ping width
         {
             QString ssnr = QString("%1").arg(snr);
-            if (!ssnr.contains("-"))
-                ssnr.prepend("+");
+            if (!ssnr.contains("-")) ssnr.prepend("+");
             list<<s_myCall<<s_myLoc<<hisCall<<hisLoc<<sfrq<<mode<<ssnr+" dB";
         }
         else // have ping width
@@ -2925,8 +3305,7 @@ void RadioAndNetW::AddRemoteStation(QString hisCall,QString hisLoc,int frq_offse
             	pwidth = QString("%1").arg((int)ipw)+"s";
             }*/
             int ipw = pwidth.toInt();
-            if (ipw>=9980)
-                pwidth = "9980";
+            if (ipw>=9980) pwidth = "9980";
 
             QString pw = pwidth+"/"+QString("%1").arg(snr);
             list<<s_myCall<<s_myLoc<<hisCall<<hisLoc<<sfrq<<mode<<pw;
@@ -3156,6 +3535,38 @@ void RadioAndNetW::set_reply_clr(QStringList l)
     //qDebug()<<"f_mods_accept_cmd"<<f_mods_accept_cmd<<l;
     if (f_mods_accept_cmd || l.at(0)=="CLR") emit EmitUdpCmdDl(l);
 }
+void RadioAndNetW::set_configure(QStringList l)//2.76.7
+{
+	int imode = -1;
+	QString s = "";
+	QString m = l.at(0);
+	QString sm = l.at(1); //qDebug()<<" IN="<<m<<sm;
+	if (m.isEmpty() && sm.isEmpty()) return;
+	m = m.toUpper(); sm = sm.toUpper();	
+	if (m.startsWith("ISCAT") && m.indexOf('-')!=5) m.insert(5,'-');
+	if ((m=="JT65" || m=="Q65" || m=="ISCAT-") && sm.isEmpty())
+	{
+		if (s_smode.isEmpty()) s = m+"B";//l.replace(0,m+"B"); 
+		else s = m+s_smode;//l.replace(0,m+s_smode);			
+	}
+	else if (!m.isEmpty() && !sm.isEmpty()) s = m+sm;//l.replace(0,m+sm);
+	else s = m;//l.replace(0,m);
+	if (m.isEmpty()) 
+	{
+		if (s_mode=="ISCAT") s = s_mode+"-"+sm;//l.replace(0,s_mode+"-"+sm); 
+		else s = s_mode+sm;//l.replace(0,s_mode+sm);   
+	}
+	for (int i = 0; i < COUNT_MODE; ++i)
+    {
+    	if (s==ModeStr(i))
+    	{
+    		imode=i;
+    		break;
+   		}
+    } 
+    if (imode<0) return;  //qDebug()<<" OUT="<<imode<<" - "<<m<<sm;	qDebug()<<"-----------------";
+	emit EmitUdpConfigure(imode);
+}
 void RadioAndNetW::set_halt_tx(bool f)
 {
     //if (f_mods_accept_cmd)
@@ -3228,7 +3639,7 @@ void RadioAndNetW::DecodUpdTimer()
         bool fdec = false;
         if (pos_dec > 0) fdec = true; //2.61
         //if (id_activ_upd != 1 && pos_dec > 0)  qDebug()<<"error";
-        //qDebug()<<"START Status----------------------->"<<id_activ_upd<<s_dx_call<<s_dx_grid;
+        //qDebug()<<"START Status----------------------->"<<id_activ_upd<<s_dx_call<<s_dx_grid<<s_mode;
         quint64 frq = FREQ_GLOBAL.toLongLong();
         m_messageClientBroad->statusUPD(frq,s_mode,s_dx_call,s_report,s_mode,s_myCall,s_myLoc,s_dx_grid,fdec,s_smode,
                                         s_auto,s_tx,s_tx_msg);
@@ -3292,10 +3703,10 @@ void RadioAndNetW::SaveSettings()
         sada.append(THvRadList->model.item(j, 1)->text()+"||");
         QString str = THvRadList->model.item(j, 3)->text();
         QStringList lstr = str.split("\n");
-        str.clear();
+        str.clear(); //qDebug()<<lstr;
         for (int x = 0;  x < lstr.count(); x++)
         {
-            str.append(lstr.at(x));
+            str.append(lstr.at(pos_mod_sav_frq[x]));
             str.remove(".");
             str.remove(",");
             if (x<lstr.count()-1) str.append(";");
@@ -3324,6 +3735,17 @@ void RadioAndNetW::SaveSettings()
     out <<"tcp_eqsl_log_all="<<LeEQSLServer->text()<<"#"<<LeEQSLPort->text()<<"#"<<LeEQSLPost->text()<<"#"
     <<LeEQSLUser->text()<<"#"<<LeEQSLPass->text()<<"#"<<LeEQSLQTHNick->text()<<"#"<<QString("%1").arg(cb_eqsl->isChecked())<<"#"
     <<LeEQSLmsg->text()<<"\n";
+    out <<"tcp_otp_all="<<LeOtpServer->text()<<"#"<<LeOtpPort->text()<<"#"<<QString("%1").arg(cb_otp_msg->isChecked())<<"#"
+    <<QString("%1").arg(cb_otp_key->isChecked())<<"#"<<LeOtpKey->text()<<"\n";
+    sada.clear();
+    for (int j=1;  j<CbOTPServers->count(); ++j)
+    {
+    	sada.append(CbOTPServers->itemText(j)); 
+    	if (j<CbOTPServers->count()-1) sada.append("#");
+   	}
+    out<<"otp_servers_list="<<sada<<"\n";
+    out << "tcp_pass=" << TCPPass->text() << "\n";
+    
     file.close();
 }
 bool RadioAndNetW::isFindId(QString id,QString line,QString &res)
@@ -3340,12 +3762,13 @@ bool RadioAndNetW::isFindId(QString id,QString line,QString &res)
 }
 void RadioAndNetW::ReadSettings()
 {
-    const int c_st_id = 17; //dopalva se tuk v kraia
-    QString st_id[c_st_id]=
+    const int c_st_id = 20; //dopalva se tuk v kraia
+    const QString st_id[c_st_id]=
         {
             "udp_server","udp_port","psk_spot_val","st_info_all","dx_spot_telnet_val","tcp_server","tcp_port",
             "udp_broad_server","udp_broad_port","udp_broad_log_all","psk_udp_tcp","tcp_broad_log_all",
-            "tcps_club_log_all","udp2_broad_all","tcps_qrz_log_all","def_wr_status","tcp_eqsl_log_all"
+            "tcps_club_log_all","udp2_broad_all","tcps_qrz_log_all","def_wr_status","tcp_eqsl_log_all",
+            "tcp_otp_all","otp_servers_list","tcp_pass"
         };
     QString st_res[c_st_id];
     for (int i = 0; i < c_st_id; ++i) st_res[i]="";
@@ -3412,18 +3835,16 @@ void RadioAndNetW::ReadSettings()
                     if (lfrq_mod.count()!=COUNT_FREQ_MODES)
                     {
                         lfrq_mod.clear();//2.18 missed frq reset to default
-                        for (int z=0; z<COUNT_FREQ_MODES; z++)
-                            lfrq_mod << "";
+                        for (int z=0; z<COUNT_FREQ_MODES; z++) lfrq_mod << "";
                     }
 
                     for (int x=0; x<COUNT_FREQ_MODES; x++)
                     {
                         QString frq0;
-                        if (lfrq_mod.at(x).isEmpty())
-                            frq.append(all_bands_mods_frq[i][x]);
+                        if (lfrq_mod.at(x).isEmpty()) frq.append(all_bands_mods_frq[i][pos_mod_rea_frq[x]]);
                         else
                         {
-                            frq0 = lfrq_mod.at(x);
+                            frq0 = lfrq_mod.at(pos_mod_rea_frq[x]);
                             int k = frq0.count();
                             k -= 3;
                             if (k>0)
@@ -3433,8 +3854,7 @@ void RadioAndNetW::ReadSettings()
                                 frq0.insert(k,".");//KHz 1.44
                             frq.append(frq0);
                         }
-                        if (x<COUNT_FREQ_MODES-1)
-                            frq.append("\n");
+                        if (x<COUNT_FREQ_MODES-1) frq.append("\n");
                     }
                     lss[1] = frq;
                     lss.prepend(lst_bands[i]);
@@ -3454,6 +3874,7 @@ void RadioAndNetW::ReadSettings()
     if (!st_res[4].isEmpty()) SetGlobalTcpStat(st_res[4]);
     if (!st_res[5].isEmpty()) TCPServer->setText(st_res[5]);
     if (!st_res[6].isEmpty()) TCPPort->setText(st_res[6]);
+    if (!st_res[19].isEmpty()) TCPPass->setText(st_res[19]);//2.76.3
     if (!st_res[7].isEmpty()) UDPServerBroad->setText(st_res[7]);
     if (!st_res[8].isEmpty()) UDPPortBroad->setText(st_res[8]);
     if (!st_res[9].isEmpty())
@@ -3484,7 +3905,7 @@ void RadioAndNetW::ReadSettings()
         QStringList ls = st_res[12].split("#");
         if (ls.count()>6)
         {
-            //LeClubLogServer->setText(ls.at(0));
+            //LeClubLogServer->setText(ls.at(0));//2.76.1
             //LeClubLogPort->setText(ls.at(1));
             //LeClubLogPost0->setText(ls.at(2));
             //LeClubLogPost1->setText(ls.at(3));
@@ -3508,7 +3929,7 @@ void RadioAndNetW::ReadSettings()
         QStringList ls = st_res[14].split("#");
         if (ls.count()>4)
         {
-            //LeQRZLogServer->setText(ls.at(0));
+            //LeQRZLogServer->setText(ls.at(0));//2.76.1
             //LeQRZLogPort->setText(ls.at(1));
             //LeQRZLogPost->setText(ls.at(2));
             LeQRZLogApi->setText(ls.at(3));
@@ -3524,15 +3945,35 @@ void RadioAndNetW::ReadSettings()
         QStringList ls = st_res[16].split("#");
         if (ls.count()>7)
         {
-            //LeEQSLServer->setText(ls.at(0));
+            //LeEQSLServer->setText(ls.at(0));//2.76.1
             //LeEQSLPort->setText(ls.at(1));
-            //LeEQSLPost->setText(ls.at(2));            
+            //LeEQSLPost->setText(ls.at(2));
             LeEQSLUser->setText(ls.at(3));
             LeEQSLPass->setText(ls.at(4));
             LeEQSLQTHNick->setText(ls.at(5));
             if (ls.at(6)=="1") cb_eqsl->setChecked(true);
             LeEQSLmsg->setText(ls.at(7));
         }
+    }
+    if (!st_res[17].isEmpty())
+    {
+        QStringList ls = st_res[17].split("#");
+        if (ls.count()>4)
+        {
+            LeOtpServer->setText(ls.at(0));
+            LeOtpPort->setText(ls.at(1));
+            if (ls.at(2)=="1") cb_otp_msg->setChecked(true);//if (ls.at(3)=="1") cb_otp_mamd_key->setChecked(true);
+            if (ls.at(3)=="1") cb_otp_key->setChecked(true);
+            LeOtpKey->setText(ls.at(4));
+        }
+    }
+    if (!st_res[18].isEmpty())
+    {
+    	CbOTPServers->clear();
+        QStringList ls = st_res[18].split("#");
+        ls.prepend(tr("List Servers"));
+        CbOTPServers->addItems(ls);
+        CbOTPServers->setCurrentIndex(0);
     }
 }
 

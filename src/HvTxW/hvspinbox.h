@@ -9,8 +9,39 @@
 
 #include <QWidget>
 #include <QSpinBox>
-#include <QKeyEvent>
+#include <QTimer>
+#include <QHBoxLayout>
+#include "../HvButtons/hvbutton_left2.h"
+class HvSpinBoxDt : public QWidget
+{
+    Q_OBJECT
+public:
+    HvSpinBoxDt(bool,QWidget *parent = 0);
+    virtual ~HvSpinBoxDt();
 
+    void SetFont(QFont);
+    void SetHidden(bool f);
+    void SetMode(int);         
+signals:
+    void EmitValueChanged(int);
+public slots:
+	
+private: 
+	bool s_indsty;
+	int s_val;
+	double val0;
+    QTimer *tim;
+    QDoubleSpinBox *sb_dt;
+    HvButton_Left2 *bt_clr;
+    void SetEmitValueChanged_p(int val);    
+private slots:
+    void Refresh();
+    void SetValueChanged(double);
+    void ClrDT();
+protected:	
+};
+
+#include <QKeyEvent>
 class HvSpinBox : public QSpinBox
 {
     //Q_OBJECT
@@ -29,7 +60,6 @@ protected:
 
 };
 ///////////////////////////////////////////////////////////////////
-#include <QHBoxLayout>
 #include <QFont>
 #include <QLabel>
 class HvSpinBoxSn : public QWidget
@@ -85,14 +115,14 @@ public:
         return s;
     };
     void ExpandShrinkDf(bool f);//2.05
-    void SetFtDf1500(bool f);
+    //void SetFtDf1500(bool f);
   
 signals:
     void EmitValueChanged(int i);
 public slots:
 
 private:
-    bool ft_df1500;
+    //bool ft_df1500;
     int s_dftolerance[COUNT_MODE];
     //int s_def_tp_fast_modes;
     int s_mode;

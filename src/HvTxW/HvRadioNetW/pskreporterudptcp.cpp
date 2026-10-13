@@ -59,7 +59,7 @@ public:
     , SERVICE_PORT {portt}
     , try1_if_discon {false}
     {
-		//#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)//for linux (5, 15, 2)  v.qt5-5,15,1 not working ???
+        //#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)//for linux (5, 15, 2)  v.qt5-5,15,1 not working ???
         /*
         #if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
                 observation_id_ = qrand();
@@ -68,7 +68,7 @@ public:
         #endif
         */
         // This timer sets the interval to check for spots to send.
-        connect (&report_timer_, &QTimer::timeout, [this] (){send_report();});
+		connect (&report_timer_, &QTimer::timeout, [this] (){send_report();});
         // This timer repeats the sending of IPFIX templates and receiver
         // information if we are using UDP, in case server has been
         // restarted ans lost cached information.
@@ -244,6 +244,7 @@ public:
     QString rx_call_;
     QString rx_grid_;
     QString rx_ant_;
+    QString rigInformation_;//2.76.1
     QString prog_id_;
     QByteArray tx_data_;
     QByteArray tx_residue_;
@@ -370,8 +371,7 @@ void PSKReporter::impl::build_preamble(QDataStream& message)
             << quint16 (0xffff)       // Option 1 Field Length (variable)
             << quint32 (30351u)       // Option 1 Enterprise Number
             << quint16 (0x8000 + 5u)  // Option 2 Information Element ID (frequency)
-            //<< quint16 (4u)           // Option 2 Field Length //2.68 old=4u
-            << quint16 (5u)           // Option 2 Field Length //2.68 new=5u
+            << quint16 (5u)           // Option 2 Field Length //2.68 new=5u  //<< quint16 (4u)// Option 2 Field Length //2.68 old=4u
             << quint32 (30351u)       // Option 2 Enterprise Number
             << quint16 (0x8000 + 6u)  // Option 3 Information Element ID (sNR)
             << quint16 (1u)           // Option 3 Field Length
@@ -399,7 +399,7 @@ void PSKReporter::impl::build_preamble(QDataStream& message)
             << quint16 (3u)          // Options Template Set ID
             << quint16 (0u)          // Length (place-holder)
             << quint16 (0x50e2)      // Link ID
-            << quint16 (4u)          // Field Count
+            << quint16 (5u)          //Field Count 2.76.1 //<< quint16 (4u)//old Field Count
             << quint16 (0u)          // Scope Field Count
             << quint16 (0x8000 + 2u) // Option 1 Information Element ID (receiverCallsign)
             << quint16 (0xffff)      // Option 1 Field Length (variable)
@@ -412,6 +412,9 @@ void PSKReporter::impl::build_preamble(QDataStream& message)
             << quint32 (30351u)      // Option 3 Enterprise Number
             << quint16 (0x8000 + 9u) // Option 4 Information Element ID (antennaInformation)
             << quint16 (0xffff)      // Option 4 Field Length (variable)
+            << quint32 (30351u)      // Option 5 Enterprise Number added->2.76.1
+            << quint16 (0x8000 + 13u)// Option 5 Information Element ID (rigInformation) added->2.76.1
+            << quint16 (0xffff)      // Option 5 Field Length (variable) added->2.76.1
             << quint32 (30351u);     // Option 4 Enterprise Number
             // insert Length
             set_length(out, descriptor);
@@ -436,6 +439,7 @@ void PSKReporter::impl::build_preamble(QDataStream& message)
         writeUtfString(out, rx_grid_);
         writeUtfString(out, prog_id_);
         writeUtfString(out, rx_ant_);
+        writeUtfString(out, rigInformation_);
 
         // insert Length and move to payload
         set_length(out, data);
@@ -452,8 +456,8 @@ void PSKReporter::impl::send_report()//bool send_residue
 
     QDataStream message {&payload_, QIODevice::WriteOnly | QIODevice::Append};
     QDataStream tx_out  {&tx_data_, QIODevice::WriteOnly | QIODevice::Append};
-    
-	// Build header, optional descriptors, and receiver information
+
+    // Build header, optional descriptors, and receiver information
     if (!payload_.size()) build_preamble(message);
 
     /*auto flush = flushing() || send_residue;
@@ -469,7 +473,7 @@ void PSKReporter::impl::send_report()//bool send_residue
     //qDebug()<<"payload_"<<payload_.size();
 
     if (!tx_data_.size() && (spots_.size() || tx_residue_.size()))
-    {       
+    {
         tx_out					// Set Header
         << quint16 (0x50e3)     // Template ID
         << quint16 (0u);        // Length (place-holder)
@@ -590,18 +594,19 @@ void PSKReporter::stop()
 {
     m_->stop();
 }
-void PSKReporter::setLocalStation(QString const& call,QString const& gridSquare,QString const& antenna)
+void PSKReporter::setLocalStation(QString const& call,QString const& gridSquare,QString const& antenna,QString const& rigInformation)
 {
     //m_->check_connection ();//hv stop
-    if (call != m_->rx_call_ || gridSquare != m_->rx_grid_ || antenna != m_->rx_ant_)
+    if (call != m_->rx_call_ || gridSquare != m_->rx_grid_ || antenna != m_->rx_ant_ || rigInformation != m_->rigInformation_)
     {
         m_->send_receiver_data_ = m_->socket_ && QAbstractSocket::UdpSocket == m_->socket_->socketType () ? 3 : 1;
         m_->rx_call_ = call;
         m_->rx_grid_ = gridSquare;
         m_->rx_ant_ = antenna;
+        m_->rigInformation_ = rigInformation; //qDebug()<<call<<gridSquare<<antenna<<rigInformation;//2.76.1
     }
 }
-void PSKReporter::addRemoteStation(QString call,QString grid,QString freq,QString mode,int snr)
+void PSKReporter::addRemoteStation(QString call,QString grid,QString freq,QString mode,int snr,QString hhmmsspt)
 {
     //m_->check_connection ();//hv stop
     if (m_->rx_call_.isEmpty() || m_->rx_grid_.isEmpty()) return;
@@ -624,12 +629,33 @@ void PSKReporter::addRemoteStation(QString call,QString grid,QString freq,QStrin
                 //for (int i = 0; i < m_->spots_.size(); ++i) s.append(m_->spots_.at(i).call_+",");
                 //qDebug()<<"REM"<<m_->spots_.size()<<s;
             }
-            m_->spots_.enqueue({call,grid,snr,freq.toLongLong(),mode,QDateTime::currentDateTimeUtc()});
+            QStringList hhmmss_pt = hhmmsspt.split("#");//2.76.4 //hhmmss_pt.clear(); qDebug()<<hhmmss_pt<<hhmmss_pt.count();
+            /*if (hhmmss_pt.count()<2)//protection
+            {
+            	hhmmss_pt.clear();
+            	hhmmss_pt<<"NA"<<"15";
+           	}*/
+            QTime t = QTime::fromString(hhmmss_pt.at(0),"hhmmss"); //qDebug()<<hhmmss_pt<<t.isValid();
+            if (hhmmss_pt.at(0)=="NA" || !t.isValid()) m_->spots_.enqueue({call,grid,snr,freq.toLongLong(),mode,QDateTime::currentDateTimeUtc()});
+            else
+            {                
+                QDateTime SpotTime1;//QDateTime SpotTime1 = QDateTime(QDateTime::currentDateTimeUtc().date(),t,Qt::UTC);
+                float times = hhmmss_pt.at(0).toFloat();
+                float ptime = hhmmss_pt.at(1).toFloat();
+                if (times + ptime < 236000.0) SpotTime1 = QDateTime(QDateTime::currentDateTimeUtc().date(),t,Qt::UTC);
+                else SpotTime1 = QDateTime((QDateTime::currentDateTimeUtc().addDays(-1)).date(),t,Qt::UTC);
+                m_->spots_.enqueue({call,grid,snr,freq.toLongLong(),mode,SpotTime1});
+                //QDateTime SpotTime0 = QDateTime::currentDateTimeUtc();
+                //qDebug() << call << "Format 0 =" << SpotTime0.toString("yyyy-MM-dd hh:mm:ss") << QString("%1").arg((times + ptime),0,'f',2) << times << ptime;
+                //qDebug() << call << "Format 1 =" << SpotTime1.toString("yyyy-MM-dd hh:mm:ss") << QString("%1").arg((times + ptime),0,'f',2) << times << ptime;
+                //qDebug() << "------------------------------------";
+            }
             //s.clear();
             //for (int i = 0; i < m_->spots_.size(); ++i) s.append(m_->spots_.at(i).call_+",");
             //qDebug()<<"ADD"<<m_->spots_.size()<<s;
             //qDebug()<<m_->spots_.size()<<"-----------------------------------------------";
             if (mode=="FT4") m_->report_timer_.start(3000); //for 7.5s period
+            else if (mode=="FT2") m_->report_timer_.start(2000); //for 3.75s period
             else m_->report_timer_.start(4400);//2.70 old=4500
         }
     }

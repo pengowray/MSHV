@@ -29,6 +29,7 @@
 #include "racal/racal.h"
 #include "sdrs/sdrs_def.h"
 #include "sdrs/sdrs.h"
+#define _NETWORK_RIGS_
 #include "network/network_def.h"
 #include "network/network.h"
 #include "mits/mits_def.h"
@@ -62,27 +63,31 @@ bool hv_sort_nameorder(const rigstruct &d1,const rigstruct &d2)
 {
     return d1.name.toLower() < d2.name.toLower();
 }
+#define POLLMAX 4
+#define POLLRST (((POLLMAX*60000)/400)+200)//400=minpoll*2
 HvRigCat::HvRigCat( QWidget *parent )
         : QWidget(parent)
 {
     //s_mode = 11;//tci
     tci_select = 0;
-    c_rig_cat_active_and_read = 200;//reset
     s_active_model_id = -100;
     s_active_fact_id = -100;
     have_read_data_rts_on = 0;
     c_poll_comm = -1;
     s_port_type = RIG_PORT_NONE;
     s_port_poen = false;
+    vita_rx = 0;
+    vita_tx = false;
 
     f_rig_activ = false;
     QLabel *l_rb = new QLabel("RIG:");
     RigsBoxs = new QComboBox();
-    RigsBoxs->setFixedWidth(215);
+    //RigsBoxs->setFixedWidth(215);
+    RigsBoxs->setMinimumWidth(225);
 
     rb_ptt = new QRadioButton("PTT");
     rb_ptt_mic = new QRadioButton("PTT MIC");
-    rb_ptt_data = new QRadioButton("PTT DATA");  
+    rb_ptt_data = new QRadioButton("PTT DATA");
     sb_pollint = new QSpinBox();
     sb_pollint->setPrefix("Poll, int  ");
     sb_pollint->setSuffix("  ms");
@@ -115,122 +120,126 @@ HvRigCat::HvRigCat( QWidget *parent )
 
     //QStringList ls;
     rigstruct rstruc;
-    for (int i = 0; i<YAESU_COUNT; i++)
+    for (int x=0; x<15; ++x)//2.76.1  15=count facid`s
     {
-        rstruc.name = "Yaesu "+rigs_yeasu[i].name;
-        rstruc.facid = YAESU_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-    for (int i = 0; i<ICOM_COUNT; i++)
-    {
-    	QString rn = rigs_icom[i].name;
-    	if (!rn.startsWith("Xiegu ")) rn = "Icom "+rigs_icom[i].name;  
-        rstruc.name = rn;
-        rstruc.facid = ICOM_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-    for (int i = 0; i<KENWOOD_COUNT; i++)
-    {
-        rstruc.name = "Kenwood "+rigs_kenwood[i].name;
-        rstruc.facid = KENWOOD_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-    for (int i = 0; i<ELECRAFT_COUNT; i++)
-    {
-        rstruc.name = "Elecraft "+rigs_elecraft[i].name;
-        rstruc.facid = ELECRAFT_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-    for (int i = 0; i<TENTEC_COUNT; i++)
-    {
-        rstruc.name = "Ten-Tec "+rigs_tentec[i].name;
-        rstruc.facid = TENTEC_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-    for (int i = 0; i<ALINCO_COUNT; i++)
-    {
-        rstruc.name = "Alinco "+rigs_alinco[i].name;
-        rstruc.facid = ALINCO_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-    for (int i = 0; i<JRC_COUNT; i++)
-    {
-        rstruc.name = "JRC "+rigs_jrc[i].name;
-        rstruc.facid = JRC_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-    for (int i = 0; i<DRAKE_COUNT; i++)
-    {
-        rstruc.name = "Drake "+rigs_drake[i].name;
-        rstruc.facid = DRAKE_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-    for (int i = 0; i<ICMARINE_COUNT; i++)
-    {
-        rstruc.name = "Icom "+rigs_icmarine[i].name;
-        rstruc.facid = ICMARINE_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-    for (int i = 0; i<PCR_COUNT; i++)
-    {
-        rstruc.name = "Icom "+rigs_pcr[i].name;
-        rstruc.facid = PCR_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-    for (int i = 0; i<RACAL_COUNT; i++)
-    {
-        rstruc.name = "Racal "+rigs_racal[i].name;
-        rstruc.facid = RACAL_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-////// omnirig /////////////
+        int crigs = 0;
+        int rigid = x;
+        RigSet *rigs_x;// = NULL;
+        QString fnam = "";
+        if      (x==0)
+        {
+            crigs = YAESU_COUNT;
+            rigs_x = rigs_yeasu;
+            fnam = "Yaesu ";
+        }
+        else if (x==1)
+        {
+            crigs = ICOM_COUNT;
+            rigs_x = rigs_icom;
+            fnam = "Icom ";
+        }
+        else if (x==2)
+        {
+            crigs = KENWOOD_COUNT;
+            rigs_x = rigs_kenwood;
+            fnam = "Kenwood ";
+        }
+        else if (x==3)
+        {
+            crigs = ELECRAFT_COUNT;
+            rigs_x = rigs_elecraft;
+            fnam = "Elecraft ";
+        }
+        else if (x==4)
+        {
+            crigs = TENTEC_COUNT;
+            rigs_x = rigs_tentec;
+            fnam = "Ten-Tec ";
+        }
+        else if (x==5)
+        {
+            crigs = ALINCO_COUNT;
+            rigs_x = rigs_alinco;
+            fnam = "Alinco ";
+        }
+        else if (x==6)
+        {
+            crigs = JRC_COUNT;
+            rigs_x = rigs_jrc;
+            fnam = "JRC ";
+        }
+        else if (x==7)
+        {
+            crigs = DRAKE_COUNT;
+            rigs_x = rigs_drake;
+            fnam = "Drake ";
+        }
+        else if (x==8)
+        {
+            crigs = ICMARINE_COUNT;
+            rigs_x = rigs_icmarine;
+            fnam = "Icom ";
+        }
+        else if (x==9)
+        {
+            crigs = PCR_COUNT;
+            rigs_x = rigs_pcr;
+            fnam = "Icom ";
+        }
+        else if (x==10)
+        {
+            crigs = RACAL_COUNT;
+            rigs_x = rigs_racal;
+            fnam = "Racal ";
+        }
+        else if (x==11)
+        {
 #if defined _WIN32_
-    for (int i = 0; i<OMNIRIGHV_COUNT; i++)
-    {
-        rstruc.name = "OmniRig "+rigs_omnirighv[i].name;
-        rstruc.facid = OMNIRIGHV_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
+            crigs = OMNIRIGHV_COUNT;
+            rigs_x = rigs_omnirighv;
+            fnam = "OmniRig ";
+#else
+            continue;
 #endif
-////// omnirig end /////////
-    for (int i = 0; i<NETWORK_COUNT; i++)
-    {
-        rstruc.name = rigs_network[i].name;
-        rstruc.facid = NETWORK_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
+        }
+        else if (x==12)
+        {
+            crigs = SDRS_COUNT;
+            rigs_x = rigs_sdrs;
+        }
+        else if (x==13)
+        {
+            crigs = NETWORK_COUNT;
+            rigs_x = rigs_network;
+        }
+        else if (x==14)
+        {
+            crigs = MITS_COUNT;
+            rigs_x = rigs_mits;
+        }
+        for (int i=0; i<crigs; ++i)
+        {
+            QString rn = fnam+rigs_x[i].name;
+            QString rn0 = rigs_x[i].name;
+            if      (x==0 && (rn0.startsWith("Ailunce ") ||       //Yaesu
+            				  rn0.startsWith("Radioddity ") ||
+            				  rn0.startsWith("Guohe "))) rn = rn0;
+            else if (x==1 &&  rn0.startsWith("Xiegu ")) rn = rn0; //Icom
+            else if (x==2 && (rn0.startsWith("SDRPlay ") ||		  //Kenwood
+                              rn0.startsWith("QRPLabs ") ||
+                              rn0.startsWith("Malachite ") ||
+                              rn0.startsWith("Hilberling ") ||
+                              rn0.startsWith("OpenHPSDR ") ||
+                              rn0.startsWith("SDR Radio ") ||
+                              rn0.startsWith("BG2FX ") ||
+                              rn0.startsWith("Lab599 ") ||
+                              rn0.startsWith("DL2MAN "))) rn = rn0;
+            rstruc.name = rn;
+            rstruc.facid = rigid;
+            rstruc.model = i;
+            lmodel.append(rstruc);
+        }
     }
-    for (int i = 0; i<SDRS_COUNT; i++)
-    {
-        rstruc.name = rigs_sdrs[i].name;
-        rstruc.facid = SDRS_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-    for (int i = 0; i<MITS_COUNT; i++)
-    {
-        rstruc.name = rigs_mits[i].name;
-        rstruc.facid = MITS_ID;
-        rstruc.model = i;
-        lmodel.append(rstruc);
-    }
-
-    /*model.sort(0);
-    ls.clear();
-    ls << "None" << "-1" << "-1";
-    InsertItemModel(ls);*/
     std::sort(lmodel.begin(),lmodel.end(),hv_sort_nameorder);
     rstruc.name = "None";
     rstruc.facid = -1;
@@ -240,14 +249,20 @@ HvRigCat::HvRigCat( QWidget *parent )
     QStringList lst_outb;
     for (int i = 0; i<lmodel.count(); i++)
     {
-        //lst_outb << model.data(model.index(i,0,QModelIndex()),Qt::DisplayRole).toString();
-        lst_outb << lmodel.at(i).name; //qDebug()<<i<<lmodel.at(i).name;
-    }    
+        lst_outb << lmodel.at(i).name;
+        //if (lmodel.at(i).facid==11) 
+        //printf("%s %s %d %d\n",qPrintable(QString("%1").arg(i).leftJustified(3,' ')),qPrintable(lmodel.at(i).name.leftJustified(30,' ')),lmodel.at(i).facid,lmodel.at(i).model);
+    }
     RigsBoxs->addItems(lst_outb);
+    RigsBoxs->setMaxVisibleItems(12);//2.76.1
     connect(RigsBoxs, SIGNAL(activated(int)), this, SLOT(SetRig(int)));
 
     polling_timer = new QTimer();
     connect(polling_timer, SIGNAL(timeout()), this, SLOT(PollingTimerReadRig()));
+    f_rig_active_never_stop = false;//2.76.1 Flex Slice
+    max4min = (POLLMAX*60000)/(sb_pollint->value()*2);
+    c_rig_cat_active_and_read = POLLRST;//reset  ((POLLMAX*60000)/400)+200=700 400=minpoll*2
+
     s_f_ptt = false;
     tx_rx_timer = new QTimer();
     connect(tx_rx_timer, SIGNAL(timeout()), this, SLOT(StartPttTimer()));
@@ -285,13 +300,16 @@ void HvRigCat::CatStopPttIfClose()
     sb_pollint->setFont(fo);
 }*/
 void HvRigCat::SBPollIntChanged(int i)
-{	//qDebug()<<i;
-    if ((s_port_type == RIG_PORT_SERIAL || s_port_type == RIG_PORT_NETWORK) && s_port_poen) polling_timer->start(i);	
+{	//qDebug()<<"old"<<max4min<<POLLRST;
+    max4min = (POLLMAX*60000)/(i*2); //qDebug()<<"new"<<max4min<<POLLRST;
+    if ((s_port_type == RIG_PORT_SERIAL || s_port_type == RIG_PORT_NETWORK) && s_port_poen) polling_timer->start(i);
 }
-void HvRigCat::SetTciSelect(int i)
+void HvRigCat::SetTciSelect(int i,int vr,bool vt)
 {
-	tci_select = i;
-	emit EmitTciSelect(tci_select);
+    tci_select = i;
+    vita_rx = vr;
+    vita_tx = vt;
+    emit EmitTciSelect(tci_select,vr,vt);
 }
 void HvRigCat::DestroyRig()
 {
@@ -331,11 +349,23 @@ void HvRigCat::SetRig(int index)
     rstruc.facid = lmodel.at(index).facid;
     rstruc.model = lmodel.at(index).model;
     rstruc.name = lmodel.at(index).name;
-    //qDebug()<<"STOP TIMER SetRig="<<index<<rstruc.facid<<rstruc.model;
 
-    DestroyRig(); 
+    QString rig0info = rstruc.name;
+    if (rstruc.facid == NETWORK_ID) rig0info.remove(" TCP");
+    if (rstruc.facid == SDRS_ID) rig0info.remove(" Ser");
+    if (rstruc.name == "Ham Radio Deluxe") rig0info = "N/A (HRD)";
+    if (rstruc.name == "FLRig") rig0info = "N/A (FLRig)";
+    if (rstruc.name == "DX Lab Suite Commander") rig0info = "N/A (DXLab)";
+    if (rstruc.name.contains("TCI Client RX")) rig0info = "N/A (TCI)";
+    if (rstruc.name == "Hamlib NET rigctl") rig0info = "N/A (NETRigCtl)";//HLNETRigCtl
+    if (rstruc.name.contains("OmniRig Rig ")) rig0info = "N/A (OmniRig)";
+    emit EmitFullRigInfo(rig0info);//2.76.1 for pskreporter
+    //qDebug()<<"STOP TIMER SetRig="<<index<<rstruc.facid<<rstruc.model<<rstruc.name<<"rig0info="<<rig0info;
+
+    DestroyRig();
     s_active_model_id = -100;
     s_active_fact_id = -100;
+    f_rig_active_never_stop = false;//2.76.1 Flex Slice
 
     have_read_data_rts_on = 0;
 
@@ -394,12 +424,12 @@ void HvRigCat::SetRig(int index)
         ////////////////////////////////////////////////////////new read com
         connect(this, SIGNAL(EmitReadyRead(QByteArray,int)), TKenwood, SLOT(SetReadyRead(QByteArray,int)));
         connect(TKenwood, SIGNAL(EmitReadedInfo(CmdID,QString)), this, SLOT(SetReadedInfo(CmdID,QString)));
-        connect(this, SIGNAL(EmitOnOffCatCommand(bool,int,int)), TKenwood, SLOT(SetOnOffCatCommand(bool,int,int)));        
+        connect(this, SIGNAL(EmitOnOffCatCommand(bool,int,int)), TKenwood, SLOT(SetOnOffCatCommand(bool,int,int)));
         have_read_data_rts_on = 3;//2.56 need to be here
-		/*if 	(rstruc.name=="Kenwood TS-940S")   have_read_data_rts_on = 2;        
-        else if (rstruc.name=="Kenwood TS-950SDX") have_read_data_rts_on = 1;
-        else if (rstruc.name=="Kenwood TS-990s")   have_read_data_rts_on = 0;
-        else have_read_data_rts_on = 3;*/
+        /*if 	(rstruc.name=="Kenwood TS-940S")   have_read_data_rts_on = 2;
+              else if (rstruc.name=="Kenwood TS-950SDX") have_read_data_rts_on = 1;
+              else if (rstruc.name=="Kenwood TS-990s")   have_read_data_rts_on = 0;
+              else have_read_data_rts_on = 3;*/
         s_active_model_id = rstruc.model;
         s_active_fact_id = KENWOOD_ID;
         ////////////////////////////////////////////////////////end new read com
@@ -525,7 +555,7 @@ void HvRigCat::SetRig(int index)
     }
     else if (rstruc.facid == PCR_ID)
     {
-        Pcr *TPcr = new Pcr(rstruc.model); 
+        Pcr *TPcr = new Pcr(rstruc.model);
         connect(this, SIGNAL(SetCmd(CmdID,ptt_t,QString)), TPcr, SLOT(SetCmd(CmdID,ptt_t,QString)));
         connect(TPcr, SIGNAL(EmitRigSet(RigSet)), this, SLOT(SetRigSet(RigSet)));
         //connect(TPcr, SIGNAL(EmitWriteCmd(char*,int)), this, SLOT(SetWriteCmd(char*,int)));
@@ -595,11 +625,13 @@ void HvRigCat::SetRig(int index)
 #endif
 ////// omnirig end /////////
     else if (rstruc.facid == NETWORK_ID)
-    {        
+    {
         Network *TNetwork = new Network(rstruc.model);
 
         connect(this, SIGNAL(EmitNetSP(QString)), TNetwork, SLOT(ConnectNet(QString)));
         connect(TNetwork, SIGNAL(EmitNetConnInfo(QString,bool,bool)), this, SIGNAL(EmitNetConnInfo(QString,bool,bool)));
+        connect(TNetwork,SIGNAL(EmitFullRigInfo(QString)),this,SIGNAL(EmitFullRigInfo(QString)));//2.76.1 for pskreporter
+        //connect(TNetwork,SIGNAL(EmitFlexSliceReady()),this,SIGNAL(EmitFlexSliceReady()));//flex native vita-49
 
         connect(this, SIGNAL(SetCmd(CmdID,ptt_t,QString)), TNetwork, SLOT(SetCmd(CmdID,ptt_t,QString)));
         connect(TNetwork, SIGNAL(EmitRigSet(RigSet)), this, SLOT(SetRigSet(RigSet)));
@@ -615,8 +647,10 @@ void HvRigCat::SetRig(int index)
         have_read_data_rts_on = 3; //2.56 need to be here
         s_active_model_id = rstruc.model;
         s_active_fact_id = NETWORK_ID;
-        connect(this, SIGNAL(EmitTciSelect(int)), TNetwork, SLOT(SetTciSelect(int)));//2.59 tci
-        SetTciSelect(tci_select);//2.59 tci
+        connect(this, SIGNAL(EmitTciSelect(int,int,bool)), TNetwork, SLOT(SetTciSelect(int,int,bool)));//2.59 tci
+        SetTciSelect(tci_select,vita_rx,vita_tx);//2.59 tci
+        if (rstruc.name.contains("FlexRadio SmartSDR Slice ")) f_rig_active_never_stop = true;//2.76.1 Flex Slice
+
         //connect(this, SIGNAL(EmitMode(int)), TNetwork, SLOT(SetMode(int)));//tci
         //SetMode(s_mode);//tci
         //end tci
@@ -664,7 +698,7 @@ void HvRigCat::SetRig(int index)
         connect(this, SIGNAL(EmitOnOffCatCommand(bool,int,int)), TMits, SLOT(SetOnOffCatCommand(bool,int,int)));
         connect(TMits, SIGNAL(EmitPttDtr(bool)), this, SIGNAL(EmitPttDtr(bool)));// sea-235
         if (rstruc.name=="SEA-235") have_read_data_rts_on = 1; //2.73 need to be here
-        else have_read_data_rts_on = 3;	
+        else have_read_data_rts_on = 3;
         s_active_model_id = rstruc.model;
         s_active_fact_id = MITS_ID;
         ////////////////////////////////////////////////////////end new read com
@@ -676,8 +710,7 @@ void HvRigCat::SetRig(int index)
     }
     else
     {
-        SetPttCaps(false);
-        //Reset if None
+        SetPttCaps(false);//Reset if None
         RigSet sett;
         sett.ptt_type = RIG_PTT_NONE;
         sett.port_type = RIG_PORT_NONE;
@@ -699,17 +732,12 @@ void HvRigCat::SetRigSet(RigSet sett)
     //if(f_rig_activ)
     //if (sett.ptt_type == RIG_PTT_NONE || sett.ptt_type == RIG_PTT_RIG)
     //SetPttCaps(false);
-    if (sett.ptt_type == RIG_PTT_RIG_MICDATA)
-        SetPttCaps(true);
-    else
-        SetPttCaps(false);
-
+    if (sett.ptt_type == RIG_PTT_RIG_MICDATA) SetPttCaps(true);
+    else SetPttCaps(false);
     s_port_type = sett.port_type;//imporetent to be here
-
-
-    emit EmitSetRigSet(sett,have_read_data_rts_on);
-
-    //qDebug()<<"RIG_SETT"<<sett.name;
+    int net_model_id = -100;//2.76.1
+    if (s_active_fact_id == NETWORK_ID) net_model_id = s_active_model_id;
+    emit EmitSetRigSet(sett,have_read_data_rts_on,net_model_id); //qDebug()<<"RIG_SETT"<<sett.name;
 }
 void HvRigCat::SetPttCaps(bool f)
 {
@@ -760,8 +788,8 @@ void HvRigCat::SetRigName(QString s)//from read settings
 }
 void HvRigCat::SetPttCatType(QString s)
 {
-	QStringList ls=s.split("#");
-	ls<<"1000"<<"0";
+    QStringList ls=s.split("#");
+    ls<<"1000"<<"0";
     if (ls.at(0)=="0") rb_ptt->setChecked(true);
     if (ls.at(0)=="1") rb_ptt_mic->setChecked(true);
     if (ls.at(0)=="2") rb_ptt_data->setChecked(true);
@@ -783,10 +811,8 @@ void HvRigCat::SetWriteCmd(char*data,int size)
 void HvRigCat::StartPttTimer()
 {
     //qDebug()<<"set_ptt_timer"<<QTime::currentTime().toString("ss:zzz")<<s_f_ptt;
-    if (s_f_ptt)
-        emit SetCmd(SET_PTT,s_ptt_on_type,"");
-    else
-        emit SetCmd(SET_PTT,RIG_PTT_OFF,"");
+    if (s_f_ptt) emit SetCmd(SET_PTT,s_ptt_on_type,"");
+    else 		 emit SetCmd(SET_PTT,RIG_PTT_OFF,"");
     tx_rx_timer->stop();
 }
 void HvRigCat::set_ptt(bool f, bool imd)//2.38  immediately
@@ -833,14 +859,11 @@ void HvRigCat::SetReadedInfo(CmdID i,QString str)
 {
     if (i==GET_FREQ)
     {
-        if (c_rig_cat_active_and_read == 200)
-            emit EmitCatAactiveAndRead(true,true);//2.53 true to TxWidget
+        if (c_rig_cat_active_and_read == POLLRST) emit EmitCatAactiveAndRead(true,true);//2.53 true to TxWidget
         c_rig_cat_active_and_read = 0;
-
         emit EmitGetedFreq(str);
     }
-    else if (i==GET_MODE)
-        emit EmitGetedMode(str);
+    else if (i==GET_MODE) emit EmitGetedMode(str);
     //qDebug()<<"READ INFO="<<i<<str;
 }
 void HvRigCat::StartStopPollingTimer(bool popen)/*, bool read_data_rts_on*/
@@ -867,7 +890,7 @@ void HvRigCat::StartStopPollingTimer(bool popen)/*, bool read_data_rts_on*/
     bool fl = false;
     if (!popen) fl = true;  //qDebug()<<"UPDATE="<<fl;
     emit EmitCatAactiveAndRead(false,fl);//2.53 false no to TxWidget
-    c_rig_cat_active_and_read = 200;//reset 200
+    c_rig_cat_active_and_read = POLLRST;//reset 200
 }
 void HvRigCat::get_freq()
 {
@@ -876,34 +899,30 @@ void HvRigCat::get_freq()
 void HvRigCat::get_mode()
 {
     emit SetCmd(GET_MODE,RIG_PTT_OFF,"");//RIG_PTT_OFF fictive
-}
-//int t = 1;
+} //int t = 1;
 void HvRigCat::PollingTimerReadRig()
 {
     c_poll_comm++;
     if (c_poll_comm==0)
     {
         get_freq();
-        if (c_rig_cat_active_and_read != 200)
+        if (c_rig_cat_active_and_read != POLLRST)
         {
-            //qDebug()<<"TIMER="<<t;  t++;
-            //need 76s=1min and 16s  2000x38=76000ms
-            //2.53 to 5min 2000x155=310000=5,16min    2000x65=130000=2,16min 2000*95=190000=3,16min
-            if (c_rig_cat_active_and_read > 94)//2.55=94 2.53=154   old->37=1,2min
+            //qDebug()<<f_rig_active_never_stop<<c_rig_cat_active_and_read;//qDebug()<<"TIMER="<<t;  t++;
+            if (c_rig_cat_active_and_read > max4min)//2.76.1 2000*95=190000/60000=3,16min, 2000x130=260000/60000=4.3min
             {
                 emit EmitCatAactiveAndRead(false,true);//2.53 true to TxWidget
-                c_rig_cat_active_and_read = 200;
+                c_rig_cat_active_and_read = POLLRST;
             }
-            else
-                c_rig_cat_active_and_read++;
+            else c_rig_cat_active_and_read++;
+            if (f_rig_active_never_stop) c_rig_cat_active_and_read = 13;//2.76.1 Flex Slice
         }
     }
     else if (c_poll_comm==1)
     {
         get_mode();
         c_poll_comm = -1;//reset polling commands
-    }
-    //qDebug()<<"TIMER WORKKKKKKKKKKKKKKKKKKK=";
+    } //qDebug()<<"TIMER WORKKKKKKKKKKKKKKKKKKK=";
 }
 ////////////////////////////////////////////////////////end new read com
 

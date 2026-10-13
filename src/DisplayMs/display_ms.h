@@ -61,7 +61,7 @@ public:
         return full_file_name;
     }
     void setArrayInPxel(int);
-    void DecodeAllData(bool decode,bool external);
+    void DecodeAllData(bool decode,bool external,bool);//2.76
     void SetMode(int);
     void SetVDisplayHight(int);
     void SetButtonDecodeAll65(int ident);//1.49
@@ -71,6 +71,7 @@ public:
     QString GetFreqRxTxVD();
     void SetAdleDisplay_VD(bool);//2.45
     void SetFlatDisplay_VD(bool);//1.51 
+    void SetMsh(uint8_t);
 
 signals:
     void SentData(QList<int*>,QPoint*,int,int*,QString t_min,QString ymd,bool,QLine *mous_lines,
@@ -93,7 +94,7 @@ signals:
     void EmitIsDispHaveDataForDec65(int,bool);//1.49
 
 public slots:
-    void SetFtDf1500(bool);
+    //void SetFtDf1500(bool);
 	void Decode3intFt(bool);//2.39 remm
     void SetDecLinesPosToDisplay(int count,double pos,double pos_ping,QString p_time);//1.28 p_time for identif perood
     void SetValue(double*, int);
@@ -134,9 +135,10 @@ private slots:
     void Ft8Decode();
 
 private:
+	uint8_t id_mshf;
 	bool dsty;
 	bool allq65;
-    bool ft_df1500;
+    //bool ft_df1500;
     bool f_is_decodet3int;
     bool s_3intFt_d_;//2.39 remm
     int dflimit;

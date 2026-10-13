@@ -95,8 +95,7 @@ bool OmniRigHV::InitOmniRigHV()
         GetFreqMethod = -1;//-1=false 0=freq 1=freqa
     }
     //qDebug()<<"VFO Set METHOD="<<SetFreqMethod<<"VFO Get METHOD="<<GetFreqMethod;
-
-    emit EmitOmniRigActive(true," QmniRig "+s_rig_name+" = "+TRigX->RigType());
+    emit EmitOmniRigActive(true,"OmniRig "+s_rig_name+" = "+TRigX->RigType());//2.76.1 for pskreporter (=) <- is ID
     return true;
 }
 void OmniRigHV::SetTypeChange(int numb)

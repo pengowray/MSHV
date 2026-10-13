@@ -35,7 +35,9 @@ HEADERS = src/main_ms.h \
  src/HvMsPlayer/libsound/HvGen65/gen65.h \
  src/HvMsPlayer/libsound/HvGenFt8/bpdecode_ft8_174_91.h \
  src/HvMsPlayer/libsound/HvGenFt8/gen_ft8.h \
+ src/HvMsPlayer/libsound/HvGenFt8/gen_sfox.h \
  src/HvMsPlayer/libsound/HvGenFt4/gen_ft4.h \
+ src/HvMsPlayer/libsound/HvGenFt2/gen_ft2.h \
  src/HvMsPlayer/libsound/HvGenQ65/gen_q65.h \
  src/HvMsPlayer/libsound/HvGenQ65/q65_subs.h \
  src/HvMsPlayer/libsound/HvRawFilter/hvrawfilter.h \
@@ -91,6 +93,7 @@ HEADERS = src/main_ms.h \
  src/HvRigControl/HvRigCat/omnirig/omnirighv.h \
  src/HvRigControl/HvRigCat/sdrs/sdrs.h \
  src/HvRigControl/HvRigCat/network/network.h \
+ src/HvRigControl/HvRigCat/network/flexpanel.h \
  src/HvRigControl/HvRigCat/mits/mits.h \
  src/LabWidget/labw.h \
  src/HvSlider_V_Identif/hvslider_v_identif.h \
@@ -104,6 +107,7 @@ HEADERS = src/main_ms.h \
  src/HvButtons/hvbutton_left2.h \
  src/HvButtons/hvbutton_left4.h \
  src/HvButtons/hvmodbtsw.h \
+ src/HvButtons/hvbutton_lrc.h \
  src/HvMsProc/hvmsproc.h \
  src/HvSlider_H/hvslider_h.h \
  src/HvAggressiveW/aggressiv_d.h
@@ -137,7 +141,9 @@ SOURCES = src/main.cpp \
  src/HvMsPlayer/libsound/HvGenMsk/genmesage_msk.cpp \
  src/HvMsPlayer/libsound/HvGen65/gen65.cpp \
  src/HvMsPlayer/libsound/HvGenFt8/gen_ft8.cpp \
+ src/HvMsPlayer/libsound/HvGenFt8/gen_sfox.cpp \
  src/HvMsPlayer/libsound/HvGenFt4/gen_ft4.cpp \
+ src/HvMsPlayer/libsound/HvGenFt2/gen_ft2.cpp \
  src/HvMsPlayer/libsound/HvGenQ65/gen_q65.cpp \
  src/HvMsPlayer/libsound/HvGenQ65/q65_subs.cpp \
  src/HvMsPlayer/libsound/HvRawFilter/hvrawfilter.cpp \
@@ -173,7 +179,10 @@ SOURCES = src/main.cpp \
  src/HvDecoderMs/decoderjt65.cpp \
  src/HvDecoderMs/decoderpi4.cpp \
  src/HvDecoderMs/decoderft8.cpp \
+ src/HvDecoderMs/decoderft8var.cpp \
+ src/HvDecoderMs/decodersfox.cpp \
  src/HvDecoderMs/decoderft4.cpp \
+ src/HvDecoderMs/decoderft2.cpp \
  src/HvDecoderMs/decoderq65.cpp \
  src/HvRigControl/hvrigcontrol.cpp \
  src/HvRigControl/qexsp_1_2rc/qextserialport.cpp \
@@ -197,6 +206,7 @@ SOURCES = src/main.cpp \
  src/HvRigControl/HvRigCat/omnirig/omnirighv.cpp \
  src/HvRigControl/HvRigCat/sdrs/sdrs.cpp \
  src/HvRigControl/HvRigCat/network/network.cpp \
+ src/HvRigControl/HvRigCat/network/flexpanel.cpp \
  src/HvRigControl/HvRigCat/mits/mits.cpp \
  src/LabWidget/labw.cpp \
  src/HvSlider_V_Identif/hvslider_v_identif.cpp \
@@ -210,6 +220,7 @@ SOURCES = src/main.cpp \
  src/HvButtons/hvbutton_left2.cpp \
  src/HvButtons/hvbutton_left4.cpp \
  src/HvButtons/hvmodbtsw.cpp \
+ src/HvButtons/hvbutton_lrc.cpp \
  src/HvMsProc/hvmsproc.cpp \
  src/HvSlider_H/hvslider_h.cpp \
  src/HvAggressiveW/aggressiv_d.cpp

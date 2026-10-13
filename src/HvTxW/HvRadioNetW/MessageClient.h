@@ -75,7 +75,9 @@ public:
     Q_SIGNAL void halt_tx(bool);   
   	//Q_SIGNAL void reply (QTime, qint32 snr, float delta_time, quint32 delta_frequency, QString const& mode
                        //, QString const& message_text, bool low_confidence, quint8 modifiers);  	
-    Q_SIGNAL void configure(QStringList,bool);
+    Q_SIGNAL void configure(QStringList);//,bool);
+    
+    //Q_SIGNAL void annotation_info(QString const& dx_call, bool sort_order_provided, quint32 sort_order);
 
     //bool f_sta_sto_rep_timers;
     //Q_SLOT void set_emit_heartbeat_timer(bool);

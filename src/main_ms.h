@@ -4,7 +4,7 @@
  */ 
 #ifndef MAIN_MS_H
 #define MAIN_MS_H
- 
+
 #include "config.h"
 
 #include <QWidget>
@@ -59,6 +59,9 @@ public:
 //signals:
         
 private slots:
+    // Native Flex VITA-49: live forward power / SWR straight off the radio.
+    void UpdateFlexMeter(bool,bool,double,double);
+    
 	void SetTxFreq(double);//2.16
 	void SetStaticTxFrq(bool,int);//2.16
     void SetMacros(int,QString);//2.32
@@ -91,6 +94,7 @@ private slots:
     void SetAvgQ65CountToButtonTxt(int,int);
     void SetButtonDecodeAll65();
     void SetUdpCmdStop(bool);
+    void SetUdpConfigure(int);//2.76.7
     void SetDLogQso(bool);
     void SetPLogQso(bool);
     void SetQrgQSY(QStringList);//2.46 
@@ -113,6 +117,7 @@ private slots:
     void CbSetAutoDecodeAll(bool);
     void DecodeAp(bool);
     void DecodeDeept(bool);
+    void VarDecodeFtPar(bool);//2.76.5
     void SetRxOnlyFiSe(bool);
     void BtSet2D1D();
     void BtSetD1D2();
@@ -138,8 +143,11 @@ private slots:
     void StyleChanged(bool);
     void ModBtSwClicked(int);
     void BandBtSwClicked(int);
+    void SetMshf(uint8_t);//2.76
+    void SetOffsetDt(int);//2.76.5
     
 private:
+	int s_offset_dt;//2.76.5
     QString InstName;
 	QString _stcq_;
 	void SkUpDownBandChanged(bool);
@@ -204,7 +212,7 @@ private:
     QAction *rb_mode[COUNT_MODE];
     QMenu *Mode_m;
     bool allq65;
-    int s_mod_ident;
+    int s_mode;
     DecodeList *TDecodeList1;
     DecodeList *TDecodeList2;
     HvFilterDialog *FilterDialog;
@@ -252,6 +260,9 @@ private:
     QPushButton *pb_clear_avgQ65;
     bool f_tune;
     QLabel *l_tx_text;
+    
+    QLabel *l_flex_meter;        // Flex fwd power / SWR; hidden unless active
+    QPushButton *pb_flex_panel;  // opens the Flex control/monitor panel
 
     bool auto_decode_all[COUNT_MODE];
     QCheckBox *cb_auto_decode_all;
@@ -274,7 +285,12 @@ private:
     void RbThrSetEnabled(bool);
     
     QAction *rb_dec_depth[3];    
-    QAction *cb_3intFt_d;//2.39 remm    
+    QAction *cb_3intFt_d;//2.39 remm 
+    QAction *cb_UseVarDecFt;
+    QMenu *MVDecFtPar;
+    QAction *rb_vdec_cyc[3]; 
+    QAction *rb_vdec_sens[3];   
+       
     QAction *cb_msk144rxequal_[4];
     QAction *ac_aggressive;
      
@@ -344,10 +360,15 @@ private:
     QAction *Multi_answer_mod;
     QAction *Multi_answer_mod_std;
     QAction *Mon_start_m;
+    QAction *sh_wf;
+    QAction *sh_tx;
 
     QAction *ac_Cfm73;
-	void RefreshCbCfm73(); 
-	QAction *ac_ft_df1500;    
+	void RefreshCbCfm73();
+	uint8_t id_mshf;//2.76
+	bool f_is_myCstd;//2.76.1
+    void RefreshStartQsoTX2orTx1();//2.76.1 
+	//QAction *ac_ft_df1500;    
 	QAction *ac_areset_qso; 
 	QAction *ac_aseq_max_dist; 
     QAction *recognize_tp1;

@@ -163,35 +163,35 @@ void HvCty::ReadCtyDat()
     std::sort(db_cty_p.begin(),db_cty_p.end(),hv_sort_disorder_);
     std::sort(_lcountries_.begin(),_lcountries_.end());
 
-	/*QStringList l;
-    for (int i = 0; i < db_cty_c.count(); ++i)
-    {
-        QString res = db_cty_c.at(i).country;
-        res.replace ("Islands", "Is.");
-        res.replace ("Island", "Is.");
-        res.replace ("North ", "N. ");
-        res.replace ("Northern ", "N. ");
-        res.replace ("South ", "S. ");
-        res.replace ("East ", "E. ");
-        res.replace ("Eastern ", "E. ");
-        res.replace ("West ", "W. ");
-        res.replace ("Western ", "W. ");
-        res.replace ("Central ", "C. ");
-        res.replace (" and ", " & ");
-        res.replace ("Republic", "Rep.");
-        res.replace ("United States of America", "U.S.A.");
-        res.replace ("United States", "U.S.A.");
-        res.replace ("Fed. Rep. of ", "");
-        res.replace ("French ", "Fr.");
-        res.replace ("Asiatic", "AS");
-        res.replace ("European", "EU");
-        res.replace ("African", "AF");
-        res.replace ("Rep. of ", "Rep. ");//2.73
-        if (res.count()>11) l.append(res);
-        //if (i<10) qDebug()<<i<<db_cty_c.at(i).pfx<<db_cty_c.at(i).country<<db_cty_c.at(i).continent;
-    }
-    l.removeDuplicates();
-    for (int i = 0; i < l.count(); ++i) qDebug()<<l.at(i);*/    
+    /*QStringList l;
+       for (int i = 0; i < db_cty_c.count(); ++i)
+       {
+           QString res = db_cty_c.at(i).country;
+           res.replace ("Islands", "Is.");
+           res.replace ("Island", "Is.");
+           res.replace ("North ", "N. ");
+           res.replace ("Northern ", "N. ");
+           res.replace ("South ", "S. ");
+           res.replace ("East ", "E. ");
+           res.replace ("Eastern ", "E. ");
+           res.replace ("West ", "W. ");
+           res.replace ("Western ", "W. ");
+           res.replace ("Central ", "C. ");
+           res.replace (" and ", " & ");
+           res.replace ("Republic", "Rep.");
+           res.replace ("United States of America", "U.S.A.");
+           res.replace ("United States", "U.S.A.");
+           res.replace ("Fed. Rep. of ", "");
+           res.replace ("French ", "Fr.");
+           res.replace ("Asiatic", "AS");
+           res.replace ("European", "EU");
+           res.replace ("African", "AF");
+           res.replace ("Rep. of ", "Rep. ");//2.73
+           if (res.count()>11) l.append(res);
+           //if (i<10) qDebug()<<i<<db_cty_c.at(i).pfx<<db_cty_c.at(i).country<<db_cty_c.at(i).continent;
+       }
+       l.removeDuplicates();
+       for (int i = 0; i < l.count(); ++i) qDebug()<<l.at(i);*/
     /*for (int i = 0; i < db_cty_p.count(); ++i)
     {
         if (i<50 || i>7690 ) qDebug()<<i<<db_cty_p.at(i).pfx<<db_cty_p.at(i).country<<db_cty_p.at(i).continent;
@@ -259,16 +259,33 @@ void HvCty::ReadCtyDat()
         ddd=db_00.at(i).pfx;
     }
     qDebug()<<"--CALL--";*/
-    //qDebug()<<"DbCall="<<db_cty_c.count()<<"DbPfx="<<db_cty_p.count()<<"DbCountries="<<_lcountries_.count();
-    //2.69 calls=15867, pfx=7708, countries=346, qual calls=55
+    //printf("DbCall= %d DbPfx= %d DbCountries= %d\n",db_cty_c.count(),db_cty_p.count(),_lcountries_.count());
+    //2.69-2.74 calls=  15867, pfx=  7708,   countries=346, equal calls=55  //1.9.2022
+    //2.76.1    DbCall= 21362 DbPfx= 7552 DbCountries= 346  //28.12.2024
+    //2.76.2    DbCall= 21679 DbPfx= 7552 DbCountries= 346  //27.03.2025
+    //2.76.5    DbCall= 21568 DbPfx= 7553 DbCountries= 346  //23.02.2026
 }
-bool HvCty::FilndDbPfx(QString call, QString &pfx, QString &coy, QString &cot)
+#include <QRegularExpression>
+QRegularExpression non_prefix_suffix {R"(\A([0-9AMPQR]|QRP|F[DF]|[AM]M|L[HT]|LGT)\z)"};
+bool HvCty::FilndDbPfx(QString call0, QString &pfx, QString &coy, QString &cot)
 {
     bool res = false;
     pfx="";
     coy="Unknown";
     cot="";
-    if (call.isEmpty()) return false; //{qDebug()<<"CallEmpty="<<pfx<<coy<<cot<<call; return false;}
+    if (call0.isEmpty()) return false; //{qDebug()<<"CallEmpty="<<pfx<<coy<<cot<<call; return false;}
+	QString call = call0;//2.76.3
+    int slash_pos = call.indexOf ('/');
+    if (slash_pos >= 0)
+    {
+        int right_size = call0.size() - slash_pos - 1;
+        if (right_size >= slash_pos) call = call0.left(slash_pos);
+        else
+        {
+            call = call0.mid (slash_pos + 1);
+            if (call.contains(non_prefix_suffix) || call=="B") call = call0.left(slash_pos);
+        }
+    }//end 2.76.3   	
     for (int i = 0; i < db_cty_c.count(); ++i)
     {
         QString pfxxdb = db_cty_c.at(i).pfx;

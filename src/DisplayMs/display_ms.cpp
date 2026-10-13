@@ -22,7 +22,7 @@ DisplayMs::DisplayMs(int dispident,bool f,QWidget * parent )
     frq00_limit = 20;
     frq01_limit = 4980;
     allq65 = false;
-    ft_df1500 = false;
+    //ft_df1500 = true;
     f_is_decodet3int = false;
 
     disp_ident = dispident;//disp_ident 0-primary 1-second display ....
@@ -77,8 +77,8 @@ DisplayMs::DisplayMs(int dispident,bool f,QWidget * parent )
     }
 
     f_zero_freq_scale = false;
-    s_start=200;
-    s_stop=2200;
+    s_start = 100;//2.76.1 3000hz bw
+    s_stop = 3300;//2.76.1 3000hz bw
     x_pos_freq_line = 25;//25pix
     f_disp_v_h = false;
     var_vdisp_height = DATA_HEIGHT*2 - x_pos_freq_line;
@@ -99,8 +99,8 @@ DisplayMs::DisplayMs(int dispident,bool f,QWidget * parent )
     }
 
     //2.24 ft8/4 df
-    frq00 = 200.0;
-    frq01 = 2200.0;
+    frq00 = 200.0; //2.76.1 3000hz bw
+    frq01 = 3200.0;//2.76.1 3000hz bw
     f_mouse_pres = false;
     f_r00 = false;
     f_r01 = false;
@@ -125,12 +125,12 @@ DisplayMs::DisplayMs(int dispident,bool f,QWidget * parent )
     posy_vd_mouse1[0]=0;
     posy_vd_mouse1[1]=0;
 
-    vd_tx_freq = 1200.0;// only for ft8 for the moment 1.43
+    vd_tx_freq = 1700.0;// only for ft8 for the moment 1.43
     vd_rx_freq_txt = "RX: "+QString("%1").arg((int)vd_rx_freq)+" Hz";
     vd_rx_df_txt = "DF: "+QString("%1").arg(0)+" Hz";
 
-    s_ft8_vd_rxtx_freq[0] = 1200.0;
-    s_ft8_vd_rxtx_freq[1] = 1200.0;
+    s_ft8_vd_rxtx_freq[0] = 1700.0;
+    s_ft8_vd_rxtx_freq[1] = 1700.0;
     /*s_ft8_vd_rxtx_freq[2] = 200.0;
     s_ft8_vd_rxtx_freq[3] = 2200.0;
     s_ft8_vd_rxtx_freq[4] = 1000.0;*/
@@ -224,8 +224,10 @@ DisplayMs::DisplayMs(int dispident,bool f,QWidget * parent )
     mpos_x_bw = 0;
     f_show_bw = false;
     s_show_bw = false;
-    s_show_bwrx = false;
-    s_show_bwtx = false;
+    s_show_bwrx = true;//2.76.1
+    s_show_bwtx = true;//2.76.1
+    
+    id_mshf = 0;
 
     update();
     //s_old_graph_width = width();
@@ -266,7 +268,7 @@ void DisplayMs::SetVDMouseBWTXDrawLines(bool f)//2.72
 }
 void DisplayMs::SaveFT8RxTxFreq()
 {
-    if (s_mode==11 || s_mode==13 || allq65)//only FT8 FT4 q65
+    if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)//only FT8 FT4 q65
     {
         s_ft8_vd_rxtx_freq[0] = vd_rx_freq;
         s_ft8_vd_rxtx_freq[1] = vd_tx_freq;
@@ -319,8 +321,13 @@ void DisplayMs::SetFreqExternal(double frq)
 }
 void DisplayMs::SetLockTxrx(bool f)
 {
-    f_lock_txrx = f;
-    if (f_lock_txrx) SetTxToRx(true);// true  fiktivno
+    f_lock_txrx = f; //if (f_lock_txrx) SetTxToRx(true);// true  fictive
+    if (f_lock_txrx)
+    {   	
+    	if      (s_mode==11 && id_mshf==2) SetRxToTx(true); 
+    	else if (s_mode==11 && id_mshf==1) SetTxToRx(true);
+    	else SetTxToRx(true);
+   	}
 }
 void DisplayMs::SetTxToRx(bool)
 {
@@ -360,34 +367,32 @@ void DisplayMs::SetMode(int mode)
     	DISP_SAMPLE_RATE = DISP_SAMPLE_RATE_12000;            
 
     //start v1.49
-    for (int i = 0; i < 4 ; i++)
-        posx_vd_mouse_df[i] = 0;
+    for (int i = 0; i < 4 ; i++) posx_vd_mouse_df[i] = 0;
     for (int i = 0; i < 2 ; i++)
     {
         posy_vd_mouse0[i] = 0;
         posy_vd_mouse1[i] = 0;
     }
-    if ((s_mode == 7 || s_mode == 8 || s_mode == 9) && s_vd_mouse_lines_draw65)
-        vd_mouse_lines_draw = false;
-    else
-        vd_mouse_lines_draw = true;
+    if ((s_mode == 7 || s_mode == 8 || s_mode == 9) && s_vd_mouse_lines_draw65) vd_mouse_lines_draw = false;
+    else vd_mouse_lines_draw = true;
     //end
-
-    if (mode == 7 || mode == 8 || mode == 9 || mode == 10 || mode == 11 || mode == 13 || allq65)//jt65abc pi4 ft8 f44
+    if (mode == 7 || mode == 8 || mode == 9 || mode == 10 || mode == 11 || mode == 13  || mode == 18 || allq65)//jt65abc pi4 ft8 f44
     {
         f_disp_v_h = true;
 
         dflimit = 10;//jt65
         if (s_mode==11) dflimit = 60; //50 ft8
         else if (s_mode==13 || s_mode==10) dflimit = 110;//100 ft4 or pi4
+        else if (s_mode==18) dflimit = 210;//ft2 
         else if (allq65) dflimit = 50;//q65 limit  10hz
 
         if (mode == 10) vd_rx_freq = 682.8125; //pi4
 
-        else if (mode == 11 || mode == 13 || allq65) //ft8 ft4 za sega s 1200
+        else if (mode == 11 || mode == 13 || mode == 18 || allq65) //ft8 ft4 za sega s 1200
         {
             vd_rx_freq = s_ft8_vd_rxtx_freq[0];
             vd_tx_freq = s_ft8_vd_rxtx_freq[1];
+            if (s_mode==11 && id_mshf==2) vd_tx_freq = 750;//2.76sh
 			SetVDTxFreq();
             frq00 = s_start+10;//no simetric DF no more then s_start  s_ft8_vd_rxtx_freq[2];
             frq01 = s_stop -10;//no simetric DF no more then s_stop   s_ft8_vd_rxtx_freq[3];
@@ -396,8 +401,7 @@ void DisplayMs::SetMode(int mode)
             //s_vd_df = s_ft8_vd_rxtx_freq[4];
             //if (disp_ident==0) qDebug()<<frq00<<frq01;
         }
-        else
-            vd_rx_freq = 1270.46;
+        else vd_rx_freq = 1270.46;
 
         vd_rx_freq_txt = "RX: "+QString("%1").arg((int)vd_rx_freq)+" Hz";
         //CorrFrqStratStop();
@@ -711,11 +715,31 @@ void DisplayMs::Ft8Decode()//ft8 3 dec
         //isa_timerft8 = false;
     }
 }
+void DisplayMs::SetMsh(uint8_t id)//2.76sh
+{
+	id_mshf = id;	
+	if (s_mode==11 && id_mshf>0) 
+	{
+		if (id_mshf==2)
+		{
+			vd_tx_freq = 750;//2.76sh
+			SetVDTxFreq();			
+		}	
+		if (id_mshf==1) 
+		{
+			vd_rx_freq = 750;//2.76sh
+			vd_rx_freq_txt = "RX: "+QString("%1").arg((int)vd_rx_freq)+" Hz";
+			SetVDRxFreqF0F1();
+		}		
+	}	
+    setVDispFreqScale(s_start,s_stop);//for display	
+    SaveFT8RxTxFreq();
+}
 void DisplayMs::Decode3intFt(bool f)
 {
     if (disp_ident==0) s_3intFt_d_ = f;
 }
-void DisplayMs::DecodeAllData(bool decode, bool external)
+void DisplayMs::DecodeAllData(bool decode, bool external,bool f_fi_se)
 {
     //if (isa_timerft8) return;//protection
     if (f_auto_decode_all)
@@ -727,8 +751,10 @@ void DisplayMs::DecodeAllData(bool decode, bool external)
         {			 
             if (decode)
             {
-                //psk rep fopen
-                if (s_3intFt_d_ && s_mode==11)//ft8 3 dec
+                bool fsdecod = false; //f_fi_se=1 (even first), or f_fi_se=0 (odd second)
+                if (s_mode==11 && id_mshf>0 && f_fi_se) fsdecod = true;
+                //&& ((id_mshf==1 && ft8_even_odd(s_time)) || id_mshf==0)//2.76
+                if (s_3intFt_d_ && s_mode==11 && !fsdecod)//2.76sh tbd...    ft8 3 dec 
                 {
                     //2.44 special flag f_is_decodet3int no decode 2 times if fast click in 1s
                     if (!timer_ft8_->isActive() && !f_is_decodet3int)//&& !f_is_decodet3int
@@ -740,8 +766,7 @@ void DisplayMs::DecodeAllData(bool decode, bool external)
                     }
                 }
                 else emit EmitDataToDecode(raw_t,count_t,s_time,0,0,false,true,s_fopen);
-                f_is_decodet = true;
-                //qDebug()<<"DecodeExternal D1";
+                f_is_decodet = true; //qDebug()<<"DecodeExternal D1"<<s_time;
             }
             else f_is_decodet = false;
         }
@@ -863,8 +888,7 @@ void DisplayMs::RtdDecode()
     //qDebug()<<"Tim="<<disp_ident<<"kkk="<<kkk;
     //kkk++; if(kkk>100) kkk=0;
 
-    if (f_dec_busy || f_priority_disp1)
-        return;
+    if (f_dec_busy || f_priority_disp1) return;
 
     //qDebug()<<"Tim="<<disp_ident<<"dec="<<f_dec_busy<<f_priority_disp1;
 
@@ -926,10 +950,8 @@ void DisplayMs::RtdDecode()
         if (f_decode_to_end)
         {
             pos_rtd_beg = raw_count-7168;
-            pos_rtd_end = raw_count;
-            //qDebug()<<"pos_rtd_beg"<<pos_rtd_beg<<pos_rtd_end;
-            if (pos_rtd_beg < 0)
-                pos_rtd_beg = 0;
+            pos_rtd_end = raw_count; //qDebug()<<"pos_rtd_beg"<<pos_rtd_beg<<pos_rtd_end;
+            if (pos_rtd_beg < 0) pos_rtd_beg = 0;
             f_decode_to_end = false;
             end_rtd = true;
         }
@@ -943,7 +965,7 @@ void DisplayMs::RtdDecode()
         for (int j = pos_rtd_beg; j<pos_rtd_end; j++)
         {
             raw_t[count_t] = raw[j];
-            count_t++;
+            count_t++; 
         }
 
         if (!s_start_stop_rtd_timer || end_rtd)//
@@ -954,7 +976,6 @@ void DisplayMs::RtdDecode()
             emit EmitRriorityDisp(false);
             //qDebug()<<"Timer STOP RtdDecode()"<<disp_ident;
         }
-
 
         //qDebug()<<"StartE"<<count_t;
         //1.27 psk rep   fopen bool true    false no file open
@@ -1220,7 +1241,7 @@ void DisplayMs::ReciveData(QList<int*> arr, QPoint *points, int raw_c, int *raw_
     raw_count = raw_c;
     //qDebug()<<"ReciveData count================="<<raw_count<<disp_ident;
 
-    DecodeAllData(f_decode,false);// false=internal data
+    DecodeAllData(f_decode,false,false);//false=internal data SFox and FT8 one decode in double click
 
     //qDebug()<<"endddddddddddddddd="<<endrtd;
     if (s_start_stop_rtd_timer && !s_fopen && raw_count!=0 && !endrtd)//raw_count!=0
@@ -1315,11 +1336,11 @@ void DisplayMs::ClarDisplay()
         raw[i]=0;
 
     x_pos = 0;
-    s_upd_pos = 0;
+    s_upd_pos = 0; //printf("ClearDisp=%d Count=%d\n",disp_ident,raw_count);
 
     raw_count = 0;
 
-    pos_rtd = 0;    //qDebug()<<"pos_rtd_end="<<s_pos_rtd_end;
+    pos_rtd = 0;    
     s_upd_pos_lines_rtd = 0;
 
     f_dec_pings_draw = false;
@@ -1392,7 +1413,7 @@ void DisplayMs::SetVDRxFreqF0F1()//2.24 ft8/4 df
 
     if (!f_r00 && !f_r01)
     {
-        if (s_mode==11 || s_mode==13 || allq65)//ft8 ft4
+        if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)//ft8 ft4
         {
             double prev_df = (frq01 - frq00)/2.0;
             double div_df = s_vd_df - prev_df;
@@ -1480,8 +1501,7 @@ void DisplayMs::setVDispFreqScale(int start,int stop)//bool <- change start stop
     }
 
     bool f_even_odd = false;
-    if (stop-start>=2600)
-        f_even_odd = true;
+    if (stop-start>=2600) f_even_odd = true;
 
     double scale_x_inc_pix = ((double)g_width/(double)band); //
     count_lines_scale_x = (g_width / scale_x_inc_pix)+3+5;//
@@ -1489,7 +1509,7 @@ void DisplayMs::setVDispFreqScale(int start,int stop)//bool <- change start stop
     //double save_x_inc = (30.0-(double)s_start)/scale_x_inc_pix;//+scale_x_inc_pix*3.0;//0.0;
 
     double save_x_inc = 0.0;
-    if (f_zero_freq_scale && s_mode!=10 && s_mode!=11 && s_mode!=13 && !allq65)//no f_zero_freq_scale in pi4 and ft8 and ft4
+    if (f_zero_freq_scale && s_mode!=10 && s_mode!=11 && s_mode!=13 && s_mode!=18 && !allq65)//no f_zero_freq_scale in pi4 and ft8 and ft4
         save_x_inc = (double)((-30.0)*(double)g_width)/(double)(s_stop-s_start)-scale_x_inc_pix*(double)(k_big+1);
 
     int big_line = 0;
@@ -1499,10 +1519,8 @@ void DisplayMs::setVDispFreqScale(int start,int stop)//bool <- change start stop
     //if(fm_X->height()-3>pos_text_hor_Y)
     //pos_text_hor_Y = fm_X->height()-4;
 
-    for (int i = 0; i<MAX_LINES_SCALE_X; i++)
-        freq_scale_x[i]="";
-    for (int i = 0; i<count_lines_scale_x; i++)
-        lines_scale_x[i]=QLine(0,0,0,0);
+    for (int i = 0; i<MAX_LINES_SCALE_X; i++) freq_scale_x[i]="";
+    for (int i = 0; i<count_lines_scale_x; i++) lines_scale_x[i]=QLine(0,0,0,0);
 
     bool f_even = true;
     //double t_x_inc;
@@ -1519,7 +1537,7 @@ void DisplayMs::setVDispFreqScale(int start,int stop)//bool <- change start stop
 
             int start0 = start;
 
-            if (f_zero_freq_scale && s_mode!=10 && s_mode!=11 && s_mode!=13 && !allq65)//no f_zero_freq_scale in pi4 and ft8 and ft4
+            if (f_zero_freq_scale && s_mode!=10 && s_mode!=11 && s_mode!=13 && s_mode!=18 && !allq65)//no f_zero_freq_scale in pi4 and ft8 and ft4
             {
                 //if (s_mode==10)
                 //start0 = start-770;
@@ -1576,12 +1594,13 @@ void DisplayMs::setVDispFreqScale(int start,int stop)//bool <- change start stop
         save_x_inc += scale_x_inc_pix;
     }
 
-    double bw=65.0*11025.0/4096.0;
+    double bw=65.0*11025.0/4096.0; 
+    double bwt=bw;   
     int xpos_frq1,xpos_frq2,xpos_frq3,xpos_frq4,xpos_frq5,xpos_frq6;
 
     if (s_mode==8) bw=2.0*bw;
     else if (s_mode==9) bw=4.0*bw;
-
+    
     if (s_mode==10)
     {
         bw=3.0*12000.0/2048.0; // bw=3*11025.0/2520.0;
@@ -1590,11 +1609,20 @@ void DisplayMs::setVDispFreqScale(int start,int stop)//bool <- change start stop
     if (s_mode==11)
     {
         bw=7.0*12000.0/1920.0;     //FT8 = 43.75
+        bwt=bw;
+        if (id_mshf==1) bw=127.0*12000.0/1024.0; 
+        if (id_mshf==2) bwt=127.0*12000.0/1024.0;
     }
     if (s_mode==13)
     {
         //bw=3.0*12000.0/512.0;     //FT4 =70.3125
         bw=3.0*12000.0/576.0;       //FT4 =62.5
+        bwt=bw;
+    }
+    if (s_mode==18)
+    {
+        bw=3.0*12000.0/288.0;      //FT2 =125.0
+        bwt=bw;
     }
     if (allq65)//2.53
     {
@@ -1610,8 +1638,9 @@ void DisplayMs::setVDispFreqScale(int start,int stop)//bool <- change start stop
         float baud=12000.0/nsps;
         bw=65.0*h*baud; // qDebug()<<bw<<period_time_sec<<nsps<<s_mode<<h;*/
         bw=bwQ65;
+        bwt=bw;
     }
-	line_bw = (double)(bw*(double)g_width)/(double)(s_stop-s_start);
+	line_bw = (double)(bw*(double)g_width)/(double)(s_stop-s_start);//mouse lines
 
     if (s_mode==10)//pi4
     {
@@ -1622,11 +1651,11 @@ void DisplayMs::setVDispFreqScale(int start,int stop)//bool <- change start stop
         xpos_frq5 = (double)(((vd_rx_freq+bw*2.0/3.0)-(double)s_start)*(double)g_width)/(double)(s_stop-s_start);
         xpos_frq6 = (double)(((vd_rx_freq+bw)-(double)s_start)*(double)g_width)/(double)(s_stop-s_start);//(double)(vd_rx_freq+375.5)*scale_x_inc_pix;
     }
-    else if (s_mode==11 || s_mode==13 || allq65)//ft8 ft4
+    else if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)//ft8 ft4
     {
         xpos_frq1 = (double)((vd_rx_freq-(double)s_start)*(double)g_width)/(double)(s_stop-s_start);//rx
-        xpos_frq2 = (double)((vd_tx_freq-(double)s_start)*(double)g_width)/(double)(s_stop-s_start)-2;//tx ??? out of painter
-        xpos_frq3 = (double)(((vd_tx_freq+bw)-(double)s_start)*(double)g_width)/(double)(s_stop-s_start)+2;//tx ??? out of painter
+        xpos_frq2 = (double)((vd_tx_freq-(double)s_start)*(double)g_width)/(double)(s_stop-s_start)-2;//tx
+        xpos_frq3 = (double)(((vd_tx_freq+bwt)-(double)s_start)*(double)g_width)/(double)(s_stop-s_start)+2;//tx
         xpos_frq4 = (double)((vd_rx_freq-(double)s_start)*(double)g_width)/(double)(s_stop-s_start);//rx
         xpos_frq5 = (double)((vd_rx_freq-(double)s_start)*(double)g_width)/(double)(s_stop-s_start);//rx
         xpos_frq6 = (double)(((vd_rx_freq+bw)-(double)s_start)*(double)g_width)/(double)(s_stop-s_start);//rx        
@@ -1651,7 +1680,7 @@ void DisplayMs::setVDispFreqScale(int start,int stop)//bool <- change start stop
     //qDebug()<<"FFFF="<<lines_vd_rx_freq[0]<<lines_vd_rx_freq[1]<<lines_vd_rx_freq[2]
     //<<lines_vd_rx_freq[3]<<lines_vd_rx_freq[4]<<lines_vd_rx_freq[5];
 
-    if (s_mode==11 || s_mode==13 || allq65)//2.24 ft8/4 df
+    if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)//2.24 ft8/4 df
     {
         xpos_frq1 = (double)(((frq00)-(double)s_start)*(double)g_width)/(double)(s_stop-s_start);
         xpos_frq2 = (double)(((frq01)-(double)s_start)*(double)g_width)/(double)(s_stop-s_start);
@@ -1939,7 +1968,7 @@ void DisplayMs::PaintData_VD(bool paint_all)
                 lines_vd_t_text[j+1]=lines_vd_t_text[j];
             }
 
-            /*if (s_mode == 11 || s_mode == 13)// ft8 ft4
+            /*if (s_mode==11 || s_mode==13)// ft8 ft4
                 lines_vd_t_text[0]=s_time.mid(0,2)+":"+s_time.mid(2,2)+":"+s_time.mid(4,2);
             else
                 lines_vd_t_text[0]=s_time.mid(0,2)+":"+s_time.mid(2,2);*/
@@ -2284,7 +2313,7 @@ void DisplayMs::mouseMoveEvent(QMouseEvent *event)
         int df;
         if (s_mode==10)
             df = ((double)posx*(double)(s_stop-s_start)/(double)width() + (double)s_start) - 682.8125;  //682.8125 800.0
-        else if (s_mode==11 || s_mode==13 || allq65)  //FT8 ft4
+        else if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)  //FT8 ft4
             df = ((double)posx*(double)(s_stop-s_start)/(double)width() + (double)s_start) - vd_tx_freq;//ft8 1200 vd_rx_freq
         else
             df = ((double)posx*(double)(s_stop-s_start)/(double)width() + (double)s_start) - 1270.46;//1270.46 vd_rx_freq
@@ -2298,7 +2327,7 @@ void DisplayMs::mouseMoveEvent(QMouseEvent *event)
         update(45, height()-16-2, 75, 16);
         //update();
 
-        if (s_mode==11 || s_mode==13 || allq65)//2.24 ft8/4 df
+        if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)//2.24 ft8/4 df
         {
             if (f_mouse_pres)
             {
@@ -2400,39 +2429,45 @@ void DisplayMs::DecodeVD(int posy,int mousebutton)
         emit EmitVDMouseDecodeSecondDisp(mousebutton);
     }
 }
-void DisplayMs::SetFtDf1500(bool f)
+/*void DisplayMs::SetFtDf1500(bool f)
 {
     ft_df1500 = f;
-}
+}*/
 void DisplayMs::ResetVDFreqDf()
-{
+{   //qDebug()<<s_mode<<s_prev_vd_rx_df<<s_vd_df;
     if (s_mode == 10) //pi4
     {
         vd_rx_freq = 682.8125;
         emit EmitVDRxDf(400);
     }
-    else if (s_mode == 11 || s_mode==13) //ft8  ft4  for deffault df || allq65
-    {
-        if (ft_df1500)
-        {
+    else if (s_mode == 11 || s_mode==13 || s_mode==18) //ft8  ft4  for deffault df || allq65
+    {   
+        //if (s_vd_df>1000)//if (ft_df1500) or s_prev_vd_rx_df
+        //{
             vd_rx_freq = 1700.0;
+            if (s_mode==11 && id_mshf>0) vd_rx_freq = 750;
             vd_tx_freq = vd_rx_freq;
+            //if (s_mode==11 && id_mshf==2) vd_tx_freq = 750;//2.76sh
+            //if (s_mode==11 && id_mshf==1) vd_rx_freq = 750;//2.76sh
             SetVDTxFreq();
             emit EmitVDRxDf(1500);
             frq00 = 200.0;
             frq01 = 3200.0;
             s_vd_df = 1500;//<- importent
-        }
-        else
+        //}
+        /*else
         {
             vd_rx_freq = 1200.0;
+            if (s_mode==11 && id_mshf>0) vd_rx_freq = 750;
             vd_tx_freq = vd_rx_freq;
+            //if (s_mode==11 && id_mshf==2) vd_tx_freq = 750;//2.76sh
+            //if (s_mode==11 && id_mshf==1) vd_rx_freq = 750;//2.76sh
             SetVDTxFreq();
             emit EmitVDRxDf(1000);
             frq00 = 200.0;
             frq01 = 2200.0;
             s_vd_df = 1000;//<- importent
-        }
+        }*/
     }
     else if (allq65)//remove for df 1500
     {
@@ -2470,6 +2505,8 @@ void DisplayMs::mouseDoubleClickEvent(QMouseEvent *event)
                 emit EmitVDRxDf(50);
             else if (s_mode==13)//ft4
                 emit EmitVDRxDf(100);
+            else if (s_mode==18)//ft2
+                emit EmitVDRxDf(200);
             else if (allq65)   //q65? limit 10hz ???
                 emit EmitVDRxDf(50);
             else
@@ -2546,7 +2583,7 @@ void DisplayMs::mousePressEvent(QMouseEvent *event)
             }
             if ((event->button()== Qt::RightButton || event->button()== Qt::LeftButton) && (posy > 0 && posy < x_pos_freq_line))
             {
-                if ((s_mode==11 || s_mode==13 || allq65) && cursor().shape()==Qt::SplitHCursor)//2.24 ft8/4 df
+                if ((s_mode==11 || s_mode==13 || s_mode==18 || allq65) && cursor().shape()==Qt::SplitHCursor)//2.24 ft8/4 df
                 {
                     f_mouse_pres = true;
                 }
@@ -2835,7 +2872,7 @@ void DisplayMs::paintEvent(QPaintEvent *)
 
         QColor crx = QColor(0,240,0);//2.72
         QColor cry = QColor(250,0,0);//2.72
-		if (s_mode==11 || s_mode==13 || allq65)//2.72
+		if (s_mode==11 || s_mode==13 || s_mode==18 || allq65)//2.72
 		{
 			if (s_show_bwtx)
 			{	

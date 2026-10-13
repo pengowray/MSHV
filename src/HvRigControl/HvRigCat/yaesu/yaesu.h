@@ -58,6 +58,10 @@ private:
     void get_freq();
     void set_mode(QString);  
     void get_mode();
+    
+    unsigned long long pmr171fB;
+    unsigned char pmr171mB;
+    uint16_t CRC16Check(const unsigned char *buf, int len);
 
 protected:
 

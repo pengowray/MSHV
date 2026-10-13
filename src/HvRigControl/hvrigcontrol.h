@@ -140,6 +140,7 @@ public:
     void SetModSetFrqToRig(QString);
 	void SetNetRigSrvPort(QString s);
 	void CatStopPttIfClose();
+	void SetMsf(bool f);
 
 //public slots:	
  
@@ -159,7 +160,8 @@ signals:
     void EmitQrgActive(int i);//2.45
     void EmitQrgFromRig(QString);//2.45
     void EmitQrgInfoFromCat(QString);//2.45
-    void EmitRigCatActiveAndRead(bool f);//2.53
+    void EmitRigCatActiveAndRead(bool f,QString);//2.53 //2.76.1
+    //void EmitFlexSliceReady();//flex native vita-49: forwarded from HvRigCat
     
 private slots:
     void SetCatAactiveAndRead(bool,bool);
@@ -192,7 +194,7 @@ private slots:
     void TestPtt();
     void TestPtt2();
     void SetWriteCmd(char*data,int size);
-    void SetRigSet(RigSet,int);
+    void SetRigSet(RigSet,int,int);
     void RbTxwatchChanged(bool);
     void SBTxwatchChanged(int);
  
@@ -210,11 +212,17 @@ private slots:
     void LeOffsetTrsvRigChange(QString);
     void CbOffSetFrqToRig(bool);
     void SetPttDtr(bool);// sea-235
-    void SetTciSelect(int);
+    void SetTciSelect(int,int,bool);
     void SetRigModeFreq();
+    void SetFullRigInfo(QString);//2.76.1
     
 private:
+	bool f_msf;//2.76sf
+	bool f_msf_new;//2.76sf
+	uint8_t f_msf_special_tx_rx;//2.76sf
+	int s_net_model_id;
 	QString s_rig_name;
+	QString s_rig_full_name;//2.76.1
 	bool rig_cat_active_and_read;
     void SetPtt_p(bool,int);//2.17 id 0=All 1=p1 2=p2
 	////// omnirig /////////////
@@ -244,6 +252,9 @@ private:
     QComboBox *tci_samples;
     QLabel *l_tcistype;
     QComboBox *tci_tcistype;
+    QLabel *l_tcisrate;
+    QComboBox *tci_rample_rate;
+    QSpinBox *tci_tx_buff;
 
     void ScanComPorts();
     QextSerialPort *port;
@@ -291,7 +302,8 @@ private:
     //void EnableGbStaticTX(bool);
     QGroupBox *gb_static_tx;
     QSpinBox *sb_static_tx;
-    QRadioButton *rb_static_tx;
+    QLabel *l_static_tx;//2.76.1
+    QCheckBox *rb_static_tx;//QRadioButton *rb_static_tx;//2.76.4
     bool f_static_tx;
     bool f_static_tx_active;
     double mp_v_disp_tx_frq;

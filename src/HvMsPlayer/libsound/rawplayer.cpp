@@ -65,7 +65,7 @@ bool Rawplayer::initialize(char *device_name)
     buff_hv = Rawplayer::buffering;
     
     QString str_device_name = (QString)device_name;
-    if (str_device_name=="TCI Client Output")
+    if (str_device_name=="TCI Client Output" || str_device_name=="Flex Native Output")
     {
         _SetTciBuffReset_();
         ftci = true;

@@ -179,7 +179,7 @@ void MessageClient::impl::parse_message(QByteArray const& msg)
     NetworkMessage::Reader in {msg};
     if (OK == check_status (in)) // OK and for us    && id_ == in.id ()
     {
-        if (schema_ < in.schema ()) schema_ = in.schema (); // negotiated schema   one time record of server's            
+        if (schema_ < in.schema ()) schema_ = in.schema (); // negotiated schema   one time record of server's
         //qDebug() <<"In="<<in.type()<<in.id()<<schema_<<in.schema ();
         switch (in.type())
         {
@@ -244,7 +244,7 @@ void MessageClient::impl::parse_message(QByteArray const& msg)
             break;
         case NetworkMessage::Configure:
             {
-                /*QByteArray mode;
+                QByteArray mode;
                 quint32 frequency_tolerance;
                 QByteArray submode;
                 bool fast_mode {false};
@@ -255,20 +255,33 @@ void MessageClient::impl::parse_message(QByteArray const& msg)
                 bool generate_messages {false};
                 in >> mode >> frequency_tolerance >> submode >> fast_mode >> tr_period >> rx_df
                 >> dx_call >> dx_grid >> generate_messages;
-
                 //qDebug()<<"Configure mode:"<<mode<<"frequency tolerance:"<< frequency_tolerance << "submode:" <<
-                // 		submode << "fast mode:" << fast_mode << "T/R period:" << tr_period << "rx df:" << rx_df <<
-                // 		"dx call:" << dx_call << "dx grid:" << dx_grid << "generate messages:" << generate_messages;
-                 		
+                //submode << "fast mode:" << fast_mode << "T/R period:" << tr_period << "rx df:" << rx_df <<
+                //"dx call:" << dx_call << "dx grid:" << dx_grid << "generate messages:" << generate_messages;
                 if (check_status (in) != Fail)
                 {
                     //Q_EMIT self_->configure (QString::fromUtf8 (mode), frequency_tolerance
                     //                         , QString::fromUtf8 (submode), fast_mode, tr_period, rx_df
                     //                         , QString::fromUtf8 (dx_call), QString::fromUtf8 (dx_grid)
                     //                         , generate_messages);
-                    QStringList list;
-                    list<<QString::fromUtf8(mode)<<QString::fromUtf8(submode)<<QString::fromUtf8(dx_call)<<QString::fromUtf8(dx_grid);
-                    Q_EMIT self_->configure(list,generate_messages);                    
+                    QStringList list; //mode = mode.toUpper(); submode = submode.toUpper();
+                    list<<QString::fromUtf8(mode)<<QString::fromUtf8(submode);//<<QString::fromUtf8(dx_call)<<QString::fromUtf8(dx_grid);
+                    Q_EMIT self_->configure(list);//,generate_messages);                
+                }
+            }
+            break;
+        case NetworkMessage::AnnotationInfo:
+            {
+                /*QByteArray dx_call;
+                bool sort_order_provided{false};
+                quint32 sort_order{std::numeric_limits<quint32>::max()};
+                in >> dx_call >> sort_order_provided >> sort_order;
+                TRACE_UDP ("External Callsign Info:" << dx_call << "sort_order_provided:" << sort_order_provided
+                                                     << "sort_order:" << sort_order);
+                if (sort_order > 50000) sort_order = 50000;
+                if (check_status(in) != Fail) {
+                  Q_EMIT
+                  self_->annotation_info(QString::fromUtf8(dx_call), sort_order_provided, sort_order);
                 }*/
             }
             break;
@@ -425,7 +438,7 @@ void MessageClient::set_server (QString const& server)
     m_->server_.clear ();
     m_->server_string_ = server;
 
-	//if (!server.isEmpty())//old 
+    //if (!server.isEmpty())//old
     if (server.size())
     {
         //old QHostInfo::lookupHost (server, &*m_, SLOT (host_info_results(QHostInfo)));
@@ -473,12 +486,12 @@ void MessageClient::logged_QSO(QStringList ls)
 
         QByteArray message;
         NetworkMessage::Builder out {&message, NetworkMessage::QSOLogged, m_->id_, m_->schema_};
-		 
-		out << t_off << ls.at(1).toUtf8() << ls.at(2).toUtf8() << f << ls.at(4).toUtf8()
+
+        out << t_off << ls.at(1).toUtf8() << ls.at(2).toUtf8() << f << ls.at(4).toUtf8()
         << ls.at(5).toUtf8() << ls.at(6).toUtf8() << ls.at(7).toUtf8() << ls.at(8).toUtf8()
         << ls.at(9).toUtf8() << t_on << ls.at(11).toUtf8() << ls.at(12).toUtf8() << ls.at(13).toUtf8()
         << ls.at(14).toUtf8() << ls.at(15).toUtf8() << ls.at(16).toUtf8()
-        << ls.at(17).toUtf8() << ls.at(18).toUtf8() << ls.at(19).toUtf8();//2.73 
+        << ls.at(17).toUtf8() << ls.at(18).toUtf8() << ls.at(19).toUtf8();//2.73
 
         m_->send_message(out, message);
         //m_->writeDatagram (message, m_->server_, m_->server_port_);

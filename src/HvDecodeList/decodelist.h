@@ -80,7 +80,7 @@ signals:
     void ListSelectedRpt(QString);
     void EmitRxAllTxt(QString);
     void EmitLstNexColor(bool);
-    void EmitRxStationInfo(QStringList,int,bool);
+    void EmitRxStationInfo(QStringList,int,bool,uint8_t);
     void EmitRxTextForAutoSeq(QStringList);
     void EmitFreqDecListClick(double);
     void EmitUdpDecClr();
@@ -103,6 +103,8 @@ public slots:
     void SetFilter(QStringList,bool*,QStringList,QStringList,QStringList,QStringList,QStringList,QStringList);//2.43   
     void SetDistUnit(bool); 
     void SetHisCalls(QStringList);
+    void SetOtpVerif(QString,uint8_t);//2.76sf
+    void SetShowOtpRxMsg(bool f);//2.76sf
     
 private slots:
     void RefreshListTimer();
@@ -112,6 +114,7 @@ private slots:
     void SetHeaderDoubleClicked();//2.44
 
 private:
+    bool f_otp_show_msg;
 	bool dsty;
 	bool is_filters_active;	
 	bool f_hide_c[10];
@@ -181,6 +184,7 @@ private:
     bool f_mark_tx;
     bool f_mark_qsy;
     bool f_mark_txqsy;//2.46
+    uint8_t id_mark_otp_verif;//2.76
     QColor c_mark_txt[11];
     int def_section_sizes[22];
     void SaveAndCorrSectionSize();//2.10 max 20 int def_section_sizes[20]; from model.columnCount()
@@ -196,6 +200,7 @@ private:
 	QStringList l_hiscals;
 	bool isFromHiscals(QString);
 	void CorrListSize();
+	//uint8_t isVerfOrOtpmsg(QString,bool);
  
 protected:
     void mousePressEvent (QMouseEvent*);

@@ -20,12 +20,12 @@ public:
     ~PSKReporter ();
     void reconnect();
     void stop();//hv add
-    void setLocalStation(QString const& call, QString const& grid, QString const& antenna);
+    void setLocalStation(QString const& call, QString const& grid, QString const& antenna,QString const& ri);
     //
     // Returns false if PSK Reporter connection is not available
     //
     //bool addRemoteStation (QString const& call, QString const& grid, Radio::Frequency freq, QString const& mode, int snr);
-    void addRemoteStation(QString call, QString grid,  QString freq, QString mode, int snr);
+    void addRemoteStation(QString call, QString grid,  QString freq, QString mode, int snr,QString);
     //
     // Flush any pending spots to PSK Reporter
     // 

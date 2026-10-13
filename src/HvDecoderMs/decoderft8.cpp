@@ -32,7 +32,6 @@ static const int icos7_2[7] =
     {
         3,1,4,0,6,5,2
     };
-
 static const int nappasses_2[6]=
     {
         2,2,2,4,4,3
@@ -42,7 +41,6 @@ static const int naptypes_2[6][4]=
     {//gjhghghj
         {1,2,0,0},{2,3,0,0},{2,3,0,0},{3,4,5,6},{3,4,5,6},{3,1,2,0}
     };
-
 DecoderFt8::DecoderFt8(int id)
 {
     pomFt.initPomFt();
@@ -52,7 +50,8 @@ DecoderFt8::DecoderFt8(int id)
     first_sync8d = true;
     first_ft8_downsample = true;
     gen_pulse_gfsk_(pulse_ft8_rx,2880.0,2.0,1920); //bt=2.0 fin   old->bt=4.0  <- Temporary compromise?
-    first_subsft8 = true;
+    gen_pulse_gfsk_(pulse_ft8_rxAp8,48.0,2.0,32);  //48=32*1.5 32=nsps
+    //first_subsft8 = true;
     first_ft8b_2 = true;
     cont_id0_ft8_2 = 0;
     DEC_SAMPLE_RATE = 12000.0;
@@ -86,33 +85,81 @@ DecoderFt8::DecoderFt8(int id)
             else one_ft8_2[i][j]=false;
         }
     }
+    s_ltry_a8=false;
+
+    const int NMAX=180000;//15*DEC_SAMPLE_RATE;//=180000
+    const int NFFT=180000;//NMAX; need to be number if no crash  180000
+    const int NFILT=4000;//3700;//old NFILT=1400; 4000
+    int offset_w = NFILT/2+25;
+    //! Create and normalize the filter
+    //double *window= new double[NFILT+250];
+    double window[NFILT+250] __attribute__((aligned(16)));
+    double fac=1.0/double(NFFT);
+    double sumw=0.0;
+    for (int j = -NFILT/2; j < NFILT/2; ++j)
+    {//do j=-NFILT/2,NFILT/2
+        window[j+offset_w]=cos(pi*(double)j/(double)NFILT)*cos(pi*(double)j/(double)NFILT);
+        sumw+=window[j+offset_w];
+    }//qDebug()<<window[69]<<cabs(cw_subsft8[400])<<dd[50]<<f0<<dt<<"--33subtractft8";
+    pomAll.zero_double_comp_beg_end(cw_subsft8,0,NMAX+25);
+    if (sumw<=0.0) sumw=0.01;// no devide by zero
+    for (int i = 0; i < NFILT+1; ++i) cw_subsft8[i]=window[i+offset_w-NFILT/2]/sumw;//cw(1:NFILT+1)=window/sum
+    pomAll.cshift1(cw_subsft8,NMAX,(NFILT/2+1));    //cw=cshift(cw,NFILT/2+1);
+    f2a.four2a_c2c(cw_subsft8,NFFT,-1,1,decid);//four2a(cw,nfft,1,-1,1)
+    for (int i = 0; i < NMAX; ++i) cw_subsft8[i]*=fac;
+    for (int j = 0; j < NFILT/2+1; ++j)
+    {// do j=1,NFILT/2+1
+        // endcorrection(j)=1.0/(1.0-sum(window(j-1:NFILT/2))/sumw)
+        double dell;
+        double summ = 0.0;
+        for (int z = j; z < NFILT/2; ++z) summ+=window[z+offset_w];//hv error  offset_w
+        dell = 1.0-summ/sumw;
+        if (dell<=0.0) dell = 0.0001;
+        endcorrectionft8[j]=1.0/dell;
+    } //(need to be) ----> SubCW 5.68004e-14 8.00183e-17 -1.57806e-16  <--Criticle (need to be)
+    //qDebug()<<" ----> SubCW"<<creal(cw_subsft8[13020])<<creal(cw_subsft8[50800])<<creal(cw_subsft8[101000]);
+    ft8var_init();
+    band8 = 200;
 }
 DecoderFt8::~DecoderFt8()
 {}
-static bool f_multi_answer_mod8 = false;
+bool DecoderFt8::f_multi_answer_mod8 = false;
 void DecoderFt8::SetStMultiAnswerMod(bool f)
 {
     f_multi_answer_mod8 = f;
 }
-static QString s_MyBaseCall8 = "NOT__EXIST";
-static int s_id_cont_ft8_28 = 0;
-static int s_ty_cont_ft8_28 = 0;
-static QString s_cont_ft8_cq = "CQ";
-void DecoderFt8::SetStWords(QString,QString s2,int cq3,int ty4,QString cq)
+QString DecoderFt8::s_MyBaseCall8 = "NA";
+int DecoderFt8::s_id_cont_ft8_28 = 0;
+int DecoderFt8::s_ty_cont_ft8_28 = 0;
+QString DecoderFt8::s_cont_ft8_cq = "CQ";
+QString DecoderFt8::s_MyCall8 = "NA";//3>NA count
+bool DecoderFt8::s_lmycallstd = false;
+bool DecoderFt8::s_lhiscallstd = false;
+void DecoderFt8::SetStWords(QString mc,QString s2,int cq3,int ty4,QString cq)
 {
     s_MyBaseCall8 = s2;
     s_id_cont_ft8_28 = cq3;
-    s_ty_cont_ft8_28 = ty4;
+    s_ty_cont_ft8_28 = ty4; //qDebug()<<"CQid="<<cq3<<"ConTyp="<<ty4<<"cq"<<cq;
     s_cont_ft8_cq = cq;
+    s_MyCall8 = mc;
+    s_lmycallstd = pomAll.isStandardCall(s_MyCall8);
+    tone8(s_lmycallstd,s_lhiscallstd);
+    tone8myc();
 }
-static QString s_HisCall8 = "NOCALL";
-void DecoderFt8::SetStHisCall(QString c)
+QString DecoderFt8::s_HisBaseCall8 = "NA";
+QString DecoderFt8::s_HisCall8 = "NA";//3>NA count
+QString DecoderFt8::s_HisGrid8 = "NA";
+void DecoderFt8::SetStHisCallGrid(QString hc,QString hb,QString g)
 {
-    s_HisCall8 = c;
+    s_HisCall8 = hc;
+    s_HisGrid8 = g;//ws300rc1
+    s_HisBaseCall8 = hb;
+    s_lhiscallstd = pomAll.isStandardCall(s_HisCall8);
+    tone8(s_lmycallstd,s_lhiscallstd);
 }
-static QString s_time8 = "000000";
-static int s_mousebutton8 = 0;
-static bool s_fopen8 = false;
+QString DecoderFt8::s_time8 = "000000";
+int DecoderFt8::s_mousebutton8 = 0;
+bool DecoderFt8::s_fopen8 = false;
 void DecoderFt8::SetStDecode(QString time,int mousebutton,bool ffopen)
 {
     s_time8 = time;
@@ -122,19 +169,27 @@ void DecoderFt8::SetStDecode(QString time,int mousebutton,bool ffopen)
 static int s_decoder_deep8 = 1;
 void DecoderFt8::SetStDecoderDeep(int d)
 {
-    s_decoder_deep8 = d;
+    s_decoder_deep8 = d; //qDebug()<<"s_decoder_deep8="<<s_decoder_deep8;
 }
-static bool s_lapon8 = false;
+bool DecoderFt8::s_lapon8 = false;
 void DecoderFt8::SetStApDecode(bool f)
 {
     s_lapon8 = f;
+    lapmyc = f;//???
 }
-static int s_nQSOProgress8 = 0;
-void DecoderFt8::SetStQSOProgress(int i)
+static uint8_t s_band8 = 0;
+void DecoderFt8::SetBandChangedStaticAll(uint8_t i)//2.76.7 for reset ap78
+{
+    s_band8 = i; 
+}
+int DecoderFt8::s_nQSOProgress8 = 0;
+int DecoderFt8::s_nlasttx = 0;
+void DecoderFt8::SetStQSOProgress(int i,int j)
 {
     s_nQSOProgress8 = i;
+    s_nlasttx = j; //qDebug()<<s_nQSOProgress8<<s_nlasttx;
 }
-static double s_nftx8 = 1200.0;
+double DecoderFt8::s_nftx8 = 1200.0;
 void DecoderFt8::SetStTxFreq(double f)
 {
     s_nftx8 = f;
@@ -230,7 +285,7 @@ void DecoderFt8::ft8_downsample(double *dd,bool &newdat,double f0,double complex
     }
     if (newdat)
     {
-        double x[NFFT1+150]; //! Data in dd have changed, recompute the long FFT
+        double *x = new double[NFFT1+150];//double x[NFFT1+150]; //! Data in dd have changed, recompute the long FFT
         for (int i = 0; i < NFFT1; ++i)
         {
             if (i < NMAX) x[i]=dd[i]*0.01;
@@ -238,8 +293,9 @@ void DecoderFt8::ft8_downsample(double *dd,bool &newdat,double f0,double complex
         }
         f2a.four2a_d2c(cx_ft8,x,NFFT1,-1,0,decid);//call four2a(cx,NFFT1,1,-1,0)             //!r2c FFT to freq domain
         newdat=false;
+        delete [] x;
     }
-
+    //qDebug()<<"ft8_downsample"; return;
     double df=DEC_SAMPLE_RATE/(double)NFFT1;
     int i0=int(f0/df); //qDebug()<<"baud="<<baud;
     double ft=f0+F0_DB;
@@ -411,7 +467,7 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
     const int NMAX=180000;//15*DEC_SAMPLE_RATE;//=180000
     const int NFFT=180000;//NMAX; need to be number if no crash  180000
     const int NFILT=4000;//3700;//old NFILT=1400; 4000
-    int offset_w = NFILT/2+25;
+    //int offset_w = NFILT/2+25;
     //int nstart=dt*DEC_SAMPLE_RATE+1.0;//0 +1.0  -1920
 
     double complex *cref = new double complex[153681];//151681+ramp      double complex cref[NFRAME+100];
@@ -423,37 +479,6 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
     pomAll.zero_double_comp_beg_end(cfilt,0,(NMAX+25));
     //pomAll.zero_double_comp_beg_end(cref,0,NFRAME+25);
     gen_ft8cwaveRx(itone,f0,cref);
-
-    if (first_subsft8) //then //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
-    {
-        //! Create and normalize the filter
-        double window[NFILT+250] __attribute__((aligned(16)));
-        double fac=1.0/double(NFFT);
-        double sumw=0.0;
-        for (int j = -NFILT/2; j < NFILT/2; ++j)
-        {//do j=-NFILT/2,NFILT/2
-            window[j+offset_w]=cos(pi*(double)j/(double)NFILT)*cos(pi*(double)j/(double)NFILT);
-            sumw+=window[j+offset_w];
-        }
-        pomAll.zero_double_comp_beg_end(cw_subsft8,0,NMAX+25);
-        if (sumw<=0.0) sumw=0.01;// no devide by zero
-        for (int i = 0; i < NFILT+1; ++i) cw_subsft8[i]=window[i+offset_w-NFILT/2]/sumw;//cw(1:NFILT+1)=window/sum
-        pomAll.cshift1(cw_subsft8,NMAX,(NFILT/2+1));    //cw=cshift(cw,NFILT/2+1);
-        f2a.four2a_c2c(cw_subsft8,NFFT,-1,1,decid);//four2a(cw,nfft,1,-1,1)
-        for (int i = 0; i < NMAX; ++i) cw_subsft8[i]*=fac;
-        for (int j = 0; j < NFILT/2+1; ++j)
-        {// do j=1,NFILT/2+1
-            // endcorrection(j)=1.0/(1.0-sum(window(j-1:NFILT/2))/sumw)
-            double dell;
-            double summ = 0.0;
-            for (int z = j; z < NFILT/2; ++z)
-                summ+=window[z+offset_w];//hv error  offset_w
-            dell = 1.0-summ/sumw;
-            if (dell<=0.0) dell = 0.0001;
-            endcorrectionft8[j]=1.0/dell;
-        }
-        first_subsft8=false;
-    }
 
     int idt = 0;
     bool f_du_sub = true;
@@ -511,7 +536,8 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
     delete [] cfilt;
 }
 bool DecoderFt8::ft8_downs_sync_bmet(double *dd,bool ap7,bool &newdat,double &f1,double &xdt,int &nbadcrc,
-                                     int &nsync,double s8_[79][8],double *bmeta,double *bmetb,double *bmetc,double *bmetd)
+                                     int &nsync,double s8_[79][8],double *bmeta,double *bmetb,
+                                     double *bmetc,double *bmetd,double *bmete,int imetric,int ndepth)
 {
     double complex cd0[3350];			   //3200+100  __attribute__((aligned(32)))
     double complex ctwk[32+5];
@@ -536,6 +562,7 @@ bool DecoderFt8::ft8_downs_sync_bmet(double *dd,bool ap7,bool &newdat,double &f1
     double delfbest=0.0;
     int ibest=0;
     nbadcrc=1;
+    double temp[5];//ws300rc1
 
     ft8_downsample(dd,newdat,f1,cd0);   //!Mix f1 to baseband and downsample
 
@@ -640,8 +667,11 @@ bool DecoderFt8::ft8_downs_sync_bmet(double *dd,bool ap7,bool &newdat,double &f1
             if (icos7_2[k]==(ip)) is3++;//if(icos7(k-1).eq.(ip(1)-1)) is3=is3+1;
         }
         //! hard sync sum - max is 21
+        int syncmin=6;//ws300rc1
+        if (imetric==2) syncmin=6;//if(imetric.eq.2) syncmin=7
+        if (ndepth<=2)  syncmin=8;//if(ndepth.le.2) syncmin=8
         nsync=is1+is2+is3;
-        if (nsync <= 6) //! bail out if(nsync .le. 6) then ! bail out
+        if (nsync <= syncmin) //! bail out if(nsync .le. 6) then ! bail out
         {
             nbadcrc=1; //qDebug()<<"ft8b NONONO";
             return false;
@@ -683,6 +713,14 @@ bool DecoderFt8::ft8_downs_sync_bmet(double *dd,bool ap7,bool &newdat,double &f1
                 }
                 //for (int i = 0; i < nt; ++i)
                 //s2l[i]=log(s2[i]+1e-32);//??? s2l(0:nt-1)=log(s2(0:nt-1)+1e-32)
+                /*if(imetric==2) //ws300rc1 if(imetric.eq.2) s2=s2**2
+                {
+                	for (int i = 0; i < 512; ++i)
+                	{
+                		double s22 = s2[i]*s2[i];
+                		s2[i] = s22;                
+                	}
+                }*/
                 int i32=(k-1)*3+(ihalf-1)*87;  //??? i32=1+(k-1)*3+(ihalf-1)*87
                 int ibmax=0;
                 if (nsym==1) ibmax=2;
@@ -694,21 +732,19 @@ bool DecoderFt8::ft8_downs_sync_bmet(double *dd,bool ap7,bool &newdat,double &f1
                     double max1v=0.0;
                     for (int zz = 0; zz < nt; ++zz)
                     {
-                        if (one_ft8_2[ibmax-ib][zz]==true)
+                        if (one_ft8_2[ibmax-ib][zz])
                         {
                             double tmax1v=s2[zz];
-                            if (tmax1v>max1v)
-                                max1v=tmax1v;
+                            if (tmax1v>max1v) max1v=tmax1v;
                         }
                     }
                     double max2v=0.0;
                     for (int zz = 0; zz < nt; ++zz)
                     {
-                        if (one_ft8_2[ibmax-ib][zz]==false)
+                        if (!one_ft8_2[ibmax-ib][zz])
                         {
                             double tmax2v=s2[zz];
-                            if (tmax2v>max2v)
-                                max2v=tmax2v;
+                            if (tmax2v>max2v) max2v=tmax2v;
                         }
                     }
                     double bm=max1v-max2v; //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
@@ -721,12 +757,9 @@ bool DecoderFt8::ft8_downs_sync_bmet(double *dd,bool ap7,bool &newdat,double &f1
                         //den=max(maxval(s2(0:nt-1),one(0:nt-1,ibmax-ib)), maxval(s2(0:nt-1),.not.one(0:nt-1,ibmax-ib)))
                         double den = max1v;
                         if (max2v > max1v) den = max2v;
-
                         double cm = 0.0;
-                        if (den>0.0) //if(den.gt.0.0) then
-                            cm=bm/den;
-                        else
-                            cm=0.0; //! erase it
+                        if (den>0.0) cm=bm/den;//if(den.gt.0.0) then
+                        else cm=0.0; //! erase it
                         bmetd[i32+ib]=cm;
                     }
                     else if (nsym==2) bmetb[i32+ib]=bm;//bmetb(i32+ib)=bm
@@ -742,16 +775,83 @@ bool DecoderFt8::ft8_downs_sync_bmet(double *dd,bool ap7,bool &newdat,double &f1
     	if (bmetc[i] == 0.001) qDebug()<<"c";
     	if (bmetd[i] == 0.001) qDebug()<<"d";
     }*/
+    /*do i=1,174
+    temp(1)=bmeta(i)
+    temp(2)=bmetb(i)
+    temp(3)=bmetc(i)
+    ip=maxloc(abs(temp))
+    bmete(i)=temp(ip(1))
+    enddo*/
+    if (!ap7)//ws300rc1
+    {
+        for (int i = 0; i < 174; ++i)
+        {
+            temp[0]=bmeta[i];
+            temp[1]=bmetb[i];
+            temp[2]=bmetc[i];
+            int ip = 0;
+            double max = fabs(temp[0]);
+            for (int i0 = 1; i0 < 3; ++i0)//int ip = pomAll.maxloc_da_beg_to_end(temp,0,3);
+            {
+                double max1 = fabs(temp[i0]);
+                if (max1>max)
+                {
+                    ip = i0;
+                    max = max1;
+                }
+            }
+            bmete[i]=temp[ip];
+        }
+        pomFt.normalizebmet(bmete,174);//ws300rc1
+    }
     pomFt.normalizebmet(bmeta,174);
     pomFt.normalizebmet(bmetb,174);
     pomFt.normalizebmet(bmetc,174);
     pomFt.normalizebmet(bmetd,174);
+    //if (!ap7) pomFt.normalizebmet(bmete,174);//ws300rc1
     return true;
 }
+void DecoderFt8::first_ft8b_and_ft8var(QString hiscall12,int cont_id)
+{   //if (!first_ft8b_2 && cont_id==cont_id0_ft8_2 && hiscall12==hiscall12_0_ft8_2) return;
+    if (first_ft8b_2 || (cont_id!=cont_id0_ft8_2))
+    {
+        bool c77[100];
+        if (cont_id!=0)
+        {
+            int i3=0;
+            int n3=0;
+            for (int i = 0; i < 78; ++i) c77[i]=0;
+            TGenFt8->pack77(s_cont_ft8_cq+" LZ2HV KN23",i3,n3,c77);
+        }
+        for (int i = 0; i < 29; ++i)
+        {
+            if (cont_id==0) mcq_ft8_2[i]=2*mcq_ft[i]-1;
+            else mcq_ft8_2[i]=2*c77[i]-1;
+            if (i<19)
+            {
+                mrrr_ft8_2[i]=2*mrrr_ft[i]-1;
+                m73_ft8_2[i]=2*m73_ft[i]-1;
+                mrr73_ft8_2[i]=2*mrr73_ft[i]-1;
+            }
+        }
+        hiscall12_0_ft8_2="";
+        cont_id0_ft8_2 = cont_id;
+        first_ft8b_2=false;
+    }
+    if (hiscall12!=hiscall12_0_ft8_2)
+    {
+        QString c13=hiscall12+"            ";
+        int n10 = 0;
+        int n12 = 0;
+        int n22 = 0;
+        TGenFt8->save_hash_call_from_dec(c13,n10,n12,n22);
+        hiscall12_0_ft8_2=hiscall12;
+    }
+}
 void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,double nftx,int ndepth,bool n4pas3int,bool lapon,
-                      double napwid,bool lsubtract,bool nagain,int cont_id,int cont_type,int &iaptype,double &f1,double &xdt,
+                      double napwid,bool lsubtract,bool nagain,int cont_id,int cont_type,int imetric,int &iaptype,double &f1,double &xdt,
                       double xbase,int *apsym,int &nharderrors,double &dmin,int &nbadcrc,QString &message,
-                      double &xsnr,QString hiscall12,int *i4tone)//QString mygrid6,bool bcontest,
+                      double &xsnr,QString hiscall12,int *i4tone,int &i3,int &n3)//QString mygrid6,bool bcontest,
 {
     //int NDOWN=60;//parameter (NDOWN=60)                  !Downsample factor
     //int NP2=2812;
@@ -771,133 +871,77 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
     double bmetb[174];
     double bmetc[174];
     double bmetd[174];
+    double bmete[174];//ws300rc1
 
     double llra[174];
     double llrb[174];
     double llrc[174];//llr1(3*ND)
     double llrd[174];
+    double llre[174];//ws300rc1
     double llrz[174];
 
     bool apmask[174];
     bool cw[194];//174
     bool message91[140];
 
-    //double complex cd0[3350];//3200+100  __attribute__((aligned(32)))
-    //pomAll.zero_double_comp_beg_end(cd0,0,3300);//3200+100
-
-    /*int graymap[8] =
-        {
-            0,1,3,2,5,6,4,7
-        };*/
-
-    if (first_ft8b_2 || (cont_id!=cont_id0_ft8_2))
-    {
-    	bool c77[100];
-    	if (cont_id!=0)
-    	{
-    	    int i3=0;
-    		int n3=0;
-    		for (int i = 0; i < 78; ++i) c77[i]=0;
-            TGenFt8->pack77(s_cont_ft8_cq+" LZ2HV KN23",i3,n3,c77);    		
-   		}    
-   		/*QString sss; // CQ type test to 29
-        for (int ii = 0; ii < 29; ++ii) sss.append(QString("%1").arg((int)c77[ii])+",");
-        qDebug()<<s_cont_ft8_cq<<cont_id<<"="<<sss;*/
-        for (int i = 0; i < 29; ++i)
-        {
-            if (cont_id==0) mcq_ft8_2[i]=2*mcq_ft[i]-1;
-            else mcq_ft8_2[i]=2*c77[i]-1;
-            if (i<19)
-            {
-                mrrr_ft8_2[i]=2*mrrr_ft[i]-1;
-                m73_ft8_2[i]=2*m73_ft[i]-1;
-                mrr73_ft8_2[i]=2*mrr73_ft[i]-1;
-            }
-        }
-        /*! iaptype
-        !------------------------
-        !   1        CQ     ???    ???
-        !   2        MyCall ???    ???
-        !   3        MyCall DxCall ???
-        !   4        MyCall DxCall RRR
-        !   5        MyCall DxCall 73
-        !   6        MyCall DxCall RR73
-        !   7        ???    DxCall ???*/
-        //one=.false.
-        /*for (int i = 0; i < 9; ++i)
-        {//do i=0,511   one_ft8_2[9][512];//(0:511,0:8);
-            for (int j = 0; j < 512; ++j)
-            {
-                //if(iand(i,2**j).ne.0) one(i,j)=.true.
-                if ((j & (int)pow(2,i))!=0)
-                    one_ft8_2[i][j]=true;
-                else
-                    one_ft8_2[i][j]=false;
-            }
-        }*/
-        hiscall12_0_ft8_2="";
-        cont_id0_ft8_2 = cont_id;
-        first_ft8b_2=false;
-    }
-
-    if (hiscall12!=hiscall12_0_ft8_2)
-    {
-        QString c13=hiscall12+"            ";
-        int n10 = 0;
-        int n12 = 0;
-        int n22 = 0;
-        TGenFt8->save_hash_call_from_dec(c13,n10,n12,n22);
-        hiscall12_0_ft8_2=hiscall12;
-    }
+    first_ft8b_and_ft8var(hiscall12,cont_id);
 
     //int max_iterations=30;//2.39 30
     nbadcrc=1;  //! this is used upstream to flag good decodes.
     nharderrors=-1;
     int nsync=0;
-    if (!ft8_downs_sync_bmet(dd,false,newdat,f1,xdt,nbadcrc,nsync,s8_,bmeta,bmetb,bmetc,bmetd)) return;
+    if (!ft8_downs_sync_bmet(dd,false,newdat,f1,xdt,nbadcrc,nsync,s8_,bmeta,bmetb,bmetc,bmetd,bmete,imetric,ndepth)) return;
 
     double scalefac = 2.83;//scalefac=2.83 double ss=0.85;//hv tested->85-86    0.84;//0.84
-    double maxval_llra_abs = 0.0;
+    //double maxval_llra_abs = 0.0;//ws300rc1 stop
     //double maxval_llrb_abs = 0.0;
+    //double mina=0.0; double maxa=0.0;
     for (int z = 0; z < 174; ++z)
     {
         llra[z]=scalefac*bmeta[z];
         llrb[z]=scalefac*bmetb[z];
         llrc[z]=scalefac*bmetc[z];//  ! llr's for use with ap
         llrd[z]=scalefac*bmetd[z];
-
-        double llra_abs = fabs(llra[z]);
+        llre[z]=scalefac*bmete[z];//ws300rc1
+        /*double llra_abs = fabs(llra[z]);//ws300rc1 stop
         if (llra_abs>maxval_llra_abs)
-            maxval_llra_abs=llra_abs;
+            maxval_llra_abs=llra_abs;*/
         /*double llrb_abs = fabs(llrb[z]);
         if (llrb_abs>maxval_llrb_abs)
             maxval_llrb_abs=llrb_abs;*/
-    }
-    //double apmag = scalefac*(maxval_llra_abs*1.01);//old 2.39
-    double apmag = maxval_llra_abs*1.01; //qDebug()<<"apmag="<<apmag;
+        //if (llra[z]<mina) mina=llra[z];
+        //if (llra[z]>maxa) maxa=llra[z];
+    } //if (maxa>1.0 || mina<-1.0) qDebug()<<"A="<<mina<<maxa;
+    //double apmag = maxval_llra_abs*1.01; //ws300rc1 stop qDebug()<<"apmag="<<apmag;//double apmag = scalefac*(maxval_llra_abs*1.01);//old 2.39
 
-    //! pass #
-    //!------------------------------
-    //!   1        regular decoding, nsym=1
-    //!   2        regular decoding, nsym=2
-    //!   3        regular decoding, nsym=3
-    //!   4        ap pass 1, nsym=1 (for now?)
-    //!   5        ap pass 2
-    //!   6        ap pass 3
-    //!   7        ap pass 4*/
+    /*! pass #
+    !------------------------------
+    !   1        regular decoding, nsym=1 
+    !   2        regular decoding, nsym=2 
+    !   3        regular decoding, nsym=3 
+    !   4        regular decoding, nsym=1, bit-by-bit normalized 
+    !   5        regular decoding, choose best (largest) metric from 1-3
+    !   6        ap pass 1, nsym=1
+    !   7        ap pass 1, nsym=2
+    !   8        ap pass 2, nsym=1
+    !   9        ap pass 2, nsym=2
+    !   10       ap pass 3, nsym=1
+    !   11       ap pass 3, nsym=2
+    !   12       ap pass 4, nsym=1
+    !   13       ap pass 4, nsym=2*/
     int npasses = 0;
 
     bool lapcqonly = false;//lapcqonly<-no used fom me. if no TX more then 10min use only AP1
     //if(lapon.or.ncontest.eq.7) then !Hounds always use AP
     if (lapon)//no MSHV Hounds
     {
-        if (!lapcqonly) npasses=4+nappasses_2[nQSOProgress];//?? old v1 hv 4 // 2,2,2,4,4,3
-        else npasses=5;//2.29=5 from=4 ?? old v1 hv 5
+        if (!lapcqonly) npasses=5+2*nappasses_2[nQSOProgress];//ws300rc1 if (!lapcqonly) npasses=4+nappasses_2[nQSOProgress];//?? old v1 hv 4 // 2,2,2,4,4,3
+        else npasses=7;//ws300rc1 else npasses=5;//2.29=5 from=4 ?? old v1 hv 5
     }
-    else npasses=4;//2.29=4 from=3 ?? old v1 hv 4
+    else npasses=5;//ws300rc1 else npasses=4;//2.29=4 from=3 ?? old v1 hv 4
 
     //2.39 nzhsym=???    if(nzhsym<50) npasses=4;
-    if (n4pas3int) npasses=4;//2.40
+    if (n4pas3int) npasses=5;//ws300rc1 if (n4pas3int) npasses=4;//2.40
     //qDebug()<<"npasses="<<npasses;
 
     for (int ipass = 1; ipass <= npasses; ++ipass)
@@ -910,18 +954,35 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
             else if (ipass==2) llrz[z]=llrb[z];
             else if (ipass==3) llrz[z]=llrc[z];
             else if (ipass==4) llrz[z]=llrd[z];
+            else if (ipass==5) llrz[z]=llre[z];//ws300rc1
             // if (ipass > 4) dolu go pokriva
         }
-        if (ipass<=4) //4new if(ipass.le.4)
+        if (ipass<=5) //ws300rc1 if (ipass<=4) //4new if(ipass.le.4)
         {
             for (int z = 0; z < 174; ++z) apmask[z]=0;
             iaptype=0;
         }
-        if (ipass > 4) //4new if(ipass .gt. 4)  old if(ipass .gt. 3)  //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+        if (ipass > 5)//ws300rc1 if (ipass > 4) //4new if(ipass .gt. 4)  old if(ipass .gt. 3)  //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
         {
             //naptypes_{1,2,0,0},{2,3,0,0},{2,3,0,0},{3,4,5,6},{3,4,5,6},{3,1,2,0}
             for (int z = 0; z < 174; ++z) llrz[z]=llra[z];
-            if (!lapcqonly) iaptype=naptypes_2[nQSOProgress][ipass-(4+1)];//4new v1 4+1
+            if (((ipass-5) % 2)==1)//if(mod(ipass-5,2).eq.1) llrz=llra
+            {
+                for (int z = 0; z < 174; ++z) llrz[z]=llra[z]; //qDebug()<<"1=="<<ipass;
+            }
+            if (((ipass-5) % 2)==0)////if(mod(ipass-5,2).eq.0) llrz=llrc
+            {
+                for (int z = 0; z < 174; ++z) llrz[z]=llrc[z]; //qDebug()<<"0=="<<ipass;
+            }
+            double maxval_llra_abs = fabs(llrz[0]);
+            for (int z = 0; z < 174; ++z)
+            {
+                double llra_abs = fabs(llrz[z]);//ws300rc1 stop
+                if (llra_abs>maxval_llra_abs) maxval_llra_abs=llra_abs;
+            }
+            double apmag = maxval_llra_abs*1.1;
+            //iaptype=naptypes_2[nQSOProgress][ipass-(4+1)];//4new v1 4+1
+            if (!lapcqonly) iaptype=naptypes_2[nQSOProgress][(ipass-(4+2))/2];//ws300rc1
             else iaptype=1;
 
             // Activity Type                id	type	dec-id       dec-type	dec-cq
@@ -942,6 +1003,7 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
             //"Q65 Pileup" or "Pileup"		14	2		14 CQ 		 1			0 = CQ
             //"NCCC Sprint"					15	2		15 CQ NCCC	 1			8 = CQ NCCC
             //"ARRL Inter. EME Contest"		16	6		16 CQ 		 0			0 = CQ
+            //"FT Challenge"				17  6       17 CQ FTC    0          9 = CQ FTC
 
             //qDebug()<<"type1"<<iaptype<<ncontest;
             //if(f1>2098 && f1<2110) qDebug()<<"f1-nfqso="<<f1<<fabs(f1-nfqso)<<"f1-nftx="<<fabs(f1-nftx);
@@ -954,8 +1016,7 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
             //if(ncontest.eq.7 .and. iaptype.ge.2 .and. aph10(1).gt.1) cycle
             if (iaptype>=3 && apsym[29]>1) continue; //! No, or nonstandard, dxcall if(iaptype>=3 && apsym(30).gt.1) cycle
             //qDebug()<<"type2"<<iaptype<<ncontest;
-            for (int z = 0; z < 58; ++z)//apsym[58+5]
-                apsym[z]=2*apsym[z]-1;    // apsym=2*apsym-1  //! Change from [0,1] to antipodal
+            for (int z = 0; z < 58; ++z) apsym[z]=2*apsym[z]-1;// apsym=2*apsym-1  //! Change from [0,1] to antipodal//apsym[58+5]               
             if (iaptype==1) //! CQ or CQ RU or CQ TEST or CQ FD
             {
                 for (int z = 0; z < 174; ++z)//3*ND 174
@@ -977,8 +1038,7 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
             }
             if (iaptype==2) //then //! MyCall,???,???
             {
-                for (int z = 0; z < 174; ++z)
-                    apmask[z]=0;
+                for (int z = 0; z < 174; ++z) apmask[z]=0;
                 if (cont_type==0 || cont_type==1)//hv new || cont_type==5
                 {
                     for (int z = 0; z < 29; ++z)
@@ -1075,12 +1135,9 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
                 {
                     for (int z = 0; z < 57; ++z)
                     {
-                        if (z<56)
-                            apmask[z]=1;//apmask(1:56)=1
-                        if (z<28)
-                            llrz[z]=apmag*(double)apsym[z];//llrd(1:28)=apmag*apsym(1:28)
-                        if (z>28)
-                            llrz[z-1]=apmag*(double)apsym[z];//llrd(29:56)=apmag*apsym(30:57)
+                        if (z<56) apmask[z]=1;//apmask(1:56)=1
+                        if (z<28) llrz[z]=apmag*(double)apsym[z];//llrd(1:28)=apmag*apsym(1:28)
+                        if (z>28) llrz[z-1]=apmag*(double)apsym[z];//llrd(29:56)=apmag*apsym(30:57)
                     }
                     apmask[71]=1;//apmask(72:74)=1
                     apmask[72]=1;
@@ -1096,12 +1153,9 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
                 {
                     for (int z = 0; z < 57; ++z)
                     {
-                        if (z>0)
-                            apmask[z]=1;//apmask(2:57)=1
-                        if (z<28)
-                            llrz[z+1]=apmag*(double)apsym[z];//llrd(2:29)=apmag*apsym(1:28)
-                        if (z>28)
-                            llrz[z]=apmag*(double)apsym[z];//llrd(30:57)=apmag*apsym(30:57)
+                        if (z>0) apmask[z]=1;//apmask(2:57)=1
+                        if (z<28) llrz[z+1]=apmag*(double)apsym[z];//llrd(2:29)=apmag*apsym(1:28)
+                        if (z>28) llrz[z]=apmag*(double)apsym[z];//llrd(30:57)=apmag*apsym(30:57)
                     }
                     apmask[74]=1;//apmask(75:77)=1
                     apmask[75]=1;
@@ -1114,25 +1168,20 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
             //if(iaptype==5 && ncontest==7) continue;//cycle !Hound
             if (iaptype==4 || iaptype==5 || iaptype==6)
             {
-                for (int z = 0; z < 174; ++z)
-                    apmask[z]=0;//apmask=0
+                for (int z = 0; z < 174; ++z) apmask[z]=0;//apmask=0
                 //if(ncontest.le.5 || (ncontest.eq.7.and.iaptype.eq.6)) then
                 if (cont_type<=4)//HV new=4
                 {
                     for (int z = 0; z < 77; ++z)
                     {
                         apmask[z]=1;//apmask(1:77)=1   //! mycall, hiscall, RRR|73|RR73
-                        if (z<58)
-                            llrz[z]=apmag*(double)apsym[z];//llrd(1:58)=apmag*apsym
+                        if (z<58) llrz[z]=apmag*(double)apsym[z];//llrd(1:58)=apmag*apsym
                     }
                     for (int z = 0; z < 19; ++z)
                     {
-                        if (iaptype==4)
-                            llrz[z+58]=apmag*(double)mrrr_ft8_2[z]; //llrd(59:77)=apmag*mrrr
-                        if (iaptype==5)
-                            llrz[z+58]=apmag*(double)m73_ft8_2[z]; //llrd(59:77)=apmag*m73
-                        if (iaptype==6)
-                            llrz[z+58]=apmag*(double)mrr73_ft8_2[z];//llrd(59:77)=apmag*mrr73
+                        if (iaptype==4) llrz[z+58]=apmag*(double)mrrr_ft8_2[z]; //llrd(59:77)=apmag*mrrr
+                        if (iaptype==5) llrz[z+58]=apmag*(double)m73_ft8_2[z]; //llrd(59:77)=apmag*m73
+                        if (iaptype==6) llrz[z+58]=apmag*(double)mrr73_ft8_2[z];//llrd(59:77)=apmag*mrr73
                     }
                 }
                 //HOUND = MSHV no
@@ -1160,7 +1209,7 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
         int maxosd=2;   //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
         //if (ndepth<3) maxosd=1;//old if(ndepth.lt.3) maxosd=1
         if (ndepth==1) maxosd=-1; //2.42 ! BP only
-        if (ndepth==2) maxosd=0;  //2.42 ! uncoupled BP+OSD
+        if (ndepth==2) maxosd=0;//ws300rc1  //2.42 ! uncoupled BP+OSD
         //if(ndepth.eq.3 .and. (abs(nfqso-f1).le.napwid .or. abs(nftx-f1).le.napwid .or. ncontest.eq.7))
         if (ndepth==3 && (fabs(nfqso-f1)<=napwid || fabs(nftx-f1)<=napwid /*|| ncontest==7*/))//2.42
             maxosd=2;
@@ -1191,7 +1240,7 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
         }
         if (c_cw==174) continue;
 
-        int i3,n3;
+        //int i3,n3;
         n3=4*message91[71] + 2*message91[72] + message91[73];//??? check need
         i3=4*message91[74] + 2*message91[75] + message91[76];//??? check need
         // old if (i3>4 || (i3==0 && n3>5)) continue; //cycle
@@ -1200,6 +1249,12 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
         bool unpk77_success = false;
         message = TGenFt8->unpack77(message91,unpk77_success);  //qDebug()<<message<<unpk77_success;
         //qDebug()<<"100 Unpack=77--->"<<message<<i3<<n3<<unpk77_success<<f1;
+
+        /*if(!unpk77_success || message.indexOf("/R")>-1 || message.mid(0,4)=="TU; ")//ws300rc1 if(!unpk77_success || index(msg37,'/R')>0 || msg37(1:4)=='TU; ')
+        {
+          	if(i3>=1 && i3<=3 && cont_type==0) continue; //cont_type=ncontest   	
+        }*/
+
         if (!unpk77_success) continue; //cycle
         //if (nharderrors==21) qDebug()<<"100 Unpack=77="<<nbadcrc<<message<<unpk77_success;
 
@@ -1224,7 +1279,7 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
         if (xbase<=0.0) xbase=0.001;//no devide by zero
         xsnr=pomAll.db(xsig/xbase - 1.0) - 32.0 - 4.0;
 
-        if (nsync<=10 && xsnr<-24.0)    //220rc2 !bail out, likely false decode
+        if (nsync<=10 && xsnr<-25.0)//ws300rc1 if (nsync<=10 && xsnr<-24.0)    //220rc2 !bail out, likely false decode
         {
             nbadcrc=1;
             return;
@@ -1392,7 +1447,7 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
     int NMAX=15*DEC_SAMPLE_RATE;
     int NHSYM=NMAX/NSTEP-3;//372
     const int NH1=NFFT1/2;       //NH1=1920
-    const int max_c0 = 800;//2.69 old=400;//2.2.0=500 260r5=1000
+    const int max_c0 = 900;//2.69 old=400;//2.2.0=500 260r5=1000
     const int max_c_ = 600;//2.69 old=249 max 254 260r5=600
 
     //! Search over +/- 1.5s relative to 0.5s TX start time.
@@ -1472,7 +1527,7 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
         }
     } //qDebug()<<"1="<<nfa<<nfb<<nfb-nfa<<nfa1<<nfb1<<nfb1-nfa1;
     get_spectrum_baseline(dd,nfa1,nfb1,sbase);
-    
+
     /*int ib=int(nfb/df);
     double xavg = 0.0;
     if (decid>0)
@@ -1480,14 +1535,14 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
     	int ia0=fmax(0,int(nfa/df));
     	for (int i = ia0; i < ib; ++i) xavg+=sbase[i]; 
     	xavg /= (double)(ib-ia0);  
-   		if (xavg<-1.0) qDebug()<<"corr"<<decid<<xavg;
-   		else qDebug()<<"NO"<<decid<<xavg;    	 	
-   	}*/	
+    	if (xavg<-1.0) qDebug()<<"corr"<<decid<<xavg;
+    	else qDebug()<<"NO"<<decid<<xavg;    
+    }*/
 
-	int corrt = 0;
+    int corrt = 0;
     if (decid>0) corrt = 17;       //2.72 5=16Hz 17=53Hz 18=56Hz
     ia=fmax(0,(int(nfa/df)-corrt));//2.72 corrt for threads //ia=fmax(0,int(nfa/df));
-    
+
     int ib=int(nfb/df); //qDebug()<<"sync8="<<nfa<<ia<<ib;
     int nssy=NSPS/NSTEP;//! # steps per symbol =4
     int nfos=NFFT1/NSPS;//! # frequency bin oversampling factor =2
@@ -1511,7 +1566,7 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
             double t0c=0.0;
             for (int n = 0; n < 7; ++n)//do n=0,6
             {
-                int m=j+jstrt+nssy*n; //k=j+jstrt+nssy*n //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+                int m=(int)((double)(j+nssy*n)+jstrt); //k=j+jstrt+nssy*n //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
                 if (m>=0 && m<NHSYM) //if(k.ge.1.and.k.le.NHSYM) then
                 {
                     ta+=s_[m][i+nfos*icos7_2[n]]; //ta=ta + s(i+nfos*icos7(n),k)
@@ -1531,7 +1586,7 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
             double sync_abc; //stop devide by 0 HV double sync_abc=t/t0; if (t0==0.0) qDebug()<<"abc"<<decid<<t;
             if (t0==0.0) sync_abc=0.0;
             else sync_abc=t/t0;
-			
+
             t=tb+tc;
             t0=t0b+t0c;
             t0=(t0-t)/6.0;
@@ -1539,7 +1594,7 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
             if (t0==0.0) sync_bc=0.0;
             else sync_bc=t/t0;
 
-			//if (i>=ia) sync2d[i][j+offset_sync2d]=fmax(sync_abc,sync_bc); //sync2d(i,j)=fmax(sync_abc,sync_bc);
+            //if (i>=ia) sync2d[i][j+offset_sync2d]=fmax(sync_abc,sync_bc); //sync2d(i,j)=fmax(sync_abc,sync_bc);
             sync2d[i][j+offset_sync2d]=fmax(sync_abc,sync_bc); //sync2d(i,j)=fmax(sync_abc,sync_bc);
             //qDebug()<<sync_abc<<sync_bc<<fmax(sync_abc,sync_bc);
         }
@@ -1552,10 +1607,10 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
     }  //qDebug()<<"symbol="<<((2.5/0.16)*4)<<((0.65/0.16)*4);
     for (int i = ia; i < ib; ++i)//2.69
     {
-        int j0=(pomAll.maxloc_da_beg_to_end(sync2d[i],10,32+10)-offset_sync2d);//hv=Search over +/-0.6s = +-16 //260r5= +-10
+        int j0=(pomAll.maxloc_da_beg_to_end(sync2d[i],offset_sync2d-18,offset_sync2d+18)-offset_sync2d);//hv=Search over +/-0.6s = +-16 //260r5= +-10
         jpeak[i]=j0;
         red[i]=sync2d[i][j0+offset_sync2d];
-        j0=(pomAll.maxloc_da_beg_to_end(sync2d[i],10,124+10)-offset_sync2d);//Search over +/-2.5s = +-62
+        j0=(pomAll.maxloc_da_beg_to_end(sync2d[i],offset_sync2d-JZ,offset_sync2d+JZ)-offset_sync2d);//Search over +/-2.5s = +-62
         jpeak2[i]=j0;
         red2[i]=sync2d[i][j0+offset_sync2d];
     }
@@ -1617,7 +1672,7 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
         if (red[n]>=syncmin)
         {
             candidate0[0][k]=(double)n*df;
-            candidate0[1][k]=(double)jpeak[n]*tstep;//(jpeak(n)-0.5)  2.34 tested jpeak[n]-1 to jpeak[n] ///candidate0(2,k)=(jpeak(n)-1)*tstep
+            candidate0[1][k]=(double)(jpeak[n])*tstep;//(jpeak(n)-0.5)  2.34 tested jpeak[n]-1 to jpeak[n] ///candidate0(2,k)=(jpeak(n)-1)*tstep
             candidate0[2][k]=red[n];  //if (n>1500) qDebug()<<"n="<<n;
             k++;
         }
@@ -1627,7 +1682,7 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
         if (red2[n]>=syncmin)  //exit if(red(n).lt.syncmin.or.isnan(red(n)).or.k.eq.MAXPRECAND) exit
         {
             candidate0[0][k]=(double)n*df;
-            candidate0[1][k]=(double)jpeak2[n]*tstep;//(jpeak(n)-0.5)  2.34 tested jpeak[n]-1 to jpeak[n] ///candidate0(2,k)=(jpeak(n)-1)*tstep
+            candidate0[1][k]=(double)(jpeak2[n])*tstep;//(jpeak(n)-0.5)  2.34 tested jpeak[n]-1 to jpeak[n] ///candidate0(2,k)=(jpeak(n)-1)*tstep
             candidate0[2][k]=red2[n];  //if (n>1500) qDebug()<<"n="<<n;
             k++;
         }
@@ -1789,26 +1844,11 @@ void DecoderFt8::SetNewP(bool f)
 {
     f_new_p = f;
 }
+
 static bool s_3intFt8_d_ = true;//2.51 default
 void DecoderFt8::Decode3intFt(bool f)//2.39 remm
 {
-    s_3intFt8_d_ = f;
-    //qDebug()<<"DecoderFt8 s_3intFt_d_="<<s_3intFt_d_;
-}
-bool DecoderFt8::isgrid4(QString s)
-{
-    bool res = false;
-    if (s.count()>3)
-    {
-        int c1 = (int)s.at(0).toLatin1();
-        int c2 = (int)s.at(1).toLatin1();
-        int c3 = (int)s.at(2).toLatin1();
-        int c4 = (int)s.at(3).toLatin1();
-        if (c1>=(int)'A' && c1<=(int)'R' && c2>=(int)'A' && c2<=(int)'R' &&
-                c3>=(int)'0' && c3<=(int)'9' && c4>=(int)'0' && c4<=(int)'9')// && s.mid(0,4)!="RR73"
-            res = true;
-    }
-    return res;
+    s_3intFt8_d_ = f; //qDebug()<<"DecoderFt8 s_3intFt_d_="<<s_3intFt_d_;
 }
 int DecoderFt8::ft8_even_odd(QString s)//res=0 (even first), or res=1 (odd second)
 {
@@ -1854,7 +1894,7 @@ void DecoderFt8::ft8_a7_save(QString nutc,double dt,double f,QString msg)
     //QString msg1=msg0[1][j][i];//msg1=msg0(i,j,1)
     //nn=len(trim(msg1))
     //Include grid as part of message
-    if (isgrid4(w[nwords-1])) msg0[1][j][i]=msg0[1][j][i]+" "+w[nwords-1].trimmed();
+    if (pomFt.isgrid4(w[nwords-1])) msg0[1][j][i]=msg0[1][j][i]+" "+w[nwords-1].trimmed();
 
     //If a transmission at this frequency with message fragment "call_1 call_2"
     //was decoded in the previous sequence, flag it as "DO NOT USE" because
@@ -1899,14 +1939,15 @@ void DecoderFt8::ft8_a7d(double *dd0,bool &newdat,QString call_1,QString call_2,
     double bmetb[174];
     double bmetc[174];
     double bmetd[174];
+    double bmete[174];//ws300rc1
     double llra[174];
     double llrb[174];
     double llrc[174];
     double llrd[174];
     //double rcw[174];
     int itone[105];//NN
-    bool hdec[178];
-    bool nxor[178];
+    //bool hdec[178];
+    //bool nxor[178];
     double dmm[MAXMSG+50];
     QString msgbest = "";
     QString msgsent = "";
@@ -1921,7 +1962,7 @@ void DecoderFt8::ft8_a7d(double *dd0,bool &newdat,QString call_1,QString call_2,
     int nbadcrc = 1;
     nharderrors=-1;
     int nsync = 0;
-    ft8_downs_sync_bmet(dd0,true,newdat,f1,xdt,nbadcrc,nsync,s8_,bmeta,bmetb,bmetc,bmetd);
+    ft8_downs_sync_bmet(dd0,true,newdat,f1,xdt,nbadcrc,nsync,s8_,bmeta,bmetb,bmetc,bmetd,bmete,2,3);
     /*if (!ft8_downs_sync_bmet(dd0,true,newdat,f1,xdt,nbadcrc,nsync,s8_,bmeta,bmetb,bmetc,bmetd))
     {
        	if (nsync<2) return;
@@ -1943,84 +1984,18 @@ void DecoderFt8::ft8_a7d(double *dd0,bool &newdat,QString call_1,QString call_2,
     int count_msg = MAXMSG;
     for (int i = 0; i < MAXMSG; ++i)
     {
-        //QString msg = msg0;
-        QString msg = call_1+" "+call_2;
-        if (call_1=="CQ" && i!=4) msg = "QU1RK "+call_2;
-        if (!std_1)
-        {
-            if (i==0 || i>=5) msg = "<"+call_1+"> "+call_2;
-            if (i>=1 && i<=3) msg = call_1+" <"+call_2+">";
-        }
-        else if (!std_2)
-        {
-            if (call_1=="CQ" && i!=4) msg = "QU1RK "+call_2;//HV add
-            else
-            {
-                if (i<=3 || i==5) msg = "<"+call_1+"> "+call_2;
-                if (i>=6) msg = call_1+" <"+call_2+">";  //if (i==5) msg = "TNX 73 GL";
-            }
-        }
-        //else if (i==0) msg = msg0.trimmed();
-        if (i==1) msg.append(" RRR");
-        if (i==2) msg.append(" RR73");
-        if (i==3) msg.append(" 73");
-        if (i==4)
-        {
-            if (std_2)
-            {
-                msg = "CQ "+call_2;//+" "+hisgrid.mid(0,4);//KN23SF
-                QString call_10 = call_1+"xxxx";//2.70
-                if (call_10.mid(2,1)=="_") msg = call_1+" "+call_2;
-                if (grid4!="RR73") msg = msg.trimmed()+" "+grid4;
-            }
-            if (!std_2) msg = "CQ "+call_2;//KN23SF
-        }
-        if (i==5 && std_2) msg.append(" "+grid4.mid(0,4));
-        if (i>=6 && i<MAXMSG)
-        {
-            if (i>12 && msg.startsWith("QU1RK "))
-            {
-                //not possyble "CQ <TM22KPW> -26"
-                //not possyble "CQ LZ2HV R-26"
-                //qDebug()<<"BREAK--->"<<msg<<"msgbest="<<msgbest;
-                count_msg = i;
-                break;
-            }
-
-            //int isnr = -50 + (i-6)/2;// -50 to +49
-            int isnr = -26 + (i-6)/2;  // -26 to +49
-            if (((i+1) & 1)==1)
-            {
-                if (isnr>-1) msg.append(" +"+QString("%1").arg(abs(isnr),2,10,QChar('0')));
-                else msg.append(" -"+QString("%1").arg(abs(isnr),2,10,QChar('0')));
-            }
-            else
-            {
-                if (isnr>-1) msg.append(" R+"+QString("%1").arg(abs(isnr),2,10,QChar('0')));
-                else msg.append(" R-"+QString("%1").arg(abs(isnr),2,10,QChar('0')));
-            }
-        }
-        /*if (!std_2)
-        {
-        	qDebug()<<i<<msg<<"----Call_2="<<call_2;
-        	if (i==MAXMSG-1) qDebug()<<"------------------------------";
-        }*/
-
+        QString msg;
         int i3=0;
         int n3=0;
+        if (pomFt.SetAp7Msg(call_1,std_1,call_2,std_2,grid4,i,msg,count_msg)) break;
         for (int z= 0; z < 176; ++z)
         {
             if (z<100) c77[z]=0;
             cw[z] = 0;
         }
-
         TGenFt8->pack77(msg,i3,n3,c77);
         TGenFt8->make_c77_i4tone_codeword(c77,itone,cw);
-
-        if (msg.startsWith("QU1RK "))
-        {
-            msgsent = msg;
-        }
+        if (msg.startsWith("QU1RK ")) msgsent = msg;
         else
         {
             bool unpk77_success = false;
@@ -2029,84 +2004,13 @@ void DecoderFt8::ft8_a7d(double *dd0,bool &newdat,QString call_1,QString call_2,
         }
         //if (msgsent!=msg.trimmed()) qDebug()<<"---------------"<<i<<msg<<msgsent; //no-std-call problem  "CQ <TM22KPW> R-26"
         //if (msgsent.isEmpty()) msgsent = "QU1RK ";
-
-        //for (int z= 0; z < 176; ++z) rcw[]=2*cw-1 //rcw=2*cw-1
-        /*double pow0=0.0;
-        for (int z= 0; z < 79; ++z)//double s8_[NN][8];
-        {
-            pow0+=s8_[z][itone[z]]*s8_[z][itone[z]];  //pow=pow+s8_(itone[i],i)**2
-        }*/
         double pow0=0.0;
         for (int z = 0; z < 79; ++z)
         {
             double s88 = s8_[z][itone[z]]*0.001;//1000.0; //s8_/1000.0 = s2_  HV from v1.
-            pow0=pow0+s88*s88;
-        }
-
-        double da = 0.0;
-        double dbb= 0.0;
-        double dc = 0.0;
-        double dd = 0.0;
-        for (int z= 0; z < 174; ++z)
-        {
-            hdec[z] = 0;
-            if (llra[z]>=0.0) hdec[z] = 1;
-            nxor[z]=hdec[z] ^ cw[z];
-            da+=(double)nxor[z]*fabs(llra[z]);
-            hdec[z] = 0;
-            if (llrb[z]>=0.0) hdec[z] = 1;
-            nxor[z]=hdec[z] ^ cw[z];
-            dbb+=(double)nxor[z]*fabs(llrb[z]);
-            hdec[z] = 0;
-            if (llrc[z]>=0.0) hdec[z] = 1;
-            nxor[z]=hdec[z] ^ cw[z];
-            dc+=(double)nxor[z]*fabs(llrc[z]);
-            hdec[z] = 0;
-            if (llrd[z]>=0.0) hdec[z] = 1;
-            nxor[z]=hdec[z] ^ cw[z];
-            dd+=(double)nxor[z]*fabs(llrd[z]);
-        }
-
-        double dm = da;
-        if (dbb<dm) dm=dbb;
-        if (dc<dm)  dm=dc;
-        if (dd<dm)  dm=dd;
-        dmm[i]=dm;
-        if (dm<dmin)
-        {
-            dmin=dm;
-            msgbest=msgsent;
-            pbest=pow0;
-            nharderrors = -1;
-            if (dm==da)
-            {
-                for (int z= 0; z < 174; ++z)
-                {
-                    if ((double)(2*cw[z]-1)*llra[z]<0.0) nharderrors++;
-                }
-            }
-            else if (dm==dbb)
-            {
-                for (int z= 0; z < 174; ++z)
-                {
-                    if ((double)(2*cw[z]-1)*llrb[z]<0.0) nharderrors++;
-                }
-            }
-            else if (dm==dc)
-            {
-                for (int z= 0; z < 174; ++z)
-                {
-                    if ((double)(2*cw[z]-1)*llrc[z]<0.0) nharderrors++;
-                }
-            }
-            else if (dm==dd)
-            {
-                for (int z= 0; z < 174; ++z)
-                {
-                    if ((double)(2*cw[z]-1)*llrd[z]<0.0) nharderrors++;
-                }
-            }
-        }
+            pow0+=(s88*s88);
+        }        
+        pomFt.TryDecAp7(llra,llrb,llrc,llrd,cw,dmm,i,msgsent,pow0,dmin,msgbest,pbest,nharderrors);
     }
 
     int pos = 0;
@@ -2139,7 +2043,7 @@ void DecoderFt8::ft8_a7d(double *dd0,bool &newdat,QString call_1,QString call_2,
     double arg=pbest/xbase/3.0e6 - 1.0;
     if (arg>0.0) xsnr=fmax(-24.0,pomAll.db(arg)-27.0);*/
     if (xbase<=0.0) xbase=0.001;
-    xsnr=pomAll.db(pbest/xbase - 1.0) - 32.0 - 4.0;
+    xsnr=pomAll.db(pbest/xbase - 1.0) - 36.0;
     if (xsnr < -25.0) xsnr=-25.0;
     if (xsnr > 49.0)  xsnr=49.0;
 
@@ -2161,8 +2065,303 @@ void DecoderFt8::ft8_a7d(double *dd0,bool &newdat,QString call_1,QString call_2,
     }*/
     if (nharderrors>95) nharderrors=-1;
 }
+void DecoderFt8::gen_ft8cwaveRxAp8(int *i4tone,double f_tx,double complex *cwave)
+{
+    //////////////////////// GFSK MODULATOR ///////////////////////////////////////////
+    //const int NTAB=65536;
+    int nsym=79;
+    int nsps=32; //for 200.0   for 12000=1920 for=48000->4*1920;
+    int nwave=nsym*nsps;//max rx=2528
+    //static double dphi[155570];
+    double hmod=1.0;
+    double dt=1.0/200.0;//for=200.0 for RX=12000 for tx=48000
+
+    //! Compute the smoothed frequency waveform.
+    //! Length = (nsym+2)*nsps samples, zero-padded (nsym+2)*nsps TX=215040 RX=53760
+    double dphi_peak=twopi*hmod/(double)nsps;
+    double *dphi = new double[3000];  //max rx=2592 dphi=79*32=2528 + 32*2=2592 //max rx=155520    dphi=79*1920=151680 + 1920*2=155520
+
+    for (int i= 0; i < 2700; ++i) dphi[i]=0.0;
+
+    for (int j= 0; j < nsym; ++j)
+    {
+        int ib=j*nsps;
+        for (int i= 0; i < 3*nsps; ++i)//5760
+            dphi[i+ib] += dphi_peak*pulse_ft8_rxAp8[i]*(double)i4tone[j];
+    }
+
+    int bgn =nsym*nsps;//=151680
+    for (int i= 0; i < 2*nsps; ++i)//=3840
+    {
+        dphi[i]+=dphi_peak*i4tone[0]*pulse_ft8_rxAp8[i+nsps];
+        dphi[i+bgn]+=dphi_peak*i4tone[nsym-1]*pulse_ft8_rxAp8[i];
+    }
+
+    double ofs = twopi*f_tx*dt;
+    double phi=0.0;
+    for (int j=0; j < nwave; ++j)//for (int j=nsps; j < nsps+nwave-1; ++j)//=151680   do j=nsps,nsps+nwave-1
+    {
+        //2.39 old cwave[j]=(cos(phi)+sin(phi)*I);
+        int i=(int)(phi*65536.0/twopi); //16777216.0  65536.0
+        //if (i<0 || i>65535) qDebug()<<i;
+        if (i<0) 	 i=0;
+        if (i>65535) i=65535;
+        cwave[j]=ctab8_[i];
+        phi=fmod(phi+dphi[j+nsps]+ofs,twopi);
+    }
+
+    int nramp=(int)((double)nsps/8.0);
+    for (int i = 0; i < nramp; ++i) cwave[i]*=(1.0-cos(twopi*(double)i/(2.0*nramp)))/2.0;
+    int k2=nsym*nsps-nramp+1; //k1=nsym*nsps-nramp+1   //k2=(nsym+1)*nsps+1;
+    for (int i = 0; i < nramp; ++i) cwave[i+k2]*=(1.0+cos(twopi*(double)i/(2.0*nramp)))/2.0;//i+k1-nsps
+    //qDebug()<<"nsamp="<<k2+nramp-1;
+    delete [] dphi;
+}
+void DecoderFt8::ft8_a8d(double *dd,QString mycall,QString dxcall,QString dxgrid,double f1a,double &xdt,
+                         double &fbest,double &xsnr,double &plog,QString &msgbest)
+{
+    //! List decoding for FT8, activated only at nfqso (Rx Freq) +/- 10 Hz and when
+    //! DxCall and DxGrid are populated. Returns xdt, fbest, and msgbest.
+    const int NZZ=3200;               //!Length of downsampled arrays
+    const int NFFT=NZZ;
+    const int NH=NFFT/2;//=1600
+    const int NN=79;                  //!Total channel symbols (79)
+    const int NSPS=1920;              //!Samples per symbol at 12000 S/s
+    const int NDOWN=60;
+    const int NWAVE=NN*NSPS/NDOWN;    //!Length of generated cwave = 2528
+    const int NMSGS=206;
+    const int offset_s = NH+4;
+
+    double complex cd[NZZ+512];//3350 double complex *cd = new double complex[NZZ+512];//
+    double complex cd0[NZZ+512];//!All tones in cd nominally shifted to 0 Hz double complex *cd0= new double complex[NZZ+512];//
+    double f1=f1a;
+    bool newdat=true;
+    //! Mix from f1 to baseband and downsample from dd into cd (complex, 200 Hz sampling)
+    for (int i= 0; i < NZZ+100; ++i) cd[i]=0.0+0.0*I;
+    ft8_downsample(dd,newdat,f1,cd);//ft8_downsample(dd,newdat,f1,cd)
+    double fac=1.e-6;
+    double fsd=200.0;//!Downsampled rate (Hz)
+    //double bt=2.0; //!Gaussian smoothing parameter
+    double dt=1.0/fsd;
+    double df=200.0/(double)NFFT;
+    double s [NH*2+200]; //real s(-NH:NH) !Power spectrum of cd0
+    double s0[NH*2+200]; //double *s0 = new double[NH*2+200]; //double s0[NH*2+200]; //!Best-fit re-centered spectrum for this msg
+    double s1[NH*2+200]; //!Overall best-fit re-centered spectrum
+    int itone[NN+40];
+    int itone_best[NN+40];
+    double complex *cwave= new double complex[NZZ+512]; //double complex cwave[NZZ+512];//complex cwave(0:NZZ-1)!Complex waveform corresponding to msg
+    //bool c77[140];
+    double a[10];
+    double complex csymb[32+10];//(0:31)
+    double s8[8+2];//real s8(0:7)
+
+    for (int i= 0; i < NH*2+190; ++i) s[i]=0.0;//s=0.
+    //ss=0.
+    //sq=0.
+    //! Find the message that fits the received waveform best
+    double sbest=0.0;
+    double tbest=0.0;
+    fbest=0.0;
+    msgbest="";
+    for (int i= 0; i < NN+10; ++i) itone_best[i]=0;
+    bool my_std  = pomAll.isStandardCall(mycall.trimmed());
+    bool his_std = pomAll.isStandardCall(dxcall.trimmed());
+    QString msg,msgsent;
+    for (int i = 0; i < NMSGS; ++i)//do imsg=1,NMSGS
+    {
+        msg = mycall+" "+dxcall;//call getmsg(imsg,mycall,dxcall,dxgrid,msg)
+        if (!my_std)
+        {
+            //if (i==0) msg = "<"+mycall+"> "+hiscall;
+            //if (i>=5) msg = "<"+mycall+"> "+hiscall+" ";
+            if (i==0 || i>=5) msg = "<"+mycall+"> "+dxcall;
+            if (i>=1 && i<=3) msg = mycall+" <"+dxcall+">";
+        }
+        else if (!his_std)
+        {
+            //if(i==0) msg = "<"+mycall+"> "+hiscall;
+            //if(i>=1 && i<=3) msg = "<"+mycall+"> "+hiscall+" ";
+            if (i<=3 || i==5) msg = "<"+mycall+"> "+dxcall;//wsjt252
+            //if (i==5) msg = "TNX 73 GL";
+            if (i>=6) msg = mycall+" <"+dxcall+">";
+        }
+        //else if (i==0) msg = msg0.trimmed();
+        if (i==1) msg.append(" RRR");
+        if (i==2) msg.append(" RR73");
+        if (i==3) msg.append(" 73");
+        if (i==4)
+        {
+            if (his_std)  msg="CQ "+dxcall+" "+dxgrid.mid(0,4);//KN23SF
+            if (!his_std) msg="CQ "+dxcall;//KN23SF
+        }
+        if (i==5 && his_std) msg.append(" "+dxgrid.mid(0,4));
+        if (i>=6 && i<206)
+        {
+            int isnr = -50 + (i-6)/2; //isnr = -50 + (i-7)/2 ss.append(QString("%1").arg(abs(s.toInt()),2,10,QChar('0')));
+            if (((i+1) & 1)==1)
+            {
+                if (isnr>-1) msg.append(" +"+QString("%1").arg(abs(isnr),2,10,QChar('0')));
+                else msg.append(" -"+QString("%1").arg(abs(isnr),2,10,QChar('0')));
+            }
+            else
+            {
+                if (isnr>-1) msg.append(" R+"+QString("%1").arg(abs(isnr),2,10,QChar('0')));
+                else msg.append(" R-"+QString("%1").arg(abs(isnr),2,10,QChar('0')));
+            }
+        }
+        //! Source-encode the message, get itone(), and generate complex FT8 waveform.
+        //int i3=-1;
+        //int n3=-1;//bool cw[180];
+        //TGenFt8->pack77(msg,i3,n3,c77); //call pack77(msg,i3,n3,c77)
+        //TGenFt8->make_c77_i4tone(c77,itone);//TGenFt8->make_c77_i4tone_codeword(c77,itone,cw);//call genft8(msg,i3,n3,msgsent,msgbits,itone)
+        TGenFt8->pack77_make_c77_i4tone(msg,itone);
+        gen_ft8cwaveRxAp8(itone,0.0,cwave); //call gen_ft8wave(itone,NN,32,bt,fsd,0.0,cwave,xjunk,1,NWAVE)
+        for (int x = NWAVE; x < NZZ+1; ++x) cwave[x]= 0.0+0.0*I;//cwave(NWAVE:)=0.
+        //! For this message, find the best lag
+        double spk=0.0;
+        double fpk=0.0;
+        double tpk=0.0;
+        int lagpk=0;
+        int lag1=-200; //if(i==107) qDebug()<<i<<"cw="<<creal(cd[0])<<creal(cd[10])<<creal(cd[30])<<creal(cd[200]);
+        int lag2=200;  //if(i==107) qDebug()<<i<<"cw="<<creal(cwave[0])<<creal(cwave[10])<<creal(cwave[30])<<creal(cwave[200]);
+        int lagstep=4; //if(i==107) qDebug()<<i<<"itone="<<itone[0]<<itone[1]<<itone[78]<<itone[79]<<itone[80];
+        for (int iter = 1; iter <= 2; ++iter)
+        {//do iter=1,2
+            if (iter==2)
+            {
+                lag1=lagpk-8;
+                lag2=lagpk+8;
+                lagstep=1;
+            }
+            for (int lag = lag1; lag <= lag2; lag+=lagstep)
+            {//do lag=lag1,lag2,lagstep c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+                for (int ii = 0; ii < NWAVE; ++ii)
+                {// do i=0,NWAVE-1
+                    int j=ii+lag+100;
+                    cd0[ii]=0.0+0.0*I;
+                    if (j>=0 && j<=NWAVE-1) cd0[ii]=cd[j]*conj(cwave[ii]);//if(j.ge.0 .and. j.le.NWAVE-1) cd0(i)=cd(j)*conjg(cwave(i))
+                }
+                for (int ii = NWAVE; ii < NZZ; ++ii) cd0[ii]=0.0+0.0*I;//cd0(NWAVE:)=0.
+                f2a.four2a_c2c(cd0,NFFT,-1,1,decid);// call four2a(cd0,NFFT,1,-1,1) //!Forward c2c FFT
+                for (int ii = 0; ii < NFFT; ++ii)
+                {//do i=0,NFFT-1
+                    int j=ii;
+                    if (ii>NH) j=ii-NFFT;
+                    s[j+offset_s]=fac*pomAll.ps_hv(cd0[ii]);//(real(cd0[ii])**2 + aimag(cd0(ii))**2)
+                } //qDebug()<<i<<msg;  continue;
+                pomAll.smo121(s,0,NFFT+0);//call smo121(s,NFFT+1)
+                //double smax=0.0;
+                for (int j = -NH; j <=NH ; ++j)
+                {//do j=-NH,NH
+                    //smax=fmax(s[j+offset_s],smax);
+                    if (s[j+offset_s]>spk)
+                    {
+                        spk=s[j+offset_s];
+                        fpk=(j*df) + f1;//fpk=(j+offset_s)*df + f1;
+                        lagpk=lag;
+                        tpk=lag*dt;
+                        for (int x = 0; x < NH*2+190; ++x) s0[x]=s[x]; //s0=s //!Save best-fit spectrum for this msg
+                        //if(i==107)qDebug()<<"ITER="<<i<<iter<<msg<<spk;
+                    }
+                }//! j*/
+            }
+        }
+        if (spk>sbest)
+        {
+            sbest=spk;
+            fbest=fpk;
+            tbest=tpk;
+            msgbest=msg;
+            for (int x = 0; x < NN+10; ++x) itone_best[x]=itone[x];
+            for (int x = 0; x < NH*2+190; ++x) s1[x]=s0[x]; //!Save overall best-fit spectrum
+            //qDebug()<<i<<msg;
+        }
+    }
+    for (int i = 0; i < 6; ++i) a[i]=0.0;//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+    a[0]=f1-fbest;
+    //qDebug()<<"MSG="<<msgbest<<f1<<fbest<<f1-fbest;
+    //!  if(abs(a(1)+5.0).gt.10.0) then             !Effective Ftol = 10 Hz
+    if (fabs(a[0])>5.0) msgbest="";//if(abs(a(1)).gt.5.0) then                   !Effective Ftol = 5 Hz
+    if (!msgbest.isEmpty())
+    {
+        pomFt.twkfreq1(cd,NZZ,200.0,a,cd);//twkfreq1(cd,NZZ,200.0,a,cd)           !Re-center the spectrum
+        xdt=tbest;
+        double sum0 = 0.0;
+        double sum1 = 0.0; //qDebug()<<"S1="<<s1[100]<<s1[120]<<s1[140]<<s1[150];
+        for (int i = offset_s; i <= offset_s+100; ++i)//(sum(s1(-200:-100)) + sum(s1(100:200)))/202.0
+        {
+            sum0+=s1[i-200];
+            sum1+=s1[i+100];
+        }
+        double ave=(sum0+sum1)/202.0;
+        for (int i = 0; i < NH*2+10; ++i) s1[i]=s1[i]/ave - 1.0; //s1=s1/ave - 1.0
+        double s1pk=pomAll.maxval_da_beg_to_end(s1,offset_s-32,offset_s+32+1);//maxval(s1(-32:32))
+        double sig=0.0;
+        int nsig=0;
+        for (int i = -32; i <= 32; ++i)
+        {//do i=-32,32
+            if (s1[i+offset_s]<0.5*s1pk) continue;
+            sig += s1[i+offset_s];//*0.00001;
+            nsig++;
+        } //qDebug()<<"MSG3========="<<msgbest<<"SIG="<<sig<<nsig;
+        sig=sig/nsig;
+        xsnr=pomAll.db(sig)-42.0;//db(sig)-35.0;
+        if (xsnr<-30.0) xsnr=-30.0;
+        //qDebug()<<"MSG3========="<<msgbest<<"xsnr="<<xsnr;
+        int ipk = 0;
+        //if (!msgbest.isEmpty())
+        //{
+        plog=0.0;//! Compute probability of successful decode.
+        int nhard=0;
+        int nsum=0;
+        double sum_sync=0.0;
+        double sum_sig=0.0;
+        double sum_big=0.0;
+        for (int k = 0; k <NN; ++k)//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+        {//do k=1,NN
+            int i0=32*k + (int)((tbest+0.5)/0.005);
+            for (int z = 0; z < 33; ++z) csymb[z]=0.0+0.0*I;
+            for (int i = 0; i < 32; ++i)
+            {//do i=0,31
+                if (i0+i>=0 && i0+i<=NZZ-1) csymb[i]=cd[i0+i];//if(i0+i.ge.0 .and. i0+i.le.NZZ-1) csymb(i)=cd(i0+i)
+            }
+            f2a.four2a_c2c(csymb,32,-1,1,decid);//four2a(csymb,32,1,-1,1)           !c2c
+            double s8sum = 0.0;
+            for (int i = 0; i < 8; ++i)
+            {//do i=0,7
+                s8[i]=pomAll.ps_hv(csymb[i]);//real(csymb(i))**2 + aimag(csymb(i))**2
+                s8sum+=s8[i];//s8sum=sum(s8)
+            }
+            if (s8sum>0.0)
+            {
+                double p=s8[itone_best[k]]/s8sum;
+                if (p<0.0000001) p=0.0000001;
+                plog+=log(p);
+                nsum++;
+            }
+            ipk=pomAll.maxloc_da_beg_to_end(s8,0,8);//ipk=maxloc(s8)-1
+            if (ipk!=itone_best[k]) nhard++;//if(ipk(1).ne.itone_best(k)) nhard=nhard+1
+            //if(k.le.7 .or. (k.ge.37 .and. k.le.43) .or. k.ge.73) then
+            if (k<=7-1 || (k>=37-1 && k<=43-1) || k>=73-1) sum_sync += s8[itone_best[k]];
+            else sum_sig += s8[itone_best[k]];
+            sum_big += s8[ipk];
+        }
+        if (nsum<NN) plog += (NN-nsum)*log(0.125);//if(nsum.lt.NN) plog=plog + (NN-nsum)*log(0.125)
+        double sigobig=(sum_sync+sum_sig)/sum_big;
+        //!write(60,3060) nsum,xdt,fbest,xsnr,plog,nhard,sigosync,sigobig,trim(msgbest)
+        //!3060 format(i2,f8.3,3f8.1,i5,2f7.2,1x,a)
+        //if(nhard.gt.54 .or. plog.lt.-159.0 .or. sigobig.lt.0.71) msgbest=''
+        if (nhard>54 || plog<-159.0 || sigobig<0.71) msgbest="";
+        //qDebug()<<" END="<<nhard<<plog<<sigobig<<msgbest<<"FrDtSnr="<<fbest<<xdt<<xsnr;
+        //}
+    }
+    //delete [] s0;
+    delete [] cwave;
+    //delete [] cd0;
+    //delete [] cd;
+}
 void DecoderFt8::PrintMsg(QString tmm,int nsnr,double xdt,double f1,QString message,
-                          int iaptype,float nhr,float dmi,bool &have_dec,bool fshow)
+                          int iaptype,float nhr,float dmi,bool &have_dec,bool fshow,bool qual_eq_dmin,bool fsd)
 {
     if (fshow)//2.69
     {
@@ -2172,11 +2371,14 @@ void DecoderFt8::PrintMsg(QString tmm,int nsnr,double xdt,double f1,QString mess
             emit EmitBackColor();
         }
         float qual=1.0-(nhr+dmi)/60.0; //scale qual to 0.0-1.0
+        if (qual_eq_dmin) qual=dmi;
         if (qual<0.001) qual=0.0;//no show -0.0
         QString str_iaptype = "";
         if (qual<0.17) str_iaptype = "? ";
         if (iaptype!=0) str_iaptype.append("AP");
+        if (iaptype>8) iaptype=9;//2.76.5
         str_iaptype.append(QString("%1").arg(iaptype));
+        if (fsd) str_iaptype.append("s");
         int df_hv = f1-s_nftx8;
         QString sdtx = QString("%1").arg(xdt,0,'f',1);
         if (sdtx=="-0.0") sdtx="0.0";//remove -0.0 exception
@@ -2187,59 +2389,98 @@ void DecoderFt8::PrintMsg(QString tmm,int nsnr,double xdt,double f1,QString mess
         <<QString("%1").arg(qual,0,'f',1)
         <<QString("%1").arg((int)f1);
         emit EmitDecodetTextFt(list);//1.27 psk rep fopen bool true, false no file open
-        have_dec = true;
+        have_dec = true; //qDebug()<<message.indexOf(s_HisCall8)<<s_HisCall8;
+        if (s_HisCall8.count()>2 && message.indexOf(s_HisCall8)>-1) s_ltry_a8=false;//ws300rc1 if(index(msg37,trim(hiscall12)).gt.0) la8=.false.
     }
     if (!s_fopen8 && message.count()>2) ft8_a7_save(tmm,xdt,f1,message);//2.70 for ap7 s_fopen8 and no empty msg
+}
+void DecoderFt8::TryAp8(double *dd,bool fl_lapon,int id3dec,int cont_type,double nfqso,bool &have_dec)
+{
+	//if (fl_lapon && id3dec>2 && s_ltry_a8 && s_HisCall8.count()>2 && s_HisGrid8.count()>3 && !s_fopen8 && cont_type==0)
+	if (!fl_lapon || s_fopen8 || s_HisCall8.count()<3 || s_HisGrid8.count()<4) return;
+	//if (!s_ltry_a8 || id3dec<3 || !fl_lapon || s_fopen8 || cont_type!=0 || s_HisCall8.count()<3 || s_HisGrid8.count()<4) return;
+    if (id3dec>2 && s_ltry_a8 && cont_type==0)
+    {
+        double f1=nfqso;//! Try for an a8 decode at nfqso
+        QString message;
+        double xsnr = 0.0;
+        double plog = 0.0;
+        double xdt = 0.0;
+        double fbest = 0.0; //qDebug()<<"START AP8 -> "<<"DecID="<<decid<<s_ltry_a8<<s_HisCall8<<s_HisGrid8<<f1;
+        ft8_a8d(dd,s_MyBaseCall8,s_HisCall8,s_HisGrid8,f1,xdt,fbest,xsnr,plog,message);
+        if (!message.isEmpty())//if(msg37(1:1).ne.' ') then //message.mid(0,1)!=" "
+        {
+            int nsnr=(int)xsnr;//sync=10.0;//  !### ???
+            double qual=1.0;
+            if (plog<-147.0) qual=0.16;//call this%callback(sync,nsnr,xdt,fbest,msg37,iaptype,qual)
+            PrintMsg(s_time8,nsnr,xdt,f1,message,8,qual,qual,have_dec,true,true,false);
+        }
+    }
 }
 void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqso,bool &have_dec,
                             int id3dec,double w_f00,double w_f01)//,int /*npts no need*/)
 {
     have_dec = false;
+    if (f_new_p) s_ndecodes=0;
+
+    double nfqso=fqso; //1500.0; // mybe from waterfull scale
+    double nfqso2=fqso;//2.72
+    double nfa=f0a;//100.0;              // mybe from waterfull scale
+    double nfb=f0b;//3000.0;             // mybe from waterfull scale
+    bool nagain = false;//s_mousebutton = mousebutton; //mousebutton Left=1, Right=3 fullfile=0 rtd=2
+    if (s_mousebutton8==3) nagain = true;
+    if (nagain)
+    {
+        nfa = nfqso-25;//ntol = 25;// +/-10 hv +/-25
+        nfb = nfqso+25;
+    }
+    //double corrt = 0.0;
+    //if (decid>0) corrt = 56.0;//2.72 5=16Hz 18=56Hz
+    bool lqsothread=true;
+    nfa=fmax(100,nfa);//nfa=fmax(100,nfqso-ntol);    //hv nfa down
+    nfa=fmin(5000-10,nfa);       //hv nfa up
+    nfb=fmax(100+10,nfb);//nfb=fmax(100+10,nfqso+ntol); //hv nfb down
+    nfb=fmin(5000,nfb); //qDebug()<<"FT8 D="<<decid<<nfa<<nfb<<nfqso<<id3dec;
+    if (id3dec==1 || id3dec==100) s_ltry_a8=true;
+    if (nfqso<nfa || nfqso>nfb)
+    {
+        nfqso = nfa + ((nfb-nfa)/2.0);
+        s_ltry_a8=false; //ws300rc1 nfqso out of decoder bandwidth
+        lqsothread=false;
+    }    //qDebug()<<decid<<"try_a8="<<s_ltry_a8;
+
+    bool use_var_dec = s_use_var_dec; //qDebug()<<"USE_VAR_DEC="<<use_var_dec;
+    int jseqr = ft8_even_odd(s_time8);
+    bool f_eve0_odd1=true;
+    if (jseqr==0) f_eve0_odd1=false;
+    if (use_var_dec)
+    {
+        if (id3dec==1 || id3dec==100) 
+        {
+        	lqsomsgdcd=false;//HV if not early decode period, make only if full period
+    		msgroot=s_MyCall8+" "+s_HisCall8;//if (decid==0) qDebug()<<"---------------------------"; qDebug()<<decid<<"   ---SD Reset="<<msgroot<<lqsomsgdcd;
+        	ft8_SetStart_ev_od_var(f_eve0_odd1,s_band8);        	
+       	}
+        if (!s_3intFt8_d_)
+        {
+            ft8_decodevar(dd,c_dd,nfa,nfb,nfqso,have_dec,w_f00,w_f01,nagain,lqsothread,f_eve0_odd1);
+            return;
+        }
+    }
+
     int cont_type = 0;
     int cont_id   = 0;
     if (!f_multi_answer_mod8)
     {
         cont_type = s_ty_cont_ft8_28;
         cont_id   = s_id_cont_ft8_28;
-    }
-    //qDebug()<<"ncontest="<<ncontest;
+    } //qDebug()<<"ncontest="<<ncontest;
     QString his_call_f = s_HisCall8;
     //bool f_only_one_color = true;
     int iaptype = 4; //2.00 = RRR
     //const int DD=58;
     int apsym2[63];//58+5
     bool lsubtract;
-
-    //int ntol = G_DfTolerance;
-    //double nfa=s_f00;//100.0;              // mybe from waterfull scale
-    //double nfb=s_f01;//3000.0;             // mybe from waterfull scale
-
-    double nfa=f0a;//100.0;              // mybe from waterfull scale
-    double nfb=f0b;//3000.0;             // mybe from waterfull scale
-    double nfqso=fqso; //1500.0; // mybe from waterfull scale
-    double nfqso2=fqso;//2.72
-
-    //newdat=1  ==> this is new data, must do the big FFT
-    //nagain=1  ==> decode only at fQSO +/- Tol
-    bool nagain = false;//s_mousebutton = mousebutton; //mousebutton Left=1, Right=3 fullfile=0 rtd=2
-    if (s_mousebutton8==3) nagain = true;
-    //qDebug()<<s_mousebutton;
-
-    if (nagain)
-    {
-        //ntol = 25;// +/-10 hv +/-25
-        nfa = nfqso-25;
-        nfb = nfqso+25;
-    }
-    //double corrt = 0.0;
-    //if (decid>0) corrt = 56.0;//2.72 5=16Hz 18=56Hz
-    nfa=fmax(100,nfa);//nfa=fmax(100,nfqso-ntol);    //hv nfa down
-    nfa=fmin(5000-10,nfa);       //hv nfa up
-    nfb=fmax(100+10,nfb);//nfb=fmax(100+10,nfqso+ntol); //hv nfb down
-    nfb=fmin(5000,nfb);          //hv nfb up
-
-    if (nfqso<nfa || nfqso>nfb) nfqso = nfa + ((nfb-nfa)/2.0);
-    //qDebug()<<"FT8 D="<<decid<<nfa<<nfb<<nfqso;
 
     if (nutc0=="-1")
     {
@@ -2261,7 +2502,6 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
     {
         if (ndec[1][jseq]==0) c_zerop++; //2.66 HV add
         else c_zerop=0;
-
         int iz=ndec[1][jseq];
         for (int i = 0; i < iz; ++i)
         {
@@ -2269,7 +2509,6 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
             f0[0][jseq][i]   = f0[1][jseq][i];
             msg0[0][jseq][i] = msg0[1][jseq][i];
         }
-
         int t_ss1 =  s_time8.midRef(4,2).toInt();
         int t_mm1 =  s_time8.midRef(2,2).toInt();
         int t_hh1 =  s_time8.midRef(0,2).toInt();
@@ -2278,10 +2517,9 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
         t_mm1 =  nutc0.midRef(2,2).toInt();
         t_hh1 =  nutc0.midRef(0,2).toInt();
         int t_p0  = (t_hh1*3600)+(t_mm1*60)+t_ss1;
-        //bool resss = false;
-        if (t_p1-t_p0>45 || c_zerop>2)//2.66 HV add=3p   if (t_p1-t_p0>60 || c_zerop>3)//2.66 HV add=4p
+        if (t_p1-t_p0>45 || c_zerop>2 || s_band8!=band8)//2.66 HV add=3p   if (t_p1-t_p0>60 || c_zerop>3)//2.66 HV add=4p
         {
-            //45 and 3 for 3 periods//60 and 4 for 4 periods ...
+            //ft8 45 and 3 for 3 periods//60 and 4 for 4 periods ...
             //1. We lost 3 periods (no decode),= data is not actual, ap7 not permitted
             //2. We stopped APP for 3 periods, = data is not actual, ap7 not permitted
             ndec[0][0]=0;
@@ -2293,8 +2531,8 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
                	dt0[0][1][i]=0.0;
                	f0[0][1][i]=0.0; 
             }*/
-            c_zerop=0;
-            //resss = true;
+            c_zerop=0; //qDebug()<<" FT8 Reset8="<<decid<<s_band8<<band8;
+            band8=s_band8;
         }
         else
         {
@@ -2302,7 +2540,6 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
         }
         /*for (int i = 0; i < ndec[0][jseq]; ++i) qDebug()<<msg0[0][jseq][i]<<f0[0][jseq][i];
         qDebug()<<"----------------------";*/
-
         ndec[1][jseq]=0;
         for (int i = 0; i < MAXDEC; ++i)// no needed
         {
@@ -2310,7 +2547,6 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
             f0[1][jseq][i]=0.0;
         }
         nutc0=s_time8;
-
         /*int e,r,t,y;
         e=ndec[0][0];
         r=ndec[0][1];
@@ -2335,52 +2571,19 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
     !   5        MyCall DxCall RRR
     !   6        MyCall DxCall 73
     !   7        MyCall DxCall RR73
-    !   8        ???    DxCall ??? */
+    !   8        ???    DxCall ???*/
     //qDebug()<<s_dxcall<<My_Grid_Loc<<MyCall;
 
     ft8apset(s_MyBaseCall8,s_HisCall8,apsym2);//JO90NH test iaptype HisGridLoc,msk144_ft8_cont_msg My_Grid_Loc,
 
-    //QDateTime utc_t = QDateTime::currentDateTimeUtc();
-    //qDebug()<<"Decode---------------"<<id3dec<<utc_t.toString("ss:zzz");
-
-    int ndepth = s_decoder_deep8;
-    //int ndecodes=0; 2.70 stop use s_ndecodes
-
-    /*if (s_time8_prev!=s_time8)//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
-    {
-        s_ndecodes=0;
-        for (int i = 0; i < ALL_MSG_SNR; ++i)
-        {
-            allmessages[i]="";
-            allsnrs[i]=0;
-            //lsubtracted[i] = false;
-            //s_time8_prev=s_time8;//for test
-        }
-    }*/
-    if (f_new_p)//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
-    {
-        s_ndecodes=0;
-        //no need to be deleted lost time
-        /*for (int i = 0; i < ALL_MSG_SNR; ++i)
-        {
-            allmessages[i]="";
-            allsnrs[i]=0;
-        }*/
-        //if (decid==1) qDebug()<<"1 141696<"<<c_dd; //1=141696 samples
-    }
-    //else
-    //ndecodes=s_ndecodes;
-    //qDebug()<<"RS"<<id3dec<<decid<<s_ndecodes;
-
-    bool n4pas3int = false;//2.4 HV added for ft8b()  -> if(nzhsym.lt.50) npasses=4
-
-    //double (*s_)[1970] = new double[402][1970];//2.39 start from here;
     int n2 = 0;
     bool fl_lapon = s_lapon8;
     int nQSOProgress = s_nQSOProgress8;
     int npass=3;
+    int imetric=1;//ws300rc1
 
-    //qDebug()<<"Decode--"<<id3dec;
+    int ndepth = s_decoder_deep8;
+    bool n4pas3int = false;//2.4 HV added for ft8b()  -> if(nzhsym.lt.50) npasses=4
     if (s_3intFt8_d_)
     {
         n4pas3int = true;
@@ -2390,10 +2593,6 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
         }*/
         if (id3dec==2 && s_ndecodes==0) //2=162432 samples
         {
-            //for (int i = 0; i < ALL_MSG_SNR; ++i)
-            //lsubtracted[i] = false;
-            //for (int i = 0; i < 181000; ++i) dd1[i]=dd[i];
-            //goto c900; //return; 2.66 w260rc1
             return;
         }
         else if (id3dec==2 && s_ndecodes>0) //2=162432 samples
@@ -2427,6 +2626,11 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
             }
             n4pas3int = false;
         }
+        if (use_var_dec && id3dec==3)
+        {
+            ft8_decodevar(dd,c_dd,nfa,nfb,nfqso,have_dec,w_f00,w_f01,nagain,lqsothread,f_eve0_odd1);
+            return;
+        }
     }
 
     double candidate[2][620];//2.69 old=255 start from here;
@@ -2458,6 +2662,7 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
                 //if (id3dec==3 && npass==1) lsubtract=false;//HV added 2.66 stop for AP7
                 ndeep=ndepth;
                 if (ndepth==3) ndeep=2;
+                imetric=1;//ws300rc1
             }
             else if (ipass==2)
             {
@@ -2465,6 +2670,7 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
                 if (s_ndecodes==0) continue; //2.70=(npass<3 &&) old=if (ndecodes==0) continue;
                 lsubtract=true;
                 ndeep=ndepth;
+                imetric=2;//ws300rc1
             }
             else if (ipass==3)
             {
@@ -2472,6 +2678,7 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
                 lsubtract=true;
                 //if (id3dec==3) lsubtract=false;//HV added 2.66 stop for AP7
                 ndeep=ndepth;
+                imetric=2;//ws300rc1
             }
         }
         else
@@ -2481,18 +2688,21 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
             {
                 lsubtract=true;
                 //if (ndeep==1) lsubtract=false;//2.66 stop for AP7
+                imetric=1;//ws300rc1
             }
             else if (ipass==2)
             {
                 n2=s_ndecodes;
                 if (s_ndecodes==0) continue;
                 lsubtract=true;
+                imetric=2;//ws300rc1
             }
             else if (ipass==3)
             {
                 if ((s_ndecodes-n2)==0) continue;
                 lsubtract=true; //2.66 add for AP7
                 //lsubtract=false;//2.66 stop for AP7
+                imetric=2;//ws300rc1
             }
         }
 
@@ -2535,17 +2745,9 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
             //double sync=candidate[2][icand];
             double f1 =candidate[0][icand];
             double xdt=candidate[1][icand];
-            //if (xdt<-2.4 || xdt>2.4) qDebug()<<xdt;
-            /*if(f1>2019 && f1<2030)
-            {
-            	qDebug()<<"ipass====="<<ipass<<icand<<f1<<xdt<<ncand;
-            	//f1=1011.0;	
-            	//xdt=0.0;	
-            }*/
 
             double xbase=pow(10.0,(0.1*(sbase[int(f1/3.125)]-40.0))); //xbase=10.0**(0.1*(sbase(nint(f1/3.125))-40.0))
             //qDebug()<<icand<<"xbase "<<xbase;
-
             /*double sync=1.6;
             double f1=1200.0;
             double xdt=1.05;*/
@@ -2559,23 +2761,15 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
             int nbadcrc = 0;
             QString message = "";
             int itone[120];
+            int i3=-1; int n3=-1;
             //int iappass = 0;
             //lsubtract = false;
             ft8b(dd,newdat,nQSOProgress,nfqso,s_nftx8,ndeep,n4pas3int,fl_lapon,napwid, //ndepth
-                 lsubtract,nagain,cont_id,cont_type,iaptype,f1,xdt,xbase,apsym2,
-                 nharderrors,dmin,nbadcrc,message,xsnr,his_call_f,itone);
-
-            //if(f1>2098 && f1<2110)
-            //qDebug()<<"ft8b Stop"<<nbadcrc<<f1<<xdt<<message;
-            /*for (int j= 0; j < 79; ++j)
-            {
-            	if (itone[j]<0 || itone[j]>7) qDebug()<<"itone"<<itone[j];
-            }*/
+                 lsubtract,nagain,cont_id,cont_type,imetric,iaptype,f1,xdt,xbase,apsym2,
+                 nharderrors,dmin,nbadcrc,message,xsnr,his_call_f,itone,i3,n3);
 
             int nsnr=(int)xsnr;
-            xdt=xdt-0.5;
-
-            //int hd=nharderrors+dmin;
+            xdt=xdt-0.5; //int hd=nharderrors+dmin;
 
             if (nbadcrc==0)
             {
@@ -2590,32 +2784,40 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
                 }
                 if (!ldupe) //then  if (message.mid(0,3)=="CQ ")
                 {
-                    allmessages[s_ndecodes]=message;
-                    //allsnrs[s_ndecodes]=nsnr;
-
+                    allmessages[s_ndecodes]=message; //printf("Msg= %-20s --- i3=%d n3=%d\n",qPrintable(message),i3,n3);
+                    xdt_per_dec[s_ndecodes]=xdt;
                     if (s_3intFt8_d_)//2.39 remm
                     {
                         f1_save[s_ndecodes]=f1;
                         xdt_save[s_ndecodes]=xdt+0.5;
                         for (int is = 0; is < 79; ++is) itone_save[s_ndecodes][is]=itone[is];
                     }
-                    //qDebug()<<"ft8b Stop"<<icand<<"-----"<<itone[0]<<itone[40]<<itone[78]<<message;
-                    if (s_ndecodes < (ALL_MSG_SNR-1))
+                    if (s_ndecodes < (ALL_MSG_SNR-1)) s_ndecodes++; //qDebug()<<decid<<"   DEC OUT="<<message<<" -> "<<iaptype<<xsnr<<lqsomsgdcd<<msgroot;
+                    PrintMsg(s_time8,nsnr,xdt,f1,message,iaptype,(float)nharderrors,(float)dmin,have_dec,true,false,false);
+                    if (use_var_dec)
                     {
-                        s_ndecodes++; //qDebug()<<"s_ndecodes"<<s_ndecodes;
-                        //ndecodes++; //2.70 stop use s_ndecodes
-                    }
-
-                    PrintMsg(s_time8,nsnr,xdt,f1,message,iaptype,(float)nharderrors,(float)dmin,have_dec,true);
-                }
-            }
+                    	QString rem_msg37 = message;
+                    	rem_msg37.remove("<");
+                    	rem_msg37.remove(">");
+                    	rem_msg37=rem_msg37+" ";
+                    	if (!lqsomsgdcd && s_HisCall8.count()>2 && rem_msg37.startsWith(msgroot+" "))
+                    	{
+							//HV QSO message already decoded (protect SD decoder)
+                        	lqsomsgdcd=true; //qDebug()<<decid<<"  Set lqsomsgdcd="<<lqsomsgdcd;                  		
+                   		}
+                    	bool lFreeText=false;
+                        if (i3==0 && n3==0) lFreeText=true;
+                    	ft8_Write_evt_odt_var(message,i3,f_eve0_odd1,f1,xdt,lFreeText,false,false);                    	
+                   	}
+                }             
+            }//c4: //if (icand < ncand) continue;
         }
     }
     //c900: //2.66
     //qDebug()<<"id3dec="<<id3dec<<fl_lapon;
     //if (fl_lapon)
     //{
-    int jseqr = ft8_even_odd(s_time8);//int jseqr = jseq;
+    //int jseqr = ft8_even_odd(s_time8);//int jseqr = jseq;
     /*if (id3dec>2)
     {
     	if (ndec[0][jseqr]>0 && !s_fopen8) qDebug()<<"Read="<<jseqr<<ndec[0][jseqr]<<msg0[0][jseqr][0];
@@ -2647,24 +2849,30 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
             double dmin = 0.0;
             //qDebug()<<"======="<<call_1<<call_2<<grid4<<newdat<<s_fopen8;
             ft8_a7d(dd,newdat,call_1,call_2,grid4,xdt,f1,xbase,nharderrors,dmin,message,xsnr);
-
             if (nharderrors>=0)
             {
                 int nsnr=(int)xsnr; //iaptype=7;
                 bool fshow = true;
                 float qual=1.0-((float)nharderrors+(float)dmin)/60.0;
-                if (w_f00>f1 || w_f01<f1 || (!fl_lapon && qual<0.2))//2.69
-                {
-                    /*float qual=1.0-((float)nharderrors+(float)dmin)/60.0; //!scale qual to [0.0,1.0]
-                    if (qual<0.001) qual=0.0;//no show -0.0*/
-                    //qDebug()<<"F0="<<w_f00<<"F1="<<w_f01<<message<<"FDecod="<<f1<<qual<<fl_lapon;
-                    fshow = false;
-                }
-                PrintMsg(s_time8,nsnr,xdt,f1,message,7,(float)nharderrors,(float)dmin,have_dec,fshow);
+                if (w_f00>f1 || w_f01<f1 || (!fl_lapon && qual<0.2)) fshow = false;//2.69
+                PrintMsg(s_time8,nsnr,xdt,f1,message,7,(float)nharderrors,(float)dmin,have_dec,fshow,false,false);
             }
         }
     }
-    //}
-    delete [] s_;   //qDebug()<<"ft8b Dec"<<decid<<s_ndecodes;
+    /*! ncontest=0 : NONE   //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+    !          6 : FOX
+    !          7 : HOUND*/
+    //qDebug()<<"DecID="<<decid<<"s_ltry_a8="<<s_ltry_a8<<s_HisCall8<<s_HisGrid8<<id3dec<<nfqso;
+    //bool ltry_a8 = true;  /*ncontest!=6 && ncontest!=7 &&*/
+    TryAp8(dd,fl_lapon,id3dec,cont_type,nfqso,have_dec);
+    
+    delete [] s_;
 }
+
+
+
+
+
+
+
 

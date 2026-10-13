@@ -11,8 +11,11 @@ static const double SAVE_SAMPLE_RATE_12000 = 12000.0;
 
 //#include <QtGui>
 MsPlayerHV::MsPlayerHV(QString path)
-{ 
-    s_mod_ident=2;   //2.12
+{
+    otp_tx_key  = "0#000000#0#0#0#0";
+    sfma_tx_all = "#0#0#0#0#0#0#0#0";
+    s_msf = false;
+    s_mode=2;   //2.12
     filenamehv=(char*)"none"; //2.12
     s_period_time_sec = 30;
 
@@ -35,24 +38,25 @@ MsPlayerHV::MsPlayerHV(QString path)
     musics.currentrun = 0;
     musics.errorcode = 0;
     s_bitpersample = 16;
+    s_offset_dt=0;
     /*int po = sched_getscheduler(0);
     qDebug()<<po<<sched_get_priority_max(po);
     qDebug()<<po<<sched_get_priority_min(po);*/
-/*
-#if defined _LINUX_
-    Rawplayer::setvolume_lin(70);//pcm channel
-#endif
-*/
+    /*
+    #if defined _LINUX_
+        Rawplayer::setvolume_lin(70);//pcm channel
+    #endif
+    */
     thtx = 0;
     startuplock  = PTHREAD_MUTEX_INITIALIZER;  //ok win and lin -> linux no TX error
     //pthread_mutex_init(&startuplock, NULL); //or this
 
     pthread_attr_t thread_attr;
     struct sched_param param;
- 
+
     pthread_attr_init(&thread_attr);
     pthread_attr_getschedparam(&thread_attr, &param);//2.38
-    param.sched_priority = param.sched_priority + 1;//2.38 
+    param.sched_priority = param.sched_priority + 1;//2.38
     //param.sched_priority = 15;//2.38 stop
 
     pthread_attr_setschedpolicy(&thread_attr, SCHED_OTHER);  //2.38 stop <-no needed   need Linux test OTHER=0 FIFO=1 RR=2 policy
@@ -66,7 +70,7 @@ MsPlayerHV::MsPlayerHV(QString path)
     pthread_getschedparam(thtx,&apoly,&param); 
     pthread_attr_getschedpolicy(&thread_attr,&poly);
     qDebug()<<"th="<<thtx<<param.sched_priority;*/
-    
+
     pthread_attr_destroy(&thread_attr);
 }
 MsPlayerHV::~MsPlayerHV()
@@ -74,19 +78,19 @@ MsPlayerHV::~MsPlayerHV()
 void MsPlayerHV::SetModeForWavSaves(int mode)
 {
     /*if (mode==0 || mode==7 || mode==8 || mode==9 || mode==10 || mode==11 || mode==12 || mode==13 ||
-   		 mode==14 || mode==15 || mode==16 || mode==17)//jt65abc msk144 pi4 ft8 ft4
+    	 mode==14 || mode==15 || mode==16 || mode==17)//jt65abc msk144 pi4 ft8 ft4
     {
         SAVE_SAMPLE_RATE = SAVE_SAMPLE_RATE_12000;
-#if defined _LINUX_
+    #if defined _LINUX_
         Rawplayer::pa_sa_rate = 48000;
-#endif
+    #endif
     }
     else //if (mode>0 && mode<7)
     {
         SAVE_SAMPLE_RATE = SAVE_SAMPLE_RATE_11025;
-#if defined _LINUX_
+    #if defined _LINUX_
         Rawplayer::pa_sa_rate = 44100;
-#endif
+    #endif
     }*/
     if (mode>0 && mode<7)//2.65
     {
@@ -100,19 +104,19 @@ void MsPlayerHV::SetModeForWavSaves(int mode)
         SAVE_SAMPLE_RATE = SAVE_SAMPLE_RATE_12000;
 #if defined _LINUX_
         Rawplayer::pa_sa_rate = 48000;
-#endif   	
-   	}
+#endif
+    }
 }
 void MsPlayerHV::SetSoundDevice(QString dev_in_number,int bpsamp,int buffer)
-{ 
+{
     strncpy(dev_in_p,dev_in_number.toUtf8(),127);//2.50 for pulse audio max is 512 ???
     Rawplayer::defaultdevice = dev_in_p;
-    Rawplayer::buffering = buffer; 
+    Rawplayer::buffering = buffer;
     s_bitpersample = bpsamp;
-#if defined _LINUX_    
+#if defined _LINUX_
     Rawplayer::s_bitpersamplelin = bpsamp;
-#endif       
-	//qDebug()<<"MsPlayerHV========"<<Rawplayer::defaultdevice<<dev_in_number<<bpsamp;    
+#endif
+    //qDebug()<<"MsPlayerHV========"<<Rawplayer::defaultdevice<<dev_in_number<<bpsamp;
 }
 void MsPlayerHV::music_move(int value)
 {
@@ -139,14 +143,14 @@ void MsPlayerHV::seterrorcode(int errcode)
 }
 void MsPlayerHV::SaveFile(int*raw,int count,QString name)
 {
-    QString str = App_Path+"/RxWavs/"+name+".WAV"; //qDebug()<<str;    
+    QString str = App_Path+"/RxWavs/"+name+".WAV"; //qDebug()<<str;
     Rawtofile_wr *recorder;
     recorder = Rawtofile_wr::opendevice(qstrdup(qPrintable(str)));
     if (recorder == NULL) return;
     (recorder && ((Rawtofile_wr*)recorder)->setfiletype(WAV));
     if (!recorder->setsoundtype(0,16,SAVE_SAMPLE_RATE))//SAVE_SAMPLE_RATE 6000.0
     {
-        seterrorcode(recorder->geterrorcode()); //qDebug()<<"1111";        
+        seterrorcode(recorder->geterrorcode()); //qDebug()<<"1111";
         return;
     }
     recorder->set8bitmode();
@@ -154,8 +158,8 @@ void MsPlayerHV::SaveFile(int*raw,int count,QString name)
     int j = 0;
     for (int i = 0; i < count; i++)
     {
-    	int z = raw[i];    	
-    	z /= 256;//z = z >> 8;//2.70 24 bit to 16 bit
+        int z = raw[i];
+        z /= 256;//z = z >> 8;//2.70 24 bit to 16 bit
         f[j]=(byte01_)(z & 0xff);
         f[j+1]=(byte01_)((z >> 8) & 0xff);
         j+=2;
@@ -172,7 +176,7 @@ void MsPlayerHV::OpenFile(char *filename)
     int err;
     Rawtodata *player;
     Wavetoraw *server;
-    player=new Rawtodata; 
+    player=new Rawtodata;
 
     if (player==NULL)
     {
@@ -189,14 +193,14 @@ void MsPlayerHV::OpenFile(char *filename)
     }
     if ((loader=Soundinputstream::hopen(filename,&err))==NULL)
     {
-    	//qDebug()<<"loader";
+        //qDebug()<<"loader";
         seterrorcode(err);
         delete loader;
         return;
     }
     if ((server=new Wavetoraw(loader,player))==NULL)
     {
-    	//qDebug()<<"server";
+        //qDebug()<<"server";
         seterrorcode(SOUND_ERROR_MEMORYNOTENOUGH);
         return;
     }
@@ -234,8 +238,7 @@ void MsPlayerHV::OpenFile(char *filename)
             // music_done();
             break;
         }
-    }
-    //qDebug()<<"reset_wav";
+    }//qDebug()<<"reset_wav";
     delete server;
     delete player;
     delete loader;
@@ -244,6 +247,34 @@ void MsPlayerHV::OpenFile(char *filename)
 void MsPlayerHV::SetTxFreq(double f)
 {
     s_tx_freq = f;
+}
+void MsPlayerHV::SetSFMATxAll(QString s)//2.76sf
+{
+    sfma_tx_all = s; //qDebug()<<"TX sfox_tx_all="<<sfox_tx_all;
+    //QStringList l0 = s.split("#");
+    //qDebug()<<"TXT="<<l0.at(0)<<"SendTXT="<<l0.at(1)<<"SendCQ="<<l0.at(2)<<"MyBaseCall="<<l0.at(3)<<"MADX="<<l0.at(4);
+}
+void MsPlayerHV::SetOtpTxKey(QString s)//2.76sf
+{
+    otp_tx_key = s; //qDebug()<<"TX otp_tx_key="<<otp_tx_key;
+    //QStringList l0 = s.split("#");
+    //qDebug()<<"MADX="<<l0.at(0)<<"SFox="<<l0.at(1)<<"Key="<<l0.at(2);
+}
+void MsPlayerHV::SetMsf(bool f)
+{
+    s_msf = f; //printf("TX s_msf=%d\n",s_msf);
+}
+void MsPlayerHV::SetOffsetDt(int dt)//2.76.5
+{
+	s_offset_dt=dt;
+}
+void MsPlayerHV::GetSsMsAndOffset(int &ss_s,int &ms_s)
+{
+	QTime ctt;//QTime ctt = QTime::currentTime();
+    if (s_offset_dt==0) ctt = QTime::currentTime();
+    else ctt = QTime::currentTime().addMSecs(s_offset_dt);
+    ss_s = ctt.toString("ss").toInt();
+    ms_s = ctt.toString("zzz").toInt();//"z"<--- error QT > QT5 v5.9.x
 }
 void MsPlayerHV::xplaymessage(char *message,Rawplayer *player)
 {
@@ -260,46 +291,48 @@ void MsPlayerHV::xplaymessage(char *message,Rawplayer *player)
         return;
     }
     //qDebug()<<"1 initialize="<<(QString)message<<ttt.elapsed();
-    server->initialize(message,s_mod_ident,s_tx_freq,s_period_time_sec,s_bitpersample);
+    server->initialize(message,s_mode,s_tx_freq,s_period_time_sec,s_bitpersample,s_msf,sfma_tx_all,otp_tx_key);
     //qDebug()<<"2 initialize="<<(QString)message<<ttt.elapsed();
     QString new_tx_msg;
-    if ((s_mod_ident==0 || s_mod_ident==12) && message[0]!='@')//msk144 1.31 for " R " msg is same but not after unpack
+    if ((s_mode==0 || s_mode==12) && message[0]!='@')//msk144 1.31 for " R " msg is same but not after unpack
         new_tx_msg=server->TGenMsk->GetUnpackMsg();
-    else if ((s_mod_ident==7 || s_mod_ident==8 || s_mod_ident==9) && message[0]!='@')//jt65abc
+    else if ((s_mode==7 || s_mode==8 || s_mode==9) && message[0]!='@')//jt65abc
     {
         new_tx_msg=server->TGen65->GetUnpackMsg();
     }
-    else if (s_mod_ident==11 && message[0]!='@')//zasega ft8 s tova ->msk144 1.31 for " R " msg is same but not after unpack
+    else if (s_mode==11 && message[0]!='@')//zasega ft8 s tova ->msk144 1.31 for " R " msg is same but not after unpack
     {
-        new_tx_msg=server->TGenFt8->GetUnpackMsg();
+        if (s_msf) new_tx_msg=server->TGenSFox->GetUnpackMsg();
+        else new_tx_msg=server->TGenFt8->GetUnpackMsg();
     }
-    else if (s_mod_ident==13 && message[0]!='@')//zasega ft4 s tova ->msk144 1.31 for " R " msg is same but not after unpack
+    else if (s_mode==13 && message[0]!='@')//zasega ft4 s tova ->msk144 1.31 for " R " msg is same but not after unpack
         new_tx_msg=server->TGenFt4->GetUnpackMsg();
-    else if ((s_mod_ident==14 || s_mod_ident==15 || s_mod_ident==16 || s_mod_ident==17) && message[0]!='@')//q64
-        new_tx_msg=server->TGenQ65->GetUnpackMsg();    
+    else if (s_mode==18 && message[0]!='@')//zasega ft4 s tova ->msk144 1.31 for " R " msg is same but not after unpack
+        new_tx_msg=server->TGenFt2->GetUnpackMsg();
+    else if ((s_mode==14 || s_mode==15 || s_mode==16 || s_mode==17) && message[0]!='@')//q64
+        new_tx_msg=server->TGenQ65->GetUnpackMsg();
     else
         new_tx_msg=(QString)message;
     //qDebug()<<"Unpack"<<(QString)message<<ttt.elapsed();
     //qDebug()<<"ss_prev_msg="<<ss_prev_msg<<"NewREAL="<<real_tx_msg<<"RealIn="<<(QString)message;
     if (!music.RealStop)//s_prev_tx_msg!=new_tx_msg &&
     {
-        //qDebug()<<new_tx_msg;
-        QString tmp = new_tx_msg;
-        if (tmp[0]=='@')
+        QString tmp = new_tx_msg; //qDebug()<<new_tx_msg<<new_tx_msg.count()<<message<<strlen(message);
+        if (tmp.count()>1)//2.76 protection from Gen`S return empty string
         {
-            if (tmp=="@TUNE") tmp="TUNE";
-            if (tmp[1]=='A')  tmp="882 Hz";
-            if (tmp[1]=='B')  tmp="1323 Hz";
-            if (tmp[1]=='C')  tmp="1764 Hz";
-            if (tmp[1]=='D')  tmp="2205 Hz";
-
             if (tmp[0]=='@')
             {
-                tmp.remove("@");
-                if (tmp.toInt()>=100 && tmp.toInt()<=3500)
-                    tmp= tmp+" Hz";
+                if (tmp=="@TUNE") tmp="TUNE";
+                if (tmp[1]=='A')  tmp="882 Hz";
+                if (tmp[1]=='B')  tmp="1323 Hz";
+                if (tmp[1]=='C')  tmp="1764 Hz";
+                if (tmp[1]=='D')  tmp="2205 Hz";
+                if (tmp[0]=='@')
+                {
+                    tmp.remove("@");
+                    if (tmp.toInt()>=100 && tmp.toInt()<=3500) tmp= tmp+" Hz";
+                } //SendTxMsgLabTxkkk(tmp);
             }
-            //SendTxMsgLabTxkkk(tmp);
         }
         //else
         //emit SendTxMsgLabTx(tmp);
@@ -340,14 +373,12 @@ void MsPlayerHV::xplaymessage(char *message,Rawplayer *player)
 
     int min_delayft = 200;
     int delayft = min_delayft;
-    
-    if (s_mod_ident==7 || s_mod_ident==8 || s_mod_ident==9)//jt65 wheit 1s in begining
-        usleep(700000);// tested 1.35
-	else if (s_mod_ident==11)//ft8
+
+    if (s_mode==7 || s_mode==8 || s_mode==9) usleep(700000);// tested 1.35 //jt65 wheit 1s in begining       
+    else if (s_mode==11)//ft8
     {
-        QTime ctt = QTime::currentTime();
-        int ss_s = ctt.toString("ss").toInt();
-        int ms_s = ctt.toString("zzz").toInt();//"z"<--- error QT > QT5 v5.9.x
+        int ss_s=0; int ms_s=0;
+        GetSsMsAndOffset(ss_s,ms_s);
         if (ss_s % 15 == 0)
         {
             int xlat = 450 - ms_s;//500 real s wsjt2
@@ -363,16 +394,15 @@ void MsPlayerHV::xplaymessage(char *message,Rawplayer *player)
         {
             delayft = min_delayft;
             //qDebug()<<"ERROR % 15===="<<ss_s<<ms_s<<delayft8<<"FullLat="<<(delayft8);
-        }
+        } 
         int lindelayft = (delayft * 1000);
         usleep(lindelayft);//350000   400000 ft8 2.03
     }
-    else if (s_mod_ident==13)//ft4
+    else if (s_mode==13)//ft4
     {
-        QTime ctt = QTime::currentTime();
-        int ss_s = ctt.toString("ss").toInt();
-        int ms_s = ctt.toString("zzz").toInt();//"z"<--- error QT > QT5 v5.9.x
-        if (ss_s == 7 || ss_s == 22 || ss_s == 37 || ss_s == 52)
+        int ss_s=0; int ms_s=0;
+        GetSsMsAndOffset(ss_s,ms_s);
+        if (ss_s == 7 || ss_s == 22 || ss_s == 37 || ss_s == 52)//if (ss_s % 15 == 7)  time_ms = 500;
         {
             ss_s=0;
             ms_s -= 500;
@@ -382,21 +412,53 @@ void MsPlayerHV::xplaymessage(char *message,Rawplayer *player)
             int xlat = 350 - ms_s;//350 real s wsjt2 rc7 ???? my be =400ms
             if (xlat>50)// min 100-50ms delay
             {
-                delayft = xlat;
-                //qDebug()<<"Start="<<ss_s<<ms_s<<xlat<<delayft8<<"FullLat="<<(ms_s + delayft8);
-            }
-            //else
-            //qDebug()<<"ERROR > 50===="<<ss_s<<ms_s<<delayft8<<"FullLat="<<(delayft8);
+                delayft = xlat; 
+            }//else //qDebug()<<"ERROR > 50===="<<ss_s<<ms_s<<delayft8<<"FullLat="<<(delayft8);
         }
         else
         {
-            delayft = min_delayft;
-            //qDebug()<<"ERROR % 15===="<<ss_s<<ms_s<<delayft8<<"FullLat="<<(delayft8);
+            delayft = min_delayft; //qDebug()<<"ERROR % 15===="<<ss_s<<ms_s<<delayft8<<"FullLat="<<(delayft8);
+        } 
+        int lindelayft = (delayft * 1000);
+        usleep(lindelayft);//350000   400000 ft8 2.03
+    }
+    else if (s_mode==18)//ft2
+    {
+        int ss_s=0; int ms_s=0;
+        GetSsMsAndOffset(ss_s,ms_s);
+        if 		(ss_s == 3 || ss_s == 18 || ss_s == 33 || ss_s == 48)//if (ss_s % 15 == 3)  time_ms = 750;
+        {
+            ss_s=0;
+            ms_s -= 750;
+        }
+        else if	(ss_s == 7 || ss_s == 22 || ss_s == 37 || ss_s == 52)//if (ss_s % 15 == 7)  time_ms = 500;
+        {
+            ss_s=0;
+            ms_s -= 500;
+        }
+        else if (ss_s ==11 || ss_s == 26 || ss_s == 41 || ss_s == 56)//if (ss_s % 15 == 11)  time_ms = 250;
+        {
+            ss_s=0;
+            ms_s -= 250;
+        }//qDebug()<<"Start="<<ctt.toString("ss.zzz")<<"ss ms="<<ss_s<<ms_s;
+        if (ss_s % 15 == 0)
+        {
+            int xlat = 350 - ms_s;//350 real s wsjt2 rc7 ???? my be =400ms
+            if (xlat>50)// min 100-50ms delay
+            {
+                delayft = xlat; 
+                if (delayft>700) delayft = min_delayft;//<- from TX ro RX error
+                //qDebug()<<"Start="<<ss_s<<"ms_s="<<ms_s<<"delayft="<<delayft<<"FullLat="<<(ms_s + delayft)<<"xlat="<<xlat<<music.RealStop;
+            }//else //qDebug()<<"ERROR > 50===="<<ss_s<<ms_s<<delayft8<<"FullLat="<<(delayft8);
+        }
+        else
+        {
+            delayft = min_delayft; //qDebug()<<"ERROR % 15===="<<ss_s<<ms_s<<delayft8<<"FullLat="<<(delayft8);
         }
         int lindelayft = (delayft * 1000);
         usleep(lindelayft);//350000   400000 ft8 2.03
-    }        
-    else if (s_mod_ident==14 || s_mod_ident==15 || s_mod_ident==16 || s_mod_ident==17)
+    }
+    else if (s_mode==14 || s_mode==15 || s_mode==16 || s_mode==17)
     {
         QTime ctt = QTime::currentTime();
         int mm_s = ctt.toString("mm").toInt();
@@ -404,7 +466,7 @@ void MsPlayerHV::xplaymessage(char *message,Rawplayer *player)
         int ms_s = ctt.toString("zzz").toInt();
         int mmss = (mm_s*60)+ss_s;
         if (mmss % s_period_time_sec == 0)
-        {	
+        {
             int xlat = 950 - ms_s;
             if (s_period_time_sec<60) xlat = 450 - ms_s;
             if (xlat>50)
@@ -500,7 +562,7 @@ void MsPlayerHV::xplayfile(char *filename)
             return;
         }
         //qDebug()<<"EEEEEE==TX="<<QTime::currentTime().toString("mm:ss:zzz");
-        //qDebug()<<"initialize";       	
+        //qDebug()<<"initialize";
         xplaymessage(filename,player);
         usleep(1000); //no 100% thread
         delete player;
@@ -579,7 +641,7 @@ void *MsPlayerHV::ThreadEntry(void *ar)
 }
 void MsPlayerHV::Stop()
 {
-	//qDebug()<<"MsPlayerHV::Stop()===================== ";
+    //qDebug()<<"MsPlayerHV::Stop()===================== ";
     music.RealStop = true;
     music_term();
 }
@@ -590,11 +652,11 @@ void MsPlayerHV::Restart() //promenena
 void MsPlayerHV::setfile_play(char *filename, bool msg_file, int mod_ident,int preiod_t)
 {
     int nmsg = strlen(filename); //if (nmsg<1) return;
-    if (nmsg<1) filename = (char*)" ";// 2.37 protect system
+    if (nmsg<1) filename = (char*)" ";//2.37 protect system for message[0]!='@' in xplaymessage()
 
     f_message_or_file = msg_file;
     filenamehv = filename;
-    s_mod_ident = mod_ident;
+    s_mode = mod_ident;
     s_period_time_sec = preiod_t;
 
     if (msg_file)// not needed hv

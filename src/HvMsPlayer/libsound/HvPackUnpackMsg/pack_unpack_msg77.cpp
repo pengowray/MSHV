@@ -26,16 +26,18 @@ static const QString a4_28 = " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 //// static decoders array ////////////////////////
 static bool inicialize_static_arrays = false;
-#define MAXHASHD 600+4+5//decoders +4=+my +his + r1 +r2  +5=mam slots
+#define START_POS_MAM 4 //decoders +4=+my +his + r1 +r2
+#define MAM_SLOT_HASH 12 //+12=SF and MAM possyble hash
+#define MAXHASHD 600+START_POS_MAM+MAM_SLOT_HASH//decoders +4=+my +his + r1 +r2  +6=mam slots +12=SF possyble hash
 static int ihash10d[MAXHASHD+12];           //+5=for any case
 static int ihash12d[MAXHASHD+12];  			//+5=for any case
 static int ihash22d[MAXHASHD+12];  			//+5=for any case
 static QString callsign_hashd[MAXHASHD+12];	//+5=for any case
-static int nzhash_pos_writed = 9;
-static int nzhash_start_writed = 9;
+static int nzhash_pos_writed   = START_POS_MAM + MAM_SLOT_HASH;//=4+6+6
+static int nzhash_start_writed = START_POS_MAM + MAM_SLOT_HASH;//4+6+6
 //// static decoders array end ////////////////////////
 //// static generators array ////////////////////////
-#define MAXHASHG 3//generators max 3 cals need
+#define MAXHASHG 14//2.67.2 for SF max is=10, 2.76.2 for MAM=14 <-tested, to->2.76.1->old=generators max 3 cals need
 static int ihash10g[MAXHASHG+10];  			//+5=for any case
 static int ihash12g[MAXHASHG+10];  			//+5=for any case
 static int ihash22g[MAXHASHG+10];  			//+5=for any case
@@ -55,6 +57,12 @@ void PackUnpackMsg77::initPackUnpack77(bool f_dec_gen)//f_dec_gen -> dec=true ge
         ihash22d[i]=-1;
         callsign_hashd[i]=" ";
     }
+    reset_save_hash_calls_gen();
+    inicialize_static_arrays = true;
+}
+/////// Unpack //////////////////////////////////////////////////////////
+void PackUnpackMsg77::reset_save_hash_calls_gen()
+{
     for (int i = 0; i<MAXHASHG; ++i)
     {
         ihash10g[i]=-1;
@@ -62,9 +70,8 @@ void PackUnpackMsg77::initPackUnpack77(bool f_dec_gen)//f_dec_gen -> dec=true ge
         ihash22g[i]=-1;
         callsign_hashg[i]=" ";
     }
-    inicialize_static_arrays = true;
+    nzhash_pos_writeg = 0;
 }
-/////// Unpack //////////////////////////////////////////////////////////
 void PackUnpackMsg77::hash10(int n10,QString &c13,QString z001,QString z002)
 {
     c13="<...>";
@@ -705,15 +712,25 @@ QString PackUnpackMsg77::unpack77(bool *c77,bool &unpk77_success)
             if (irpt==2) msg=call_1+" "+call_2+" RRR";//msg=trim(call_1)//' '//trim(call_2)//' RRR'
             if (irpt==3) msg=call_1+" "+call_2+" RR73";//msg=trim(call_1)//' '//trim(call_2)//' RR73'
             if (irpt==4) msg=call_1+" "+call_2+" 73";//msg=trim(call_1)//' '//trim(call_2)//' 73'
-            if (irpt>=5)
+            //
+            if (irpt>=106)//2.76.5 Decodium custom: report + TU (irpt = standard_irpt + 101)
+            {                
+                int isnr=(irpt-101)-35;
+                if (isnr>50) isnr=isnr-101;
+                QString crpt;
+                if (isnr>-1) crpt="+"+QString("%1").arg(isnr,2,10,QChar('0'));
+                else crpt="-"+QString("%1").arg((int)fabs(isnr),2,10,QChar('0'));
+                if (ir==0) msg=call_1+" "+call_2+" "+crpt+" TU";//msg=trim(call_1)//' '//trim(call_2)//' '  //crpt//' TU'
+                if (ir==1) msg=call_1+" "+call_2+" R"+crpt+" TU";//msg=trim(call_1)//' '//trim(call_2)//' R' //crpt//' TU'
+            }
+            else if (irpt>=5)
+            //if (irpt>=5)
             {
                 int isnr = irpt-35;//2.47
                 if (isnr>50) isnr=isnr-101;
                 QString crpt;
-                if (isnr>-1)
-                    crpt="+"+QString("%1").arg(isnr,2,10,QChar('0'));
-                else
-                    crpt="-"+QString("%1").arg((int)fabs(isnr),2,10,QChar('0'));
+                if (isnr>-1) crpt="+"+QString("%1").arg(isnr,2,10,QChar('0'));
+                else crpt="-"+QString("%1").arg((int)fabs(isnr),2,10,QChar('0'));
                 if (ir==0) msg=call_1+" "+call_2+" "+crpt;//msg=trim(call_1)//' '//trim(call_2)//' '//crpt
                 if (ir==1) msg=call_1+" "+call_2+" R"+crpt;//msg=trim(call_1)//' '//trim(call_2)//' R'//crpt
             }
@@ -912,9 +929,8 @@ QString PackUnpackMsg77::unpack77(bool *c77,bool &unpk77_success)
     c2_rx_calls = c2_rx_calls.remove(">");
     qDebug()<<msg<<c1_rx_calls<<c2_rx_calls;*/
     // LZ2HV hash msk40
-
     msg=msg.trimmed();  //qDebug()<<"unpk77 ="<<msg<<i3<<n3;
-
+    //if (msg.count()<1) unpk77_success=false;//2.76.6
     return msg;
 }
 ////////////// END Unpack //////////////////////////////////////////////////////////////
@@ -1068,7 +1084,7 @@ int PackUnpackMsg77::ihashcall(QString c0,int m)
 void PackUnpackMsg77::save_hash_call_mam(QStringList ls)
 {
     if (!sf_dec_gen) return;// only decoders
-    int f_pos = 4;
+    int f_pos = START_POS_MAM;
     for (int i = 0; i < ls.count(); ++i)
     {
         QString c13 = ls.at(i)+"                    ";
@@ -1088,6 +1104,11 @@ void PackUnpackMsg77::save_hash_call_mam(QStringList ls)
         callsign_hashd[f_pos]=c13.mid(0,idx);
         if (f_pos<nzhash_start_writed-1) f_pos++;
     }
+    /*for (int i = START_POS_MAM; i < nzhash_start_writed; ++i)
+    {
+    	qDebug()<<i<<callsign_hashd[i]<<ihash10d[i]<<ihash12d[i]<<ihash22d[i];
+    }
+    qDebug()<<"----------------------------";*/
 }
 void PackUnpackMsg77::save_hash_call_my_his_r1_r2(QString call,int pos)
 {
@@ -1129,8 +1150,8 @@ void PackUnpackMsg77::save_hash_call_my_his_r1_r2(QString call,int pos)
         		if (c1==c2 && ihash10d[j]>0) qDebug()<<i<<c1<<j<<c2;
        		}
        	}
-   	}
-   	qDebug()<<nzhash_pos_writed;*/
+    }
+    qDebug()<<nzhash_pos_writed;*/
 }
 void PackUnpackMsg77::save_hash_call(QString c13,int &n10,int &n12,int &n22)
 {
@@ -1217,7 +1238,7 @@ void PackUnpackMsg77::save_hash_call(QString c13,int &n10,int &n12,int &n22)
             sss.append(QString("%1").arg(ihash12g[i])+" ");
             sss.append(QString("%1").arg(ihash22g[i]));
         }
-        qDebug()<<"Generators Hash Sums ------------------> "<<sss;*/
+        qDebug().noquote()<<"Generators Hash Sums ------------------> "<<sss;*/
     }
 }
 void PackUnpackMsg77::pack28(QString c13,int &n28)
@@ -1644,6 +1665,35 @@ void PackUnpackMsg77::pack77_1(int nwords,QString *w,int &i3,int &n3,bool *c77)
     if (nwords==2 && (!ok2 || w[1].indexOf("/")>=1)) return;//if(nwords.eq.2 .and. (.not.ok2 .or. index(w(2),'/').ge.2)) return
     if (nwords==2) goto c10;
 
+    //! Decodium custom: CALL1 CALL2 ±NN TU  or  CALL1 CALL2 R±NN TU
+    if (nwords==4 && w[3].mid(0,3)=="TU ")//2.76.5 
+    {
+        c1=w[nwords-2].mid(0,1);//(3)(1:1)
+        c2=w[nwords-2].mid(0,2);//(3)(1:2)
+        c3_c=w[nwords-2].indexOf(" ");
+        c3=w[nwords-2].mid(0,c3_c);
+        if (c1=="+" || c1=="-")
+        {
+            ir=0;
+            bool okk = false; //2.59
+            irpt = c3.toInt(&okk);//read(w(nwords),*,err=900) irpt
+            if (!okk) return;//not a digit
+            if (irpt>=-50 && irpt<=-31) irpt=irpt+101;//2.47
+            irpt=irpt+35+101;         //! +101 offset = "report + TU"
+            goto c10;
+        }
+        else if (c2=="R+" || c2=="R-")
+        {
+            ir=1;
+            bool okk = false; //2.59
+            irpt = c3.midRef(1,c3_c-1).toInt(&okk);//read(w(nwords)(2:),*,err=900) irpt
+            if (!okk) return;//not a digit
+            if (irpt>=-50 && irpt<=-31) irpt=irpt+101;//2.47
+            irpt=irpt+35+101;         //! +101 offset = "report + TU"
+            goto c10;
+        }
+    }
+
     c1=w[nwords-1].mid(0,1);
     c2=w[nwords-1].mid(0,2);
     c3_c=w[nwords-1].indexOf(" ");
@@ -1686,10 +1736,10 @@ void PackUnpackMsg77::pack77_1(int nwords,QString *w,int &i3,int &n3,bool *c77)
     }
     //! 1     WA9XYZ/R KA1ABC/R R FN42           28 1 28 1 1 15   74   Standard msg
     //! 2     PA3XYZ/P GM4ABC/P R JO22           28 1 28 1 1 15   74   EU VHF contest
-c10:
+c10:									//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
     int i1psuffix = w[0].indexOf("/P ");//2.13 qDebug()<<i1psuffix<<w[0];//i1psuffix=index(w(1)//' ' ,'/P ')
     int i2psuffix = w[1].indexOf("/P ");//2.13 qDebug()<<i2psuffix<<w[1];//i2psuffix=index(w(2)//' ','/P ')
-    if (nwords==2 || nwords==3 || (nwords==4 && w[2].mid(0,2)=="R ")) //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+    if (nwords==2 || nwords==3 || (nwords==4 && (w[2].mid(0,2)=="R " || w[3].mid(0,3)=="TU ")))//2.76.5 Decodium
     {
         n3=0;
         i3=1;                          //!Type 1: Standard message, possibly with "/R"

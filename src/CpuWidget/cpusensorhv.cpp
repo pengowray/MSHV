@@ -126,21 +126,26 @@ int CpuSensorHv::getCPULoad()
     return load;
 #endif
 #if defined _WIN32_
-	//qDebug()<<"------------------";
     if (!f_function)
     {
         ntquerysysteminformation(SystemProcessorPerformanceInformation,spi_old,(sizeof(SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION)*systeminfo.dwNumberOfProcessors),&bytesreturned);
-        f_function = true;
-        //qDebug()<<"11count_function";
+        f_function = true; //qDebug()<<"11count_function";
 	}
     else
     {
-        ntquerysysteminformation(SystemProcessorPerformanceInformation,spi,(sizeof(SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION)*systeminfo.dwNumberOfProcessors),&bytesreturned);
+        ntquerysysteminformation(SystemProcessorPerformanceInformation,spi,(sizeof(SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION)*systeminfo.dwNumberOfProcessors),&bytesreturned);       
+        //2.76 div by zero
+        long long int t00 = ((spi[cpu_num].KernelTime.QuadPart +  spi[cpu_num].UserTime.QuadPart) - (spi_old[cpu_num].KernelTime.QuadPart + spi_old[cpu_num].UserTime.QuadPart));
+        //qDebug()<<t00;
+        if (t00<1) t00=1;//2.76 div by zero
+        BYTE cpuusage = (BYTE) (100 - (((spi[cpu_num].IdleTime.QuadPart - spi_old[cpu_num].IdleTime.QuadPart) * 100) / t00));
+        //end 2.76 div by zero         
+        /*old 2.76 div by zero 
         BYTE cpuusage = (BYTE) (100 - (((spi[cpu_num].IdleTime.QuadPart - spi_old[cpu_num].IdleTime.QuadPart) * 100) /  \
                                        ((spi[cpu_num].KernelTime.QuadPart +  spi[cpu_num].UserTime.QuadPart) - (spi_old[cpu_num].KernelTime.QuadPart + spi_old[cpu_num].UserTime.QuadPart))));
+        end old 2.76 div by zero*/                                             
         cpu_usage = cpuusage;
-        f_function = false;
-        //qDebug()<<"22count_function";
+        f_function = false; //qDebug()<<"22count_function";
     } 
     return cpu_usage;
 #endif

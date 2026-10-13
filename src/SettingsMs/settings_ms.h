@@ -97,7 +97,7 @@ public:
 signals:
     void InDevChanged(QString,int,int,int,int,int,int);//QString rate, 
     void OutDevChanged(QString dev,int,int buf);
-    void EmitTciSelect(int);//tci
+    void EmitTciSelect(int,int,bool);//tci
 
 private slots:
     void InChannelChanget(bool);

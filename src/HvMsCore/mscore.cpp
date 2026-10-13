@@ -27,6 +27,7 @@ MsCore::MsCore()
     //facalcvd = 1.0;
     //f_adle_vd = false;
     ftci = false;//tci
+    s_tci_k_res0 = -1;
     //is_select_sound_device = true;
     //s_fft_cut_hi_frq = FFT_CUT_HI_FRQ;
     dec_busy = false;
@@ -40,8 +41,8 @@ MsCore::MsCore()
 
     count_rfesh_sm = 0;// zaradi bavnoto na jt65abc
     s_vdisp_speed = 2;
-    s_freq_beg = 200;
-    s_freq_end = 2200; //2000 hz bw
+    s_freq_beg = 100; //2.76.1 3000hz bw
+    s_freq_end = 3300;//2.76.1 3000hz bw
     f_disp_v_h = false;
     last_reset_sc_in = QDateTime::currentDateTimeUtc().toTime_t();
     s_in_level = 1.0;
@@ -65,8 +66,12 @@ MsCore::MsCore()
     in_bitpersample = 16;
 	//////////////////////////////////////////////////////////////////////
 
-    THvRawFilter = new HvRawFilter(49,100.0,5000.0,false);//false -> LPF+HPF /* low pass filter and High pass filter */ for RX
-    THvRawFilter->set_rate(fftw_sample_rate);//2.34
+    THvRawFilter0 = new HvRawFilter(53,65.0,4750.0,false);//false -> LPF+HPF /* low pass filter and High pass filter */ for RX
+    THvRawFilter0->set_rate(in_sample_rate);//2.76.2
+    THvRawFilter0->set_lpf_hpf_parm(0.7071,0.7071);//2.76.3
+    THvRawFilter1 = new HvRawFilter(53,65.0,4750.0,false);//4600.0
+    THvRawFilter1->set_rate(fftw_sample_rate);//2.76.2
+    THvRawFilter1->set_lpf_hpf_parm(0.7071,0.7071);//2.76.3
 
 #if defined _LINUX_
     is_pulse_a_in = true;//2.65  default pulse
@@ -147,7 +152,8 @@ MsCore::MsCore()
 }
 MsCore::~MsCore()
 {
-    delete THvRawFilter;
+    delete THvRawFilter0;
+    delete THvRawFilter1;
 }
 void MsCore::SetInLevel(int val)
 {
@@ -204,32 +210,25 @@ void MsCore::SetStr_Sto(bool flag)
 }
 void MsCore::SetMode(int mod_iden)
 {
-    s_mod_iden = mod_iden;
-    QString rate;
-       
+    s_mod_iden = mod_iden;    
+    /*QString rate;      
     if (s_mod_iden>0 && s_mod_iden<7) //2.65
         rate = QString("%1").arg((int)IN_SAMPLE_RATE_44100);
     else
-    	rate = QString("%1").arg((int)IN_SAMPLE_RATE_48000);
-
-    if (s_mod_iden == 7 || s_mod_iden == 8 || s_mod_iden == 9 || s_mod_iden == 10 || s_mod_iden == 11 || s_mod_iden == 13 ||
-            s_mod_iden == 14 || s_mod_iden == 15 || s_mod_iden == 16 || s_mod_iden == 17)////jt65abc pi4 ft8 ft4 q65
-        f_disp_v_h = true;
-    else
-        f_disp_v_h = false;
-
-    SetupSettings_((QString)rad_sound_state.dev_capt_name,rate,in_bitpersample,rad_sound_state.latency_millisecs,
+    	rate = QString("%1").arg((int)IN_SAMPLE_RATE_48000);*/
+    if (s_mod_iden == 7 || s_mod_iden == 8 || s_mod_iden == 9 || s_mod_iden == 10 || s_mod_iden == 11 || s_mod_iden == 13 || s_mod_iden == 18 ||
+            s_mod_iden == 14 || s_mod_iden == 15 || s_mod_iden == 16 || s_mod_iden == 17) f_disp_v_h = true;////jt65abc pi4 ft8 ft4 q65        
+    else f_disp_v_h = false;
+    SetupSettings_((QString)rad_sound_state.dev_capt_name,in_bitpersample,rad_sound_state.latency_millisecs,
                    rad_sound_state.data_poll_usec,rad_sound_state.channel_I,true);
 }
 void MsCore::SetupSettings(QString dev_in_number,int bpsampl,int latency,int card_buffer_polls,int channel)// QString, 
 {
-    //qDebug()<<"DN="<<dev_in_number<<in_sample_rate;
     if ((QString)rad_sound_state.dev_capt_name == dev_in_number && bpsampl==in_bitpersample &&/*rad_sound_state.sample_rate == rate.toInt() &&*/
             rad_sound_state.latency_millisecs == latency && rad_sound_state.data_poll_usec == card_buffer_polls &&
             rad_sound_state.channel_I == channel)
         return;//za da ne garmi pod windows
-
-    SetupSettings_(dev_in_number,QString("%1").arg(in_sample_rate),bpsampl,latency,card_buffer_polls,channel,false);
+    SetupSettings_(dev_in_number,bpsampl,latency,card_buffer_polls,channel,false);
 }
 void MsCore::record_app()
 {
@@ -402,7 +401,8 @@ void MsCore::FastResetSoundCardIn_p()// for pure sound cards
 
     usleep(2000);       //1.33=1000  1.34=2000  wait hardware to clear buffers
 
-    THvRawFilter->set_rate(fftw_sample_rate);  //2.34
+    THvRawFilter0->set_rate(in_sample_rate);//2.76.2
+    THvRawFilter1->set_rate(fftw_sample_rate);//2.76.2		
 
     bool p_read_snd = true;
 #if defined _WIN32_
@@ -428,12 +428,12 @@ void MsCore::FastResetSoundCardIn_p()// for pure sound cards
     //qDebug()<<"End FastReset=================================="<<QDateTime::currentDateTimeUtc().toString("hh:mm:ss");
 }
 static int tci_read_ = 0; //2.58 0=stop 1=buff 2=read
-void MsCore::SetupSettings_(QString dev_in_number, QString sample_rate,int bpsampl,int latency,int card_buffer_polls,
+void MsCore::SetupSettings_(QString dev_in_number,int bpsampl,int latency,int card_buffer_polls,
                             int channel,bool imidiatly)
 {
     if (!imidiatly)
     {
-        if ((QString)rad_sound_state.dev_capt_name == dev_in_number && in_sample_rate == sample_rate.toInt() && bpsampl==in_bitpersample &&
+        if ((QString)rad_sound_state.dev_capt_name == dev_in_number && bpsampl==in_bitpersample &&// && in_sample_rate == sample_rate.toInt()
                 rad_sound_state.latency_millisecs == latency && rad_sound_state.data_poll_usec == card_buffer_polls &&
                 rad_sound_state.channel_I == channel)
             return;//za da ne garmi pod windows
@@ -446,36 +446,44 @@ void MsCore::SetupSettings_(QString dev_in_number, QString sample_rate,int bpsam
     close_sound();
 
     usleep(2000);        //1.33=yes  1.34  wait hardware to clear buffers
- 
+
     in_bitpersample = bpsampl; //qDebug()<<bpsampl;
     if (s_mod_iden>0 && s_mod_iden<7) //2.65
     {
         fftw_sample_rate = (int)ORG_SAMPLE_RATE_11025;
-        in_sample_rate = sample_rate.toInt();
+        in_sample_rate = (int)IN_SAMPLE_RATE_44100;//sample_rate.toInt();
         koef_resample = (int)((in_sample_rate/(int)ORG_SAMPLE_RATE_11025)-1);
     }  
     else  
     {
         fftw_sample_rate = (int)ORG_SAMPLE_RATE_12000;
-        in_sample_rate = sample_rate.toInt();
+        in_sample_rate = (int)IN_SAMPLE_RATE_48000;//sample_rate.toInt();
         koef_resample = (int)((in_sample_rate/(int)ORG_SAMPLE_RATE_12000)-1);
-    }    
-    
+    } 
+          
     //for pulse audio max is 512 ???
     strncpy(rad_sound_state.dev_capt_name,dev_in_number.toUtf8(),127); //127 2.37 be6e SC_SIZE_L
     //if ((QString)rad_sound_state.dev_capt_name==dev_in_number)
     //qDebug()<<"mscore="<<(QString)rad_sound_state.dev_capt_name<<dev_in_number;
-    QString str_device_name = (QString)rad_sound_state.dev_capt_name;
-    if (str_device_name=="TCI Client Input") ftci = true;	
+    QString str_device_name = (QString)rad_sound_state.dev_capt_name; //qDebug()<<"str_device_name="<<str_device_name;
+    if (str_device_name=="TCI Client Input" || str_device_name.startsWith("Flex Native Input"))
+    {     	
+        fftw_sample_rate = (int)ORG_SAMPLE_RATE_12000;
+        in_sample_rate = (int)IN_SAMPLE_RATE_48000;//sample_rate.toInt();
+        koef_resample = (int)((in_sample_rate/(int)ORG_SAMPLE_RATE_12000)-1);
+        ftci = true;
+        s_tci_k_res0 = -1;//reset 	
+   	}	
     else ftci = false;  	
-    tci_read_ = 0; //2.58
-    	
+    tci_read_ = 0; //printf("SoundSetup Mode=%2d in_sample_rate=%d fftw_sample_rate=%d k_res=%d\n",s_mod_iden,in_sample_rate,fftw_sample_rate,koef_resample);
+   	
     rad_sound_state.latency_millisecs = latency;//50 be6e hv 50-300
     rad_sound_state.data_poll_usec = card_buffer_polls;
     if (channel == 0) rad_sound_state.channel_I = 0;
     else rad_sound_state.channel_I = 1;
 
-    THvRawFilter->set_rate(fftw_sample_rate);//2.34
+	THvRawFilter0->set_rate(in_sample_rate);//2.76.2
+    THvRawFilter1->set_rate(fftw_sample_rate);//2.76.2 //printf(" Mode=%d in_sample_rate=%d\n",s_mod_iden,in_sample_rate);
 
     bool p_read_snd = true;
 #if defined _WIN32_
@@ -514,17 +522,18 @@ void MsCore::SetupSettings_(QString dev_in_number, QString sample_rate,int bpsam
     g_read_snd = p_read_snd;//false;  // start reading
     //qDebug()<<"GrandReset";
 }
-#define TCIBUFRX_LIM 385024 //=8sec =385024
+#define TCIBUFRX_LIM 480000 //=10sec //=8sec =385024
 #define TCIBUFRX TCIBUFRX_LIM + 16450 //sample is 4096 max from network +=16384
 static int tci_raw2_0[TCIBUFRX]; //mono
 static int tci_cr2_0 = 0;
+static int tci_k_res_0 = 3;//default=48000
 int _GetRxAudioReadTci_()
 {
     return tci_read_;
 }
-void _SetRxAudioTci_(int *raw2,int cr2) //sample is 4096
+void _SetRxAudioTci_(int *raw2,int cr2,int k_res) //sample is 4096
 {
-	//qDebug()<<"tci_cr2_0"<<tci_cr2_0;
+	tci_k_res_0 = k_res; //qDebug()<<"tci_cr2_0"<<tci_cr2_0;
     if (tci_cr2_0 < TCIBUFRX_LIM)
     {
         for (int i = 0; i < cr2; ++i) tci_raw2_0[i+tci_cr2_0] = raw2[i];
@@ -547,26 +556,49 @@ void MsCore::ReadTci()
 }
 void MsCore::ResampleAndFilter(int *rawm,int crawm) //2.57
 {
-	//static double bfr4[10];
-    static int dat_tt[130000]; //12000*10=120000 max=10sec  120000+12000=132000
-    int limit = 120000*(koef_resample+1);
-    if (crawm > limit) crawm = limit;
-    int k = 0;
-    for (int i = 0; i < crawm; ++i)
+    static int dat_tt[130000]; //12000*10=120000 max=10sec  120000+12000=132000    
+    int k_res = koef_resample;//2.76.2 
+    if (ftci)
     {
-        if (s_count_resample==koef_resample)
+    	k_res = tci_k_res_0;
+    	if (s_tci_k_res0!=k_res)
+    	{
+    		s_tci_k_res0 = k_res;
+			in_sample_rate = 48000;
+			if 		(k_res==1) in_sample_rate = 24000;
+			else if (k_res==0) in_sample_rate = 12000;
+			THvRawFilter0->set_rate(in_sample_rate);
+			s_count_resample = 0;//importante crash
+    		//printf("TCI        Mode=%2d in_sample_rate=%d fftw_sample_rate=%d k_res=%d\n",s_mod_iden,in_sample_rate,fftw_sample_rate,k_res);     		
+   		} 	
+   	}    	
+	/*static int sin_sample_rate=0; static int sfftw_sample_rate=0; static int sk_res=-1; static int ss_mod_iden=-1;
+	if (sk_res!=k_res || ss_mod_iden!=s_mod_iden || sin_sample_rate!=in_sample_rate || sfftw_sample_rate!=fftw_sample_rate)   
+	{
+   		printf(" Mode=%2d in_sample_rate=%d fftw_sample_rate=%d k_res=%d\n",s_mod_iden,in_sample_rate,fftw_sample_rate,k_res);
+   		ss_mod_iden=s_mod_iden; sin_sample_rate=in_sample_rate; sfftw_sample_rate=fftw_sample_rate; sk_res=k_res;	
+	}*/	 
+    int limit = 114000*(k_res+1);//9.5sec 48000Hz 12000*9.5=114000
+    if (crawm > limit) crawm = limit;
+    int k = 0; 
+    for (int i = 0; i < crawm; ++i)
+    { 
+    	double data_l0 = THvRawFilter0->band_l((double)rawm[i]);//if (k_res>0) {if(i==0) printf(" UseF0=%d\n",(in_sample_rate/3));}
+        if (s_count_resample>=k_res)//2.76.2 >=  (s_count_resample==k_res)=crash
         {
-            double data_l = THvRawFilter->band_l((double)rawm[i]);
-            dat_tt[k]=(int)(data_l*s_in_level);
+            double data_l1 = THvRawFilter1->band_l(data_l0);
+            dat_tt[k]=(int)(data_l1*s_in_level);
             s_count_resample = 0;
-            k++; 
+            k++;
         }
         else s_count_resample++;
-    }   
+    } 
+    //fil4(rawm,crawm,dat_tt,k);
+    
     /*for (int i = 0; i < crawm; ++i)
     {
     	bfr4[s_count_resample] = (double)rawm[i];
-        if (s_count_resample==koef_resample)
+        if (s_count_resample==k_res)
         {
         	double tbfr = (bfr4[0]+bfr4[1]+bfr4[2]+bfr4[3])/4.0;
 			double data_l = THvRawFilter->band_l(tbfr);
@@ -576,8 +608,7 @@ void MsCore::ResampleAndFilter(int *rawm,int crawm) //2.57
         }
         else s_count_resample++;
     }*/
-    ReciveData(dat_tt,k,false);
-    //if (k>1024) printf("12KHz=%d, 48KHz=%d, limit48KHz=%d,\n",k,crawm,limit);
+    ReciveData(dat_tt,k,false); //if (k>1024) printf("12KHz=%d, 48KHz=%d, limit48KHz=%d,\n",k,crawm,limit);
 }
 void MsCore::ReciveData(int *dat,int count,bool ffopen)
 {	
@@ -592,15 +623,13 @@ void MsCore::ReciveData(int *dat,int count,bool ffopen)
             decode_fft_size_samples(audiobuffer, fft_size); // i < fft_size 1.29            
             count_ftt_window = 0;//qDebug()<<"count="<<fft_size;
         }
-        else
-            count_ftt_window++;
+        else count_ftt_window++;
 
         buf_samp_sm[count_rfesh_sm] = in_dat/256; //2.70 or *0.00390625 to 
         if (count_rfesh_sm >= 450-1)// max 500 v1.36
         {
             count_rfesh_sm = 0;
-            double sum(0);
-            //double val;
+            double sum(0); //double val;
             int smiter = 0;
             for (int x = 0; x < 450; ++x)
             {
@@ -613,8 +642,7 @@ void MsCore::ReciveData(int *dat,int count,bool ffopen)
             smiter = abs(int(log(log0)*20.0)); //qDebug()<<"count="<<sum<<log0<<log(log0);
             emit Sed_SMeter(smiter);// zaradi bavnoto na jt65abc
         }
-        else
-            count_rfesh_sm++;
+        else count_rfesh_sm++;
     }
 }
 //max fft_size= 24452 to 1.54
@@ -705,13 +733,13 @@ void MsCore::SetVDispSpeed(int speed)
 {
     s_vdisp_speed = (10-speed);//1.51 10 9-speeds, 6
     //s_vdisp_speed = speed;
-    SetupSettings_((QString)rad_sound_state.dev_capt_name,QString("%1").arg(in_sample_rate),in_bitpersample,rad_sound_state.latency_millisecs,
+    SetupSettings_((QString)rad_sound_state.dev_capt_name,in_bitpersample,rad_sound_state.latency_millisecs,
                    rad_sound_state.data_poll_usec,rad_sound_state.channel_I,true);
 }
 void MsCore::setVDFftwStartStopFreq(int beg,int end)
 {
     s_freq_beg = beg;
-    s_freq_end = end;
+    s_freq_end = end; //qDebug()<<beg<<end;
 }
 void MsCore::Get_Graph(int smiter)
 {
@@ -766,7 +794,6 @@ c6:
             if (!retry)//2.45
             {
                 fft_avg[k] += cabs(ptFft->samples[i+beg_size]);
-                //kavg += fft_avg[k];//2.46
             }
             else
             {
@@ -774,17 +801,13 @@ c6:
                 double p0 = cabs(ptFft->samples[i+beg_size]);
                 double p1 = cabs(ptFft->samples[i+beg_size+1]);
                 fft_avg[k] = (p0+p1)/2.0;
-                //kavg += fft_avg[k];//2.46
             }
-
             if ((double)i>(double)k*d_koef)// tova pri nedostig
             {
                 retry = true;
                 continue;
             }
-
             i++;
-
             if ((double)i<(double)k*d_koef)// towa kogato ima mnogo
             {
                 c_kk++;
@@ -796,11 +819,11 @@ c6:
     else
     {
         n = fft_size / s_data_height /2 ; //HV za positie and negative bez -> / 2
-        if ( n == 0 )//HV za da risuva i pod 20 seconds ina4e n = 0 stava
-            n=1;
+        if ( n == 0 ) n=1;//HV za da risuva i pod 20 seconds ina4e n = 0 stava            
         for (i = 0, k = 0; k < s_data_height; ++k)
-            for (j = 0; j < n; ++j)
-                fft_avg[k] += cabs(ptFft->samples[i++]);
+        {
+            for (j = 0; j < n; ++j) fft_avg[k] += cabs(ptFft->samples[i++]);        	
+       	}
     }
     //qDebug()<<"fft_avg="<<k;
 
@@ -816,10 +839,9 @@ c6:
 
     i = 0;
 
-    if (f_disp_v_h)
-        i=(s_data_width)-1;//DATA_DSP_HEIGHT-0; //1.39 rem s_data_width/2
-    else
-        i=s_data_dsp_height-1;//DATA_DSP_HEIGHT-0;
+    if (f_disp_v_h) i=(s_data_width)-1;//DATA_DSP_HEIGHT-0; //1.39 rem s_data_width/2        
+    else i=s_data_dsp_height-1;//DATA_DSP_HEIGHT-0;
+        
     //i=(150-46)-1;
 
     if (f_disp_v_h)
@@ -831,13 +853,10 @@ c6:
         {
             d2 = log10(fft_avg[k] * s_scale); //d2 = log(fft_avg[k] * (s_scale))*0.5;
             //avg_alcvd += fabs(d2);
-            if (d2 < -10)
-                d2 = -10;
+            if (d2 < -10.0) d2 = -10.0;
             fft_avg[k] = 0;
             y_scale[i] = (50.0 * d2);
-
-            if (i>0)//1.36 i>0 pazi ot -1
-                i--;
+            if (i>0) i--;//1.36 i>0 pazi ot -1                
         }
         //avg_alcvd /= (double)s_data_width;
         //RefrAlcVD(avg_alcvd);
@@ -848,13 +867,10 @@ c6:
         for (k = s_fft_cut_low_frq; k < s_fft_end_frq; ++k/*, i--*/)
         {
             d2 = log10(fft_avg[k] * s_scale);
-            if (d2 < -10)
-                d2 = -10;
+            if (d2 < -10.0) d2 = -10.0;
             fft_avg[k] = 0;
             y_scale[i] = (50.0 * d2);// 50.0 <- max display is 501
-
-            if (i>0)//1.36 i>0 pazi ot -1
-                i--;
+            if (i>0) i--;//1.36 i>0 pazi ot -1                
         }
     }
     //qDebug()<<"mmmmmmmmmmmmmmmmmmmmmmmmmmm";

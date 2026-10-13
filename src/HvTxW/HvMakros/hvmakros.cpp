@@ -27,7 +27,7 @@ HvMakrIn::HvMakrIn(int ident, QWidget * parent )
 }
 HvMakrIn::~HvMakrIn()
 {}
-
+#define _POS_CONT_
 #define _CONT_NAME_
 #include "../../config_str_con.h"
 HvMakros::HvMakros(QString AppP, bool f,QWidget *parent )
@@ -113,11 +113,11 @@ HvMakros::HvMakros(QString AppP, bool f,QWidget *parent )
     QLabel *l_cn = new QLabel();
     l_cn->setText(tr("Activity Type")+":");
     cb_contests = new QComboBox();
-    QStringList lst_cont;  //qDebug()<<COUNT_CONTEST;
+    QStringList lst_cont;
     for (int i = 0; i<COUNT_CONTEST; ++i)
     {
         if (i==0) lst_cont <<"Standard";
-        else if (i!=1) lst_cont << s_cont_name[i];
+        else if (i!=1) lst_cont << s_cont_name[pos_cont[i]];
     }
     cb_contests->addItems(lst_cont);
     cb_contests->setMaxVisibleItems(COUNT_CONTEST-1);
@@ -260,10 +260,13 @@ HvMakros::HvMakros(QString AppP, bool f,QWidget *parent )
     //V_l->addWidget(GB_vmac);
     //V_l->addWidget(GB_region);
     V_l->addLayout(H_dstreg);
-    V_l->addWidget(GB_rgm);
+    V_l->addWidget(GB_rgm); 
+	//V_l->addItem(new QSpacerItem(0,10, QSizePolicy::Expanding, QSizePolicy::Expanding));
     //V_l->setAlignment(GB_rgm,Qt::AlignBottom);
-    V_l->addWidget(GB_cmod);
-    V_l->addWidget(GB_vmac);
+    V_l->addWidget(GB_cmod); //V_l->setAlignment(GB_cmod,Qt::AlignTop);
+	//V_l->addItem(new QSpacerItem(0,10, QSizePolicy::Expanding, QSizePolicy::Expanding));
+    V_l->addWidget(GB_vmac); //V_l->setAlignment(GB_vmac,Qt::AlignBottom);
+	//V_l->addItem(new QSpacerItem(0,10, QSizePolicy::Expanding, QSizePolicy::Expanding));    
     //V_l->setAlignment(GB_vmac,Qt::AlignTop);
     V_l->addWidget(b_gen_mess); //V_l->setAlignment(b_gen_mess,Qt::AlignBottom);
     //V_l->addLayout(H_h); //V_l->setAlignment(H_h,Qt::AlignBottom);
@@ -310,7 +313,8 @@ HvMakros::HvMakros(QString AppP, bool f,QWidget *parent )
     H_ab->setSpacing(5);
     H_ab->addWidget(GB_a);
     H_ab->addWidget(GB_b);
-    V_l->addLayout(H_ab); //V_l->setAlignment(H_ab,Qt::AlignTop);
+    V_l->addLayout(H_ab); 
+    V_l->setAlignment(Qt::AlignTop);
 
     setLayout(V_l);
     //V_l->setAlignment(Qt::AlignTop);
@@ -367,7 +371,7 @@ void HvMakros::CheckAllowedModesActivity()//2.51
 void HvMakros::CbContNameChanged(int i)
 {
     if (i==0) id_boption = 0;
-    else id_boption = i+1;
+    else id_boption = pos_cont[i+1];//id_boption = i+1;
 
     //For MSK144 Allowed Modes Is Only "Standard, NA VHF Contest and EU VHF Contest and CQ WW VHF Contest"
     //QFont font = l_exchru->font();
@@ -513,11 +517,14 @@ void HvMakros::SetDefaultMacros_b()
         list <<"%T %M %G4"<<"%T %M %G4"<<"%T %M R %G4"<<"%T %M RR73"<<"%T %M 73"<<"CQ %M %G4"<<"%M QSOB4";
     else if (id_boption == 15) //NCCC Sprint 2.72
         list <<"%T %M %G4"<<"%T %M %G4"<<"%T %M R %G4"<<"%T %M RR73"<<"%T %M 73"<<"CQ NCCC %M %G4"<<"%M QSOB4";//or NS
-    else if (id_boption == 16) //ARRL Inter. EME Contest 2.74
-		list <<"%T %M %G4"<<"%T %M %R"<<"%T %M R%R"<<"%T %M RR73"<<"%T %M 73"<<"CQ %M %G4"<<"%M QSOB4";        
-    else //Standard 2.65 all others = Standard
-        list <<"%T %M %G4"<<"%T %M %R"<<"%T %M R%R"<<"%T %M RR73"<<"%T %M 73"<<"CQ %M %G4"<<"CQ %QRG %M %G4";
-
+    else if (id_boption == 16 || id_boption == 17) //ARRL Inter. EME Contest, FT Challenge
+    {
+    	QString cqq = "";
+        if (id_boption == 17) cqq = "FTC";
+		list <<"%T %M %G4"<<"%T %M %R"<<"%T %M R%R"<<"%T %M RR73"<<"%T %M 73"<<"CQ "+cqq+" %M %G4"<<"%M QSOB4";    	
+   	}		  	       
+    else list<<"%T %M %G4"<<"%T %M %R"<<"%T %M R%R"<<"%T %M RR73"<<"%T %M 73"<<"CQ %M %G4"<<"CQ %QRG %M %G4";//Standard
+        
     for (int i = 0; i<count_tx_widget; i++)
     {
         HvMakrIn *TempHvTxIn = (HvMakrIn*)V_lb->itemAt(i)->widget();
@@ -665,7 +672,7 @@ void HvMakros::ReadSettings()
     //QString macr_tx,macrc_tx;
     const int c_st_id = 20;
     //dopalva se tuk v kraia
-    QString st_id[c_st_id]=
+    const QString st_id[c_st_id]=
         {
             "def_dist_unit","macr_reg","macr_rep_grd","macr_rep_contest","macr_my_call","macr_my_loc",
             "macr_tx1","macr_tx2","macr_tx3","macr_tx4","macr_tx5","macr_tx6","macr_tx7",
@@ -774,7 +781,7 @@ void HvMakros::ReadSettings()
             {
                 for (int i = 1; i<COUNT_CONTEST-1; ++i)
                 {
-                    if (idc==i+1)
+                    if (idc==pos_cont[i+1])
                     {
                         cb_contests->setCurrentIndex(i);
                         break;
@@ -846,7 +853,7 @@ void HvMakros::Check(QString s_type)
 {
     if (s_type == "call")
     {
-        //if (le_his_call->getText().count()>1)
+        //if (le_mycall->getText().count()>1)
         if (THvQthLoc.isValidCallsign(le_mycall->getText()))
         {
             le_mycall->setError(false);
